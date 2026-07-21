@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Shop Inventory Scanner</title>
+  <script src="https://unpkg.com/html5-qrcode"></script>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 0; padding: 16px; background: #f4f4f9; }
+    h2 { text-align: center; margin-bottom: 10px; }
+    .card { background: white; padding: 15px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 15px; }
+    #reader { width: 100%; max-width: 400px; margin: 0 auto; }
+    button, input[type="file"] { width: 100%; padding: 12px; margin-top: 8px; border-radius: 6px; border: 1px solid #ccc; font-size: 16px; }
+    button { background: #007bff; color: white; border: none; font-weight: bold; cursor: pointer; }
+    button:disabled { background: #aaa; }
+    .scan-result { font-size: 18px; margin-top: 15px; background: #eef9ff; padding: 12px; border-radius: 8px; border-left: 5px solid #007bff; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; font-size: 14px; }
+    th { background-color: #f2f2f2; }
+  </style>
+</head>
+<body>
+
+  <h2>Inventory Scanner</h2>
+
+  <!-- 1. CSV File Loader -->
+  <div class="card">
+    <h3>1. Load Inventory (CSV)</h3>
+    <p style="font-size: 12px; color: #666;">CSV Format: <b>Barcode, Name, Quantity</b></p>
+    <input type="file" id="csvFileInput" accept=".csv" />
+  </div>
+
+  <!-- 2. Camera Scanner -->
+  <div class="card">
+    <h3>2. Scan Product</h3>
+    <div id="reader"></div>
+    <div id="scanResult" class="scan-result" style="display:none;"></div>
+  </div>
+
+  <!-- 3. Export Data -->
+  <div class="card">
+    <h3>3. Export Results</h3>
+    <button id="exportBtn" onclick="exportCSV()" disabled>Download Updated Inventory CSV</button>
+  </div>
+
+  <!-- Inventory Table Preview -->
+  <div class="card">
+    <h3>Inventory List (<span id="itemCount">0</span>)</h3>
+    <div style="overflow-x:auto;">
+      <table id="inventoryTable">
+        <thead>
+          <tr><th>Barcode</th><th>Name</th><th>Qty</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    let inventory = [];
+
+    // Parse CSV File Upload
+    document.getElementById('csvFileInput').addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        const lines = evt.target.result.split('\n');
+        inventory = [];
+        
+        lines.forEach((line, index) => {
+          if (index === 0 || !line.trim()) return; // Skip header/empty
+          const [barcode, name, qty] = line.split(',').map(s => s ? s.trim() : '');
+          if (barcode) {
+            inventory.push({ barcode, name: name || 'Unknown', qty: parseInt(qty) || 0 });
+          }
+        });
+
+        updateTable();
+        document.getElementById('exportBtn').disabled = false;
+        alert(`Loaded ${inventory.length} items from CSV!`);
+      };
+      reader.readAsText(file);
+    });
+
+    // Update UI Table
+    function updateTable() {
+      const tbody = document.querySelector('#inventoryTable tbody');
+      tbody.innerHTML = '';
+      document.getElementById('itemCount').innerText = inventory.length;
+
+      inventory.forEach(item => {
+        const row = `<tr><td>${item.barcode}</td><td>${item.name}</td><td><b>${item.qty}</b></td></tr>`;
+        tbody.innerHTML += row;
+      });
+    }
+
+    // Process Scanned Barcode
+    function onScanSuccess(decodedText) {
+      const item = inventory.find(i => i.barcode === decodedText);
+      const resultDiv = document.getElementById('scanResult');
+      resultDiv.style.display = 'block';
+
+      if (item) {
+        item.qty += 1; // Increment count
+        resultDiv.innerHTML = `✅ <b>Matched:</b> ${item.name}<br><b>New Stock:</b> ${item.qty}`;
+        updateTable();
+      } else {
+        resultDiv.innerHTML = `⚠️ <b>Unknown Code:</b> ${decodedText}<br><button onclick="addNewProduct('${decodedText}')">Add as New Item</button>`;
+      }
+    }
+
+    function addNewProduct(barcode) {
+      const name = prompt("Enter product name:") || "New Item";
+      inventory.push({ barcode, name, qty: 1 });
+      updateTable();
+      document.getElementById('scanResult').innerText = `Added ${name}!`;
+    }
+
+    // Export CSV
+    function exportCSV() {
+      let csvContent = "data:text/csv;charset=utf-8,Barcode,Name,Quantity\n";
+      inventory.forEach(i => {
+        csvContent += `${i.barcode},${i.name},${i.qty}\n`;
+      });
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", "updated_inventory.csv");
+      document.body.appendChild(link);
+      link.click();
+    }
+
+    // Start Camera Scanner
+    const html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: {width: 250, height: 150} });
+    html5QrcodeScanner.render(onScanSuccess);
+  </script>
+</body>
+</html>
