@@ -20,13 +20,17 @@
     .table-input { width: 70px !important; padding: 6px !important; margin: 0 !important; text-align: center; font-weight: bold; }
     .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
     
-    button { width: 100%; padding: 12px; margin-top: 8px; border-radius: 6px; border: none; font-size: 15px; font-weight: bold; cursor: pointer; }
+    button, a.btn-link { 
+      width: 100%; padding: 12px; margin-top: 8px; border-radius: 6px; border: none; 
+      font-size: 15px; font-weight: bold; cursor: pointer; box-sizing: border-box; text-align: center; text-decoration: none; display: block;
+    }
     .btn-primary { background: #007bff; color: white; }
     .btn-success { background: #28a745; color: white; }
     .btn-warning { background: #ffc107; color: #212529; }
     .btn-danger { background: #dc3545; color: white; }
     .btn-secondary { background: #6c757d; color: white; }
     .btn-info { background: #17a2b8; color: white; }
+    .btn-purple { background: #6f42c1; color: white; }
     .btn-sm { padding: 6px 10px; font-size: 12px; margin-top: 0; width: auto; display: inline-block; }
     
     .status-banner { background: #e3f2fd; color: #0d47a1; padding: 10px; border-radius: 6px; font-size: 13px; margin-bottom: 12px; display: none; }
@@ -99,7 +103,7 @@
     </div>
   </div>
 
-  <!-- Edit/Add Modal with All 14 Fields -->
+  <!-- Edit/Add Modal -->
   <div id="editModal" class="modal">
     <div class="modal-content">
       <h3 id="modalTitle">Edit Product Details</h3>
@@ -147,7 +151,7 @@
     let inventory = [];
     let html5QrcodeScanner;
     let isProcessing = false;
-    const STORAGE_KEY = 'shop_inventory_app_v4';
+    const STORAGE_KEY = 'shop_inventory_app_v5';
 
     window.addEventListener('DOMContentLoaded', () => {
       loadLocalStorage();
@@ -166,7 +170,7 @@
           if (inventory.length > 0) {
             updateTable();
             enableActionButtons();
-            showStatusBanner(`💾 Restored ${inventory.length} saved items from phone memory.`);
+            showStatusBanner(`💾 Restored ${inventory.length} saved items from memory.`);
           }
         } catch(e) {
           console.error("Local storage error:", e);
@@ -214,7 +218,7 @@
       return row;
     }
 
-    // Load 14-Column CSV File
+    // Load CSV File
     document.getElementById('csvFileInput').addEventListener('change', function(e) {
       const file = e.target.files[0];
       if (!file) return;
@@ -338,7 +342,7 @@
         `;
       } else {
         // UNKNOWN BARCODE
-        let optionsHtml = '<option value="">-- Choose Existing Product --</option>';
+        let optionsHtml = '<option value="">-- Choose Preexisting Item --</option>';
         inventory.forEach((item, idx) => {
           optionsHtml += `<option value="${idx}">${item.name} (${item.upc ? 'UPC: ' + item.upc : 'No UPC'})</option>`;
         });
@@ -348,8 +352,11 @@
           <h4 style="margin:0 0 8px 0; color:#d97706;">⚠️ New Barcode Detected</h4>
           <p style="margin:2px 0;"><b>Scanned Code:</b> <code>${decodedText}</code></p>
           
+          <button class="btn-purple" id="lookupBtn" onclick="lookupBarcodeOnline('${decodedText}')">🔍 Lookup Barcode Online</button>
+          <a class="btn-link btn-info" href="https://www.google.com/search?q=${encodeURIComponent(decodedText)}" target="_blank">🌐 Search Google for Code</a>
+
           <div style="margin-top:12px; background: #fff; padding: 10px; border-radius: 6px; border: 1px solid #ffeeba;">
-            <label style="margin-top:0;"><b>Link to Existing Item (Correct Barcode):</b></label>
+            <label style="margin-top:0;"><b>Link to Preexisting Item (Fix Typo):</b></label>
             <select id="linkItemSelect" onchange="onLinkSelectChange(this.value)">${optionsHtml}</select>
             
             <div id="linkCountContainer" style="display:none; margin-top:8px;">
@@ -367,7 +374,35 @@
       }
     }
 
-    // Dynamic physical count suggestion when linking an item
+    // Lookup Barcode using Open Food Facts & Free APIs
+    async function lookupBarcodeOnline(code) {
+      const btn = document.getElementById('lookupBtn');
+      btn.innerText = "⏳ Looking up...";
+      btn.disabled = true;
+
+      try {
+        const response = await fetch(`https://world.openfoodfacts.org/api/v0/product/${code}.json`);
+        const data = await response.json();
+
+        if (data.status === 1 && data.product) {
+          const name = data.product.product_name || data.product.product_name_en || "Found Product";
+          const category = data.product.categories ? data.product.categories.split(',')[0] : "";
+          
+          alert(`🎉 Found Online!\n\nProduct: ${name}\nCategory: ${category}`);
+          openEditModal(-1, code, name, category);
+          document.getElementById('scanResult').style.display = 'none';
+        } else {
+          alert("❌ Item not found in public database. Try searching Google or entering the name manually.");
+          btn.innerText = "🔍 Lookup Barcode Online";
+          btn.disabled = false;
+        }
+      } catch (err) {
+        alert("Unable to reach lookup server. Please enter product details manually.");
+        btn.innerText = "🔍 Lookup Barcode Online";
+        btn.disabled = false;
+      }
+    }
+
     function onLinkSelectChange(selectedIndex) {
       const container = document.getElementById('linkCountContainer');
       const qtyInput = document.getElementById('linkQtyInput');
@@ -380,13 +415,12 @@
       }
     }
 
-    // Save Barcode Correction to Preexisting Item
     function linkBarcodeToExisting(scannedCode) {
       const select = document.getElementById('linkItemSelect');
       const selectedIndex = select ? select.value : '';
 
       if (selectedIndex === '' || selectedIndex === undefined) {
-        alert('Please select a product from the list to assign this barcode.');
+        alert('Please select a product from the list.');
         return;
       }
 
@@ -394,11 +428,8 @@
       if (!isNaN(idx) && inventory[idx]) {
         const item = inventory[idx];
         const oldUpc = item.upc;
-        
-        // Update UPC barcode
         item.upc = scannedCode;
 
-        // Update Physical Count
         const newQty = parseInt(document.getElementById('linkQtyInput').value);
         if (!isNaN(newQty)) {
           item.physicalQty = newQty;
@@ -406,7 +437,7 @@
 
         updateTable();
         saveLocalStorage();
-        showStatusBanner(`🔗 Assigned barcode ${scannedCode} to "${item.name}" (Replaced: ${oldUpc || 'None'})`);
+        showStatusBanner(`🔗 Assigned barcode ${scannedCode} to "${item.name}"`);
         resumeScanner();
       }
     }
@@ -435,7 +466,7 @@
     }
 
     // Modal Operations
-    function openEditModal(index = -1, scannedCode = '') {
+    function openEditModal(index = -1, scannedCode = '', autoName = '', autoCategory = '') {
       document.getElementById('editIndex').value = index;
       
       if (index >= 0) {
@@ -457,13 +488,13 @@
       } else {
         document.getElementById('modalTitle').innerText = "Add New Product";
         document.getElementById('field_upc').value = scannedCode || '';
-        document.getElementById('field_name').value = '';
+        document.getElementById('field_name').value = autoName || '';
         document.getElementById('field_bookQty').value = '0';
         document.getElementById('field_physicalQty').value = '1';
         document.getElementById('field_reorderPoint').value = '0';
         document.getElementById('field_listPrice').value = '0';
         document.getElementById('field_costOnDelivery').value = '0';
-        document.getElementById('field_category').value = '';
+        document.getElementById('field_category').value = autoCategory || '';
         document.getElementById('field_vendor').value = '';
         document.getElementById('field_sku').value = '';
         document.getElementById('field_asin').value = '';
@@ -519,7 +550,7 @@
       }
     }
 
-    // Build 14-Column CSV String
+    // Export 14-Column CSV String
     function buildCSVString() {
       let csv = "UPC (Bar Code),Product Name,Book Inventory,Physical inventory,Variance,Reorder Point,List price,Cost on Delivery,Category,Vendor,SKU,ASIN (Amazon),Item number,Model Number\n";
       inventory.forEach(i => {
