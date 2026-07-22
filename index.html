@@ -860,16 +860,30 @@
             // Silence routine scanning frame errors
         }
 
+        /* Barcode Normalizer (handles leading zeros in UPC-A / EAN-13) */
+        function getBarcodeVariants(rawCode) {
+            const clean = rawCode.trim();
+            const set = new Set([clean]);
+            if (clean.length === 13 && clean.startsWith('0')) {
+                set.add(clean.substring(1)); // Convert 13-digit EAN-13 to 12-digit UPC-A
+            } else if (clean.length === 12) {
+                set.add('0' + clean); // Convert 12-digit UPC-A to 13-digit EAN-13
+            }
+            return Array.from(set);
+        }
+
         function processScannedCode(code) {
             const container = document.getElementById('scan-result-container');
+            const codeVariants = getBarcodeVariants(code);
             
-            // Match against UPC, SKU, Item number, Model Number
-            const matchIndex = inventory.findIndex(item => 
-                (item.upc && item.upc.trim() === code) ||
-                (item.sku && item.sku.trim() === code) ||
-                (item.itemNo && item.itemNo.trim() === code) ||
-                (item.modelNo && item.modelNo.trim() === code)
-            );
+            // Match against UPC, SKU, Item number, Model Number using normalized variants
+            const matchIndex = inventory.findIndex(item => {
+                const upc = (item.upc || '').trim();
+                const sku = (item.sku || '').trim();
+                const itemNo = (item.itemNo || '').trim();
+                const modelNo = (item.modelNo || '').trim();
+                return codeVariants.some(v => v === upc || v === sku || v === itemNo || v === modelNo);
+            });
 
             if (matchIndex !== -1) {
                 // MATCHED KNOWN ITEM (Blue Box)
@@ -891,18 +905,32 @@
                     </div>
                 `;
             } else {
-                // UNMATCHED UNKNOWN ITEM (Yellow Box with Live Product Search & Assignment)
+                // UNMATCHED UNKNOWN ITEM (Yellow Box with Live Search & Hardware Quick Links)
                 container.innerHTML = `
                     <div class="result-box unmatched">
                         <div><strong>⚠️ Barcode Not Found:</strong> <code>${escapeHtml(code)}</code></div>
                         <div style="font-size:0.85rem;">Choose a resolution option below:</div>
                         
                         <div class="btn-group-full">
-                            <button id="api-lookup-btn" class="btn btn-primary" onclick="lookupOnlineApi('${code}')">🔍 Lookup Barcode Online (Multi-API Search)</button>
+                            <button id="api-lookup-btn" class="btn btn-primary" onclick="lookupOnlineApi('${code}')">🔍 Automated Online Lookup (Multi-API)</button>
                             
-                            <div class="btn-group">
-                                <a href="https://www.google.com/search?q=${encodeURIComponent(code)}" target="_blank" class="btn btn-secondary">🌐 Search Google</a>
-                                <a href="https://www.amazon.com/s?k=${encodeURIComponent(code)}" target="_blank" class="btn btn-secondary">📦 Search Amazon</a>
+                            <!-- Search Candidates Container (Populated via CORS fetch if found) -->
+                            <div id="online-candidates-box" style="display:none; background:white; padding:10px; border-radius:8px; border:1px solid #fcd34d;">
+                                <label style="font-size:0.75rem; font-weight:700; color:#78350f;">💡 Product Candidates Found Online:</label>
+                                <div id="candidates-list" style="margin-top:6px; display:flex; flex-direction:column; gap:4px;"></div>
+                            </div>
+
+                            <!-- Hardware Quick Search Links -->
+                            <div>
+                                <label style="font-size:0.75rem; font-weight:600; color:#78350f;">🌐 Quick Search Hardware Retailers:</label>
+                                <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:4px; margin-top:2px;">
+                                    <a href="https://www.homedepot.com/s/${encodeURIComponent(code)}" target="_blank" class="btn btn-secondary" style="padding:6px; font-size:0.75rem;">🛠️ Home Depot</a>
+                                    <a href="https://www.lowes.com/search?searchTerm=${encodeURIComponent(code)}" target="_blank" class="btn btn-secondary" style="padding:6px; font-size:0.75rem;">🏡 Lowe's</a>
+                                    <a href="https://www.amazon.com/s?k=${encodeURIComponent(code)}" target="_blank" class="btn btn-secondary" style="padding:6px; font-size:0.75rem;">📦 Amazon</a>
+                                    <a href="https://www.google.com/search?tbm=shop&q=${encodeURIComponent(code)}" target="_blank" class="btn btn-secondary" style="padding:6px; font-size:0.75rem;">🛍️ Google Shop</a>
+                                    <a href="https://www.grainger.com/search?searchQuery=${encodeURIComponent(code)}" target="_blank" class="btn btn-secondary" style="padding:6px; font-size:0.75rem;">⚙️ Grainger</a>
+                                    <a href="https://www.google.com/search?q=${encodeURIComponent(code)}" target="_blank" class="btn btn-secondary" style="padding:6px; font-size:0.75rem;">🌐 Google Web</a>
+                                </div>
                             </div>
 
                             ${inventory.length > 0 ? `
@@ -993,9 +1021,9 @@
             dismissScanResult();
         }
 
-        function createNewWithBarcode(code) {
+        function createNewWithBarcode(code, name = '') {
             dismissScanResult(false);
-            openProductModal(-1, { upc: code, physical: 1, book: 0 });
+            openProductModal(-1, { upc: code, name: name, physical: 1, book: 0 });
         }
 
         function dismissScanResult(resume = true) {
@@ -1003,97 +1031,93 @@
             if (resume) resumeCameraScanner();
         }
 
-        /* --- Multi-Database Online Barcode Search --- */
+        /* --- Multi-Database & CORS Search Proxy Lookup --- */
         async function lookupOnlineApi(code) {
             const btn = document.getElementById('api-lookup-btn');
-            if (btn) btn.innerText = "⏳ Searching retail databases...";
+            if (btn) btn.innerText = "⏳ Searching hardware & retail databases...";
+
+            const codeVariants = getBarcodeVariants(code);
+            let foundMatch = false;
 
             try {
-                // 1. Try UPC Item DB (General retail items: electronics, apparel, tools, housewares)
-                try {
-                    const upcRes = await fetch(`https://api.upcitemdb.com/prod/trial/lookup?upc=${encodeURIComponent(code)}`);
-                    if (upcRes.ok) {
-                        const upcData = await upcRes.json();
-                        if (upcData.items && upcData.items.length > 0) {
-                            const item = upcData.items[0];
-                            const prodName = item.title || "Discovered Product";
-                            const category = item.category || item.brand || "";
-                            
-                            alert(`Found in Retail Goods Database:\n${prodName}`);
-                            dismissScanResult(false);
-                            openProductModal(-1, { upc: code, name: prodName, category: category, physical: 1, book: 0 });
-                            return;
+                for (let vCode of codeVariants) {
+                    if (foundMatch) break;
+
+                    // 1. Try UPC Item DB
+                    try {
+                        const upcRes = await fetch(`https://api.upcitemdb.com/prod/trial/lookup?upc=${encodeURIComponent(vCode)}`);
+                        if (upcRes.ok) {
+                            const upcData = await upcRes.json();
+                            if (upcData.items && upcData.items.length > 0) {
+                                const item = upcData.items[0];
+                                const prodName = item.title || "Discovered Hardware Item";
+                                alert(`Found in Retail Goods Database:\n${prodName}`);
+                                dismissScanResult(false);
+                                openProductModal(-1, { upc: code, name: prodName, category: item.category || item.brand || "", physical: 1, book: 0 });
+                                foundMatch = true;
+                                break;
+                            }
                         }
-                    }
-                } catch (e) {
-                    console.log('UPC Item DB fetch failed/skipped:', e);
+                    } catch (e) {}
+
+                    // 2. Try Open Products Facts
+                    try {
+                        const opfRes = await fetch(`https://world.openproductsfacts.org/api/v2/product/${encodeURIComponent(vCode)}.json`);
+                        if (opfRes.ok) {
+                            const opfData = await opfRes.json();
+                            if (opfData.status === 1 && opfData.product) {
+                                const prod = opfData.product;
+                                const prodName = prod.product_name || prod.product_name_en || "Discovered Product";
+                                alert(`Found in Open Products Database:\n${prodName}`);
+                                dismissScanResult(false);
+                                openProductModal(-1, { upc: code, name: prodName, physical: 1, book: 0 });
+                                foundMatch = true;
+                                break;
+                            }
+                        }
+                    } catch (e) {}
                 }
 
-                // 2. Try Open Products Facts (General consumer products)
-                try {
-                    const opfRes = await fetch(`https://world.openproductsfacts.org/api/v2/product/${encodeURIComponent(code)}.json`);
-                    if (opfRes.ok) {
-                        const opfData = await opfRes.json();
-                        if (opfData.status === 1 && opfData.product) {
-                            const prod = opfData.product;
-                            const prodName = prod.product_name || prod.product_name_en || "Discovered Product";
-                            const category = prod.categories ? prod.categories.split(',')[0] : "";
+                // If no exact API hit, perform DuckDuckGo Open Search via CORS proxy to build a candidate title list
+                if (!foundMatch) {
+                    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent('https://html.duckduckgo.com/html/?q=' + encodeURIComponent(code))}`;
+                    const ddgRes = await fetch(proxyUrl);
+                    
+                    if (ddgRes.ok) {
+                        const ddgData = await ddgRes.json();
+                        const parser = new DOMParser();
+                        const doc = parser.parseFromString(ddgData.contents, 'text/html');
+                        const links = Array.from(doc.querySelectorAll('.result__title a')).slice(0, 4);
+
+                        if (links.length > 0) {
+                            const candidateBox = document.getElementById('online-candidates-box');
+                            const candidateList = document.getElementById('candidates-list');
                             
-                            alert(`Found in Open Products Database:\n${prodName}`);
-                            dismissScanResult(false);
-                            openProductModal(-1, { upc: code, name: prodName, category: category, physical: 1, book: 0 });
-                            return;
+                            if (candidateBox && candidateList) {
+                                candidateList.innerHTML = links.map(link => {
+                                    const titleText = link.textContent.trim().replace(/\|.*$/,'').replace(/- Home Depot.*$/i,'').replace(/- Lowe's.*$/i,'').trim();
+                                    return `
+                                        <button class="btn btn-secondary" style="text-align:left; justify-content:space-between; font-size:0.8rem; padding:6px 10px;" 
+                                                onclick="createNewWithBarcode('${code}', '${escapeHtml(titleText)}')">
+                                            <span>📄 ${escapeHtml(titleText)}</span>
+                                            <span style="color:var(--primary); font-weight:700;">Use ➔</span>
+                                        </button>
+                                    `;
+                                }).join('');
+                                candidateBox.style.display = 'block';
+                                alert("Extracted potential product candidates from online web search! Check the list in the yellow box.");
+                                return;
+                            }
                         }
                     }
-                } catch (e) {
-                    console.log('OpenProductsFacts fetch failed/skipped:', e);
+
+                    alert("No automatic match found.\n\nUse the quick-search buttons for Home Depot, Lowe's, or Amazon below to view the item name and add it.");
                 }
 
-                // 3. Try Open Beauty Facts (Cosmetics, personal care)
-                try {
-                    const obfRes = await fetch(`https://world.openbeautyfacts.org/api/v2/product/${encodeURIComponent(code)}.json`);
-                    if (obfRes.ok) {
-                        const obfData = await obfRes.json();
-                        if (obfData.status === 1 && obfData.product) {
-                            const prod = obfData.product;
-                            const prodName = prod.product_name || prod.product_name_en || "Discovered Product";
-                            const category = prod.categories ? prod.categories.split(',')[0] : "";
-                            
-                            alert(`Found in Beauty/Care Database:\n${prodName}`);
-                            dismissScanResult(false);
-                            openProductModal(-1, { upc: code, name: prodName, category: category, physical: 1, book: 0 });
-                            return;
-                        }
-                    }
-                } catch (e) {
-                    console.log('OpenBeautyFacts fetch failed/skipped:', e);
-                }
-
-                // 4. Try Open Food Facts (Groceries, beverages)
-                try {
-                    const offRes = await fetch(`https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(code)}.json`);
-                    if (offRes.ok) {
-                        const offData = await offRes.json();
-                        if (offData.status === 1 && offData.product) {
-                            const prod = offData.product;
-                            const prodName = prod.product_name || prod.product_name_en || "Discovered Product";
-                            const category = prod.categories ? prod.categories.split(',')[0] : "";
-                            
-                            alert(`Found in Food & Grocery Database:\n${prodName}`);
-                            dismissScanResult(false);
-                            openProductModal(-1, { upc: code, name: prodName, category: category, physical: 1, book: 0 });
-                            return;
-                        }
-                    }
-                } catch (e) {
-                    console.log('OpenFoodFacts fetch failed/skipped:', e);
-                }
-
-                // Fallback if no automatic matches are returned
-                alert("No automatic match found across public databases.\n\nUse the Google or Amazon buttons to instantly look up the item title and add it.");
-
+            } catch (err) {
+                alert("Search complete. Use the Home Depot, Lowe's, or Amazon buttons below to locate the item name.");
             } finally {
-                if (btn) btn.innerText = "🔍 Lookup Barcode Online (Multi-API Search)";
+                if (btn) btn.innerText = "🔍 Automated Online Lookup (Multi-API)";
             }
         }
 
