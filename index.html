@@ -362,7 +362,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 16px;
+            margin-bottom: 12px;
             border-bottom: 1px solid var(--border);
             padding-bottom: 10px;
         }
@@ -483,9 +483,16 @@
                 <h2 id="modal-title">Product Details</h2>
                 <button style="background:none; border:none; font-size:1.2rem; cursor:pointer;" onclick="closeProductModal()">✕</button>
             </div>
+            
             <form id="product-form" onsubmit="saveModalProduct(event)">
                 <input type="hidden" id="modal-edit-index" value="-1">
                 
+                <!-- Quick Top Save Action Bar -->
+                <div class="btn-group" style="margin-bottom: 14px; background: #f1f5f9; padding: 8px; border-radius: 8px; border: 1px solid var(--border);">
+                    <button type="submit" class="btn btn-success">💾 Save & Close</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeProductModal()">Cancel</button>
+                </div>
+
                 <div class="grid-2">
                     <div class="form-group">
                         <label>1. UPC (Bar Code)</label>
@@ -499,8 +506,8 @@
                         <label>3. Book Inventory</label>
                         <input type="number" id="field-book" class="form-control" value="0" required oninput="calculateModalVariance()">
                     </div>
-                    <div class="form-group">
-                        <label>4. Physical Inventory</label>
+                    <div class="form-group" style="background: #eff6ff; padding: 6px; border-radius: 6px; border: 1px solid #bfdbfe;">
+                        <label style="color: var(--primary); font-weight: 700;">4. Physical Inventory (Count)</label>
                         <input type="number" id="field-physical" class="form-control" value="0" required oninput="calculateModalVariance()">
                     </div>
                     <div class="form-group">
@@ -546,7 +553,7 @@
                 </div>
 
                 <div class="btn-group" style="margin-top: 16px;">
-                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                    <button type="submit" class="btn btn-success">💾 Save & Close</button>
                     <button type="button" class="btn btn-secondary" onclick="closeProductModal()">Cancel</button>
                 </div>
             </form>
@@ -947,7 +954,7 @@
                             <strong>${escapeHtml(item.name)}</strong>
                             <div style="font-size: 0.75rem; color: var(--text-muted);">UPC: ${escapeHtml(item.upc || 'None')} | SKU: ${escapeHtml(item.sku || 'N/A')}</div>
                         </div>
-                        <span style="font-weight: 700; color: var(--primary); font-size: 0.8rem; white-space: nowrap; margin-left: 8px;">Assign & Edit ➔</span>
+                        <span style="font-weight: 700; color: var(--primary); font-size: 0.8rem; white-space: nowrap; margin-left: 8px;">Assign & Count ➔</span>
                     </div>
                 `).join('');
             }
@@ -967,7 +974,7 @@
                 physical: (item.physical || 0) + 1
             });
 
-            // Focus directly on the Physical Inventory input field so user can adjust count immediately
+            // Focus directly on the Physical Inventory input field so user can confirm/adjust count immediately
             setTimeout(() => {
                 const physInput = document.getElementById('field-physical');
                 if (physInput) {
