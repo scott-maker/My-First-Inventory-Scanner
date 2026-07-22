@@ -401,6 +401,15 @@
         <!-- Section 2: Camera Scanner & Online Lookup -->
         <div class="card">
             <div class="card-title">📷 Section 2: Camera Scanner & Lookup</div>
+            
+            <!-- Camera Selection Dropdown -->
+            <div class="form-group" style="margin-bottom: 10px;">
+                <label for="camera-select">📷 Choose Camera Sensor:</label>
+                <select id="camera-select" class="form-control" onchange="onCameraSelectChange()">
+                    <option value="">Detecting camera devices...</option>
+                </select>
+            </div>
+
             <div id="reader"></div>
             
             <div style="margin-top: 10px;" class="btn-group">
@@ -434,11 +443,16 @@
             </div>
         </div>
 
-        <!-- Section 4: Mobile Inventory Table -->
+        <!-- Section 4: Mobile Inventory Table with Live Product Search -->
         <div class="card">
             <div class="card-title" style="justify-content: space-between;">
                 <span>📋 Section 4: Inventory List</span>
                 <span id="item-count-badge" style="font-size:0.8rem; font-weight: normal; color: var(--text-muted);">0 items</span>
+            </div>
+
+            <!-- Live Search / Filter Input Field -->
+            <div class="form-group" style="margin-bottom: 10px;">
+                <input type="text" id="table-search-input" class="form-control" placeholder="🔍 Type to filter inventory by name, UPC, SKU..." oninput="renderTable()">
             </div>
 
             <div class="table-wrapper">
@@ -626,7 +640,6 @@
         function updateMemoryBanner() {
             const count = inventory.length;
             document.getElementById('memory-status-text').innerText = `${count} item${count === 1 ? '' : 's'} loaded from local memory`;
-            document.getElementById('item-count-badge').innerText = `${count} item${count === 1 ? '' : 's'}`;
         }
 
         function clearLocalStorage() {
@@ -733,15 +746,71 @@
             return lines;
         }
 
-        /* --- Section 2: Camera Scanner Logic --- */
+        /* --- Section 2: Camera Enumeration & Scanner Logic --- */
+        function loadAvailableCameras() {
+            const select = document.getElementById('camera-select');
+            
+            Html5Qrcode.getCameras().then(devices => {
+                select.innerHTML = '';
+                if (devices && devices.length > 0) {
+                    let defaultSelected = false;
+
+                    devices.forEach((device, index) => {
+                        const option = document.createElement('option');
+                        option.value = device.id;
+                        option.text = device.label || `Camera ${index + 1}`;
+                        
+                        // Smart auto-select: preferred rear/back camera
+                        const labelLower = (device.label || '').toLowerCase();
+                        if (!defaultSelected && (
+                            labelLower.includes('back') || 
+                            labelLower.includes('rear') || 
+                            labelLower.includes('environment') || 
+                            labelLower.includes('0') ||
+                            labelLower.includes('main')
+                        )) {
+                            option.selected = true;
+                            defaultSelected = true;
+                        }
+
+                        select.appendChild(option);
+                    });
+
+                    // Fallback to first camera if no rear keyword matched
+                    if (!defaultSelected && select.options.length > 0) {
+                        select.options[0].selected = true;
+                    }
+                } else {
+                    select.innerHTML = '<option value="">No cameras detected</option>';
+                }
+            }).catch(err => {
+                select.innerHTML = '<option value="">Camera access permission needed</option>';
+            });
+        }
+
+        async function onCameraSelectChange() {
+            if (isScannerRunning) {
+                await stopCamera();
+                await startCamera();
+            }
+        }
+
         async function startCamera() {
             if (!html5QrCode) {
                 html5QrCode = new Html5Qrcode("reader");
             }
+
+            const select = document.getElementById('camera-select');
+            const selectedCameraId = select ? select.value : null;
+
+            let cameraConfig = { facingMode: "environment" };
+            if (selectedCameraId && selectedCameraId !== "") {
+                cameraConfig = selectedCameraId;
+            }
             
             try {
                 await html5QrCode.start(
-                    { facingMode: "environment" },
+                    cameraConfig,
                     { fps: 10, qrbox: { width: 250, height: 150 } },
                     onScanSuccess,
                     onScanError
@@ -815,11 +884,7 @@
                     </div>
                 `;
             } else {
-                // UNMATCHED UNKNOWN ITEM (Yellow Box)
-                let selectOptions = inventory.map((item, idx) => 
-                    `<option value="${idx}">${escapeHtml(item.name)} (UPC: ${escapeHtml(item.upc || 'N/A')})</option>`
-                ).join('');
-
+                // UNMATCHED UNKNOWN ITEM (Yellow Box with Live Product Search & Assignment)
                 container.innerHTML = `
                     <div class="result-box unmatched">
                         <div><strong>⚠️ Barcode Not Found:</strong> <code>${escapeHtml(code)}</code></div>
@@ -834,13 +899,10 @@
                             </div>
 
                             ${inventory.length > 0 ? `
-                            <div style="margin-top: 6px;">
-                                <label style="font-size:0.75rem; font-weight:600;">Link to Preexisting Item (Fix Typo):</label>
-                                <div style="display:flex; gap:4px; margin-top:2px;">
-                                    <select id="link-preexisting-select" class="form-control" style="font-size:0.85rem;">
-                                        ${selectOptions}
-                                    </select>
-                                    <button class="btn btn-primary" style="width:auto;" onclick="linkBarcodeToExisting('${code}')">Link</button>
+                            <div style="margin-top: 6px; background: rgba(255,255,255,0.7); padding: 10px; border-radius: 8px; border: 1px solid #fcd34d;">
+                                <label style="font-size:0.78rem; font-weight:700; color:#78350f;">🔗 Assign Barcode to Preexisting Product:</label>
+                                <input type="text" id="link-search-input" class="form-control" style="margin-top:4px;" placeholder="🔍 Type item name or SKU to search list..." oninput="filterLinkProducts('${code}', this.value)">
+                                <div id="link-search-results" style="max-height: 150px; overflow-y: auto; margin-top: 6px; display: none; border: 1px solid var(--border); border-radius: 6px; background: white;">
                                 </div>
                             </div>
                             ` : ''}
@@ -853,28 +915,67 @@
             }
         }
 
+        /* --- Live Search & Link Barcode to Existing Product --- */
+        function filterLinkProducts(code, query) {
+            const container = document.getElementById('link-search-results');
+            if (!container) return;
+
+            const q = query.toLowerCase().trim();
+            if (!q) {
+                container.style.display = 'none';
+                container.innerHTML = '';
+                return;
+            }
+
+            const matches = inventory.map((item, index) => ({ item, index }))
+                .filter(({ item }) => 
+                    (item.name && item.name.toLowerCase().includes(q)) ||
+                    (item.upc && item.upc.toLowerCase().includes(q)) ||
+                    (item.sku && item.sku.toLowerCase().includes(q)) ||
+                    (item.category && item.category.toLowerCase().includes(q))
+                );
+
+            if (matches.length === 0) {
+                container.innerHTML = `<div style="padding: 10px; font-size: 0.8rem; color: var(--text-muted); text-align: center;">No matching products found</div>`;
+            } else {
+                container.innerHTML = matches.map(({ item, index }) => `
+                    <div style="padding: 8px 10px; border-bottom: 1px solid var(--border); cursor: pointer; font-size: 0.85rem; display: flex; justify-content: space-between; align-items: center;" 
+                         onclick="linkBarcodeToMasterIndex('${code}', ${index})"
+                         onmouseover="this.style.background='#f1f5f9'" 
+                         onmouseout="this.style.background='white'">
+                        <div>
+                            <strong>${escapeHtml(item.name)}</strong>
+                            <div style="font-size: 0.75rem; color: var(--text-muted);">UPC: ${escapeHtml(item.upc || 'None')} | SKU: ${escapeHtml(item.sku || 'N/A')}</div>
+                        </div>
+                        <span style="font-weight: 700; color: var(--primary); font-size: 0.8rem; white-space: nowrap; margin-left: 8px;">Assign ➔</span>
+                    </div>
+                `).join('');
+            }
+            container.style.display = 'block';
+        }
+
+        function linkBarcodeToMasterIndex(code, index) {
+            if (index < 0 || index >= inventory.length) return;
+            const item = inventory[index];
+            
+            if (confirm(`Assign barcode "${code}" to "${item.name}" and increase physical count by +1?`)) {
+                inventory[index].upc = code;
+                inventory[index].physical = (inventory[index].physical || 0) + 1;
+                inventory[index].variance = inventory[index].physical - inventory[index].book;
+                
+                saveToLocalStorage();
+                renderTable();
+                alert(`Successfully assigned barcode ${code} to "${inventory[index].name}"`);
+                dismissScanResult();
+            }
+        }
+
         function saveMatchedCount(index) {
             const inputVal = parseInt(document.getElementById('scanned-qty-input').value) || 0;
             inventory[index].physical = inputVal;
             inventory[index].variance = inventory[index].physical - inventory[index].book;
             saveToLocalStorage();
             renderTable();
-            dismissScanResult();
-        }
-
-        function linkBarcodeToExisting(code) {
-            const select = document.getElementById('link-preexisting-select');
-            if (!select) return;
-            const index = parseInt(select.value);
-            if (isNaN(index) || index < 0) return;
-
-            inventory[index].upc = code;
-            inventory[index].physical += 1;
-            inventory[index].variance = inventory[index].physical - inventory[index].book;
-            
-            saveToLocalStorage();
-            renderTable();
-            alert(`Linked barcode ${code} to ${inventory[index].name}`);
             dismissScanResult();
         }
 
@@ -894,7 +995,7 @@
             if (btn) btn.innerText = "⏳ Searching retail databases...";
 
             try {
-                // 1. Try UPC Item DB (Great for general retail items: electronics, apparel, tools, housewares)
+                // 1. Try UPC Item DB (General retail items: electronics, apparel, tools, housewares)
                 try {
                     const upcRes = await fetch(`https://api.upcitemdb.com/prod/trial/lookup?upc=${encodeURIComponent(code)}`);
                     if (upcRes.ok) {
@@ -1115,17 +1216,43 @@
             window.location.href = `mailto:?subject=${subject}&body=${body}`;
         }
 
-        /* --- Section 4: Table Rendering --- */
+        /* --- Section 4: Table Rendering with Live Search Filtering --- */
         function renderTable() {
             const tbody = document.getElementById('inventory-table-body');
             tbody.innerHTML = '';
 
+            const searchQuery = (document.getElementById('table-search-input')?.value || '').toLowerCase().trim();
+
             if (inventory.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color: var(--text-muted); padding: 20px;">No inventory items loaded.</td></tr>`;
+                document.getElementById('item-count-badge').innerText = `0 items`;
                 return;
             }
 
-            inventory.forEach((item, index) => {
+            // Filter inventory by live search query
+            const filteredInventory = inventory.filter(item => {
+                if (!searchQuery) return true;
+                return (item.name && item.name.toLowerCase().includes(searchQuery)) ||
+                       (item.upc && item.upc.toLowerCase().includes(searchQuery)) ||
+                       (item.sku && item.sku.toLowerCase().includes(searchQuery)) ||
+                       (item.category && item.category.toLowerCase().includes(searchQuery));
+            });
+
+            // Update badge count based on search results
+            const countBadge = document.getElementById('item-count-badge');
+            if (searchQuery) {
+                countBadge.innerText = `${filteredInventory.length} of ${inventory.length} items`;
+            } else {
+                countBadge.innerText = `${inventory.length} item${inventory.length === 1 ? '' : 's'}`;
+            }
+
+            if (filteredInventory.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color: var(--text-muted); padding: 20px;">No items match "${escapeHtml(searchQuery)}".</td></tr>`;
+                return;
+            }
+
+            filteredInventory.forEach((item) => {
+                const masterIndex = inventory.indexOf(item); // Master index in global inventory array
                 const variance = item.physical - item.book;
                 let pillClass = 'pill-zero';
                 let varDisplay = `${variance}`;
@@ -1142,13 +1269,13 @@
                     <td><strong>${escapeHtml(item.name)}</strong></td>
                     <td>${item.book}</td>
                     <td>
-                        <input type="number" class="table-input" value="${item.physical}" onchange="updateTablePhysical(${index}, this.value)">
+                        <input type="number" class="table-input" value="${item.physical}" onchange="updateTablePhysical(${masterIndex}, this.value)">
                     </td>
                     <td><span class="pill ${pillClass}">${varDisplay}</span></td>
                     <td>
                         <div style="display:flex; gap:4px;">
-                            <button class="btn btn-secondary btn-icon" onclick="openProductModal(${index})">✏️ Edit</button>
-                            <button class="btn btn-danger btn-icon" onclick="deleteItem(${index})">✕</button>
+                            <button class="btn btn-secondary btn-icon" onclick="openProductModal(${masterIndex})">✏️ Edit</button>
+                            <button class="btn btn-danger btn-icon" onclick="deleteItem(${masterIndex})">✕</button>
                         </div>
                     </td>
                 `;
@@ -1260,6 +1387,7 @@
         /* App Initialization */
         window.addEventListener('DOMContentLoaded', () => {
             loadFromLocalStorage();
+            loadAvailableCameras();
         });
     </script>
 </body>
