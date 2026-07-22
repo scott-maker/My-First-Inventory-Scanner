@@ -297,6 +297,36 @@
             width: auto;
         }
 
+        /* Checkbox Grid inside Column Selector */
+        .checkbox-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            background: #f8fafc;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            max-height: 240px;
+            overflow-y: auto;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.82rem;
+            font-weight: 500;
+            color: var(--text);
+            cursor: pointer;
+        }
+
+        .checkbox-item input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            accent-color: var(--primary);
+            cursor: pointer;
+        }
+
         /* Modal */
         .modal-overlay {
             position: fixed;
@@ -340,7 +370,7 @@
         .modal-header h2 { font-size: 1.1rem; }
 
         @media (max-width: 480px) {
-            .grid-2 { grid-template-columns: 1fr; }
+            .grid-2, .checkbox-grid { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -396,6 +426,7 @@
             <div class="card-title">⚡ Section 3: Actions & Sharing</div>
             <div class="btn-group-full">
                 <button class="btn btn-secondary" onclick="openProductModal(-1)">+ Add Item Manually</button>
+                <button class="btn btn-secondary" onclick="openExportModal()">⚙️ Configure CSV Export Columns</button>
                 <div class="btn-group">
                     <button class="btn btn-success" onclick="downloadCSV()">📥 Download CSV</button>
                     <button class="btn btn-primary" onclick="shareCSV()">✉️ Email / Share CSV</button>
@@ -431,7 +462,7 @@
 
     </div>
 
-    <!-- Modal: 14-Field Product Editor -->
+    <!-- Modal 1: 14-Field Product Editor -->
     <div id="product-modal" class="modal-overlay">
         <div class="modal-body">
             <div class="modal-header">
@@ -508,22 +539,66 @@
         </div>
     </div>
 
+    <!-- Modal 2: CSV Column Selection Configurator -->
+    <div id="export-modal" class="modal-overlay">
+        <div class="modal-body">
+            <div class="modal-header">
+                <h2>⚙️ Select Columns to Export</h2>
+                <button style="background:none; border:none; font-size:1.2rem; cursor:pointer;" onclick="closeExportModal()">✕</button>
+            </div>
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;">
+                Check the columns you want included in your exported CSV file:
+            </p>
+
+            <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+                <button class="btn btn-secondary" style="padding: 4px 8px; font-size:0.75rem;" onclick="toggleAllExportColumns(true)">Select All</button>
+                <button class="btn btn-secondary" style="padding: 4px 8px; font-size:0.75rem;" onclick="toggleAllExportColumns(false)">Deselect All</button>
+            </div>
+
+            <div id="export-columns-checkbox-container" class="checkbox-grid">
+                <!-- Dynamically populated checkboxes -->
+            </div>
+
+            <div class="btn-group" style="margin-top: 16px;">
+                <button class="btn btn-primary" onclick="saveExportColumnPreferences()">Done / Save Settings</button>
+                <button class="btn btn-secondary" onclick="closeExportModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         /* Global Application State */
         let inventory = [];
         let html5QrCode = null;
         let isScannerRunning = false;
 
-        // 14 Standard Fields mapping exact schema
-        const FIELDS = [
-            'upc', 'name', 'book', 'physical', 'variance', 
-            'reorder', 'listPrice', 'cost', 'category', 
-            'vendor', 'sku', 'asin', 'itemNo', 'modelNo'
+        // 14 Standard Fields schema mapping
+        const ALL_COLUMNS = [
+            { id: 'upc', label: 'UPC (Bar Code)' },
+            { id: 'name', label: 'Product Name' },
+            { id: 'book', label: 'Book Inventory' },
+            { id: 'physical', label: 'Physical inventory' },
+            { id: 'variance', label: 'Variance' },
+            { id: 'reorder', label: 'Reorder Point' },
+            { id: 'listPrice', label: 'List price' },
+            { id: 'cost', label: 'Cost on Delivery' },
+            { id: 'category', label: 'Category' },
+            { id: 'vendor', label: 'Vendor' },
+            { id: 'sku', label: 'SKU' },
+            { id: 'asin', label: 'ASIN (Amazon)' },
+            { id: 'itemNo', label: 'Item number' },
+            { id: 'modelNo', label: 'Model Number' }
         ];
+
+        const FIELDS = ALL_COLUMNS.map(c => c.id);
+
+        // Track selected columns for export (default: all checked)
+        let selectedExportColumns = ALL_COLUMNS.map(c => c.id);
 
         /* --- LocalStorage Persistence & Banner --- */
         function saveToLocalStorage() {
             localStorage.setItem('shop_inventory_data', JSON.stringify(inventory));
+            localStorage.setItem('shop_inventory_export_cols', JSON.stringify(selectedExportColumns));
             updateMemoryBanner();
         }
 
@@ -534,6 +609,14 @@
                     inventory = JSON.parse(stored);
                 } catch (e) {
                     inventory = [];
+                }
+            }
+            const storedCols = localStorage.getItem('shop_inventory_export_cols');
+            if (storedCols) {
+                try {
+                    selectedExportColumns = JSON.parse(storedCols);
+                } catch (e) {
+                    selectedExportColumns = ALL_COLUMNS.map(c => c.id);
                 }
             }
             updateMemoryBanner();
@@ -838,34 +921,78 @@
             processScannedCode(code);
         }
 
-        /* --- Section 3: Actions & CSV Sharing/Export --- */
-        function generateCSVString() {
-            const headers = [
-                "UPC (Bar Code)", "Product Name", "Book Inventory", "Physical inventory",
-                "Variance", "Reorder Point", "List price", "Cost on Delivery",
-                "Category", "Vendor", "SKU", "ASIN (Amazon)", "Item number", "Model Number"
-            ];
+        /* --- Export Column Selection Modal --- */
+        function openExportModal() {
+            renderExportColumnCheckboxes();
+            document.getElementById('export-modal').classList.add('active');
+        }
 
-            let csv = headers.map(h => `"${h}"`).join(',') + '\n';
+        function closeExportModal() {
+            document.getElementById('export-modal').classList.remove('active');
+        }
+
+        function renderExportColumnCheckboxes() {
+            const container = document.getElementById('export-columns-checkbox-container');
+            container.innerHTML = ALL_COLUMNS.map(col => {
+                const checked = selectedExportColumns.includes(col.id) ? 'checked' : '';
+                return `
+                    <label class="checkbox-item">
+                        <input type="checkbox" value="${col.id}" ${checked} onchange="onExportColumnToggle('${col.id}', this.checked)">
+                        <span>${escapeHtml(col.label)}</span>
+                    </label>
+                `;
+            }).join('');
+        }
+
+        function onExportColumnToggle(colId, isChecked) {
+            if (isChecked) {
+                if (!selectedExportColumns.includes(colId)) selectedExportColumns.push(colId);
+            } else {
+                selectedExportColumns = selectedExportColumns.filter(id => id !== colId);
+            }
+        }
+
+        function toggleAllExportColumns(selectAll) {
+            if (selectAll) {
+                selectedExportColumns = ALL_COLUMNS.map(c => c.id);
+            } else {
+                selectedExportColumns = [];
+            }
+            renderExportColumnCheckboxes();
+        }
+
+        function saveExportColumnPreferences() {
+            if (selectedExportColumns.length === 0) {
+                alert("Please select at least one column to export.");
+                return;
+            }
+            saveToLocalStorage();
+            closeExportModal();
+        }
+
+        /* --- Dynamic CSV Generation based on selected columns --- */
+        function generateCSVString() {
+            if (selectedExportColumns.length === 0) {
+                alert("No columns selected for export! Please configure export columns first.");
+                openExportModal();
+                return null;
+            }
+
+            // Filter active column definitions in exact order
+            const activeCols = ALL_COLUMNS.filter(col => selectedExportColumns.includes(col.id));
+
+            let csv = activeCols.map(c => `"${c.label}"`).join(',') + '\n';
 
             inventory.forEach(item => {
-                const row = [
-                    item.upc || '',
-                    item.name || '',
-                    item.book || 0,
-                    item.physical || 0,
-                    (item.physical || 0) - (item.book || 0),
-                    item.reorder || '',
-                    item.listPrice || '',
-                    item.cost || '',
-                    item.category || '',
-                    item.vendor || '',
-                    item.sku || '',
-                    item.asin || '',
-                    item.itemNo || '',
-                    item.modelNo || ''
-                ];
-                csv += row.map(val => `"${String(val).replace(/"/g, '""')}"`).join(',') + '\n';
+                const row = activeCols.map(col => {
+                    let val = item[col.id];
+                    if (col.id === 'variance') {
+                        val = (item.physical || 0) - (item.book || 0);
+                    }
+                    if (val === undefined || val === null) val = '';
+                    return `"${String(val).replace(/"/g, '""')}"`;
+                });
+                csv += row.join(',') + '\n';
             });
 
             return csv;
@@ -873,6 +1000,8 @@
 
         function downloadCSV() {
             const csvText = generateCSVString();
+            if (!csvText) return;
+
             const blob = new Blob([csvText], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement("a");
             const url = URL.createObjectURL(blob);
@@ -887,6 +1016,8 @@
 
         async function shareCSV() {
             const csvText = generateCSVString();
+            if (!csvText) return;
+
             const fileName = `inventory_${new Date().toISOString().slice(0,10)}.csv`;
             const blob = new Blob([csvText], { type: 'text/csv' });
             const file = new File([blob], fileName, { type: 'text/csv' });
