@@ -826,9 +826,13 @@
                         <div style="font-size:0.85rem;">Choose a resolution option below:</div>
                         
                         <div class="btn-group-full">
-                            <button class="btn btn-primary" onclick="lookupOnlineApi('${code}')">🔍 Lookup Barcode Online (API)</button>
-                            <a href="https://www.google.com/search?q=${encodeURIComponent(code)}" target="_blank" class="btn btn-secondary">🌐 Search Google for Barcode</a>
+                            <button id="api-lookup-btn" class="btn btn-primary" onclick="lookupOnlineApi('${code}')">🔍 Lookup Barcode Online (Multi-API Search)</button>
                             
+                            <div class="btn-group">
+                                <a href="https://www.google.com/search?q=${encodeURIComponent(code)}" target="_blank" class="btn btn-secondary">🌐 Search Google</a>
+                                <a href="https://www.amazon.com/s?k=${encodeURIComponent(code)}" target="_blank" class="btn btn-secondary">📦 Search Amazon</a>
+                            </div>
+
                             ${inventory.length > 0 ? `
                             <div style="margin-top: 6px;">
                                 <label style="font-size:0.75rem; font-weight:600;">Link to Preexisting Item (Fix Typo):</label>
@@ -884,31 +888,97 @@
             if (resume) resumeCameraScanner();
         }
 
-        /* Online Barcode Search (Open Food Facts V2 API) */
+        /* --- Multi-Database Online Barcode Search --- */
         async function lookupOnlineApi(code) {
-            try {
-                const response = await fetch(`https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(code)}.json`);
-                const data = await response.json();
+            const btn = document.getElementById('api-lookup-btn');
+            if (btn) btn.innerText = "⏳ Searching retail databases...";
 
-                if (data.status === 1 && data.product) {
-                    const prod = data.product;
-                    const prodName = prod.product_name || prod.product_name_en || "Discovered Product";
-                    const category = prod.categories ? prod.categories.split(',')[0] : "";
-                    
-                    alert(`Found Online: ${prodName}`);
-                    dismissScanResult(false);
-                    openProductModal(-1, {
-                        upc: code,
-                        name: prodName,
-                        category: category,
-                        physical: 1,
-                        book: 0
-                    });
-                } else {
-                    alert("No product data found in Open Food Facts database.");
+            try {
+                // 1. Try UPC Item DB (Great for general retail items: electronics, apparel, tools, housewares)
+                try {
+                    const upcRes = await fetch(`https://api.upcitemdb.com/prod/trial/lookup?upc=${encodeURIComponent(code)}`);
+                    if (upcRes.ok) {
+                        const upcData = await upcRes.json();
+                        if (upcData.items && upcData.items.length > 0) {
+                            const item = upcData.items[0];
+                            const prodName = item.title || "Discovered Product";
+                            const category = item.category || item.brand || "";
+                            
+                            alert(`Found in Retail Goods Database:\n${prodName}`);
+                            dismissScanResult(false);
+                            openProductModal(-1, { upc: code, name: prodName, category: category, physical: 1, book: 0 });
+                            return;
+                        }
+                    }
+                } catch (e) {
+                    console.log('UPC Item DB fetch failed/skipped:', e);
                 }
-            } catch (err) {
-                alert("Error searching online API: " + err.message);
+
+                // 2. Try Open Products Facts (General consumer products)
+                try {
+                    const opfRes = await fetch(`https://world.openproductsfacts.org/api/v2/product/${encodeURIComponent(code)}.json`);
+                    if (opfRes.ok) {
+                        const opfData = await opfRes.json();
+                        if (opfData.status === 1 && opfData.product) {
+                            const prod = opfData.product;
+                            const prodName = prod.product_name || prod.product_name_en || "Discovered Product";
+                            const category = prod.categories ? prod.categories.split(',')[0] : "";
+                            
+                            alert(`Found in Open Products Database:\n${prodName}`);
+                            dismissScanResult(false);
+                            openProductModal(-1, { upc: code, name: prodName, category: category, physical: 1, book: 0 });
+                            return;
+                        }
+                    }
+                } catch (e) {
+                    console.log('OpenProductsFacts fetch failed/skipped:', e);
+                }
+
+                // 3. Try Open Beauty Facts (Cosmetics, personal care)
+                try {
+                    const obfRes = await fetch(`https://world.openbeautyfacts.org/api/v2/product/${encodeURIComponent(code)}.json`);
+                    if (obfRes.ok) {
+                        const obfData = await obfRes.json();
+                        if (obfData.status === 1 && obfData.product) {
+                            const prod = obfData.product;
+                            const prodName = prod.product_name || prod.product_name_en || "Discovered Product";
+                            const category = prod.categories ? prod.categories.split(',')[0] : "";
+                            
+                            alert(`Found in Beauty/Care Database:\n${prodName}`);
+                            dismissScanResult(false);
+                            openProductModal(-1, { upc: code, name: prodName, category: category, physical: 1, book: 0 });
+                            return;
+                        }
+                    }
+                } catch (e) {
+                    console.log('OpenBeautyFacts fetch failed/skipped:', e);
+                }
+
+                // 4. Try Open Food Facts (Groceries, beverages)
+                try {
+                    const offRes = await fetch(`https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(code)}.json`);
+                    if (offRes.ok) {
+                        const offData = await offRes.json();
+                        if (offData.status === 1 && offData.product) {
+                            const prod = offData.product;
+                            const prodName = prod.product_name || prod.product_name_en || "Discovered Product";
+                            const category = prod.categories ? prod.categories.split(',')[0] : "";
+                            
+                            alert(`Found in Food & Grocery Database:\n${prodName}`);
+                            dismissScanResult(false);
+                            openProductModal(-1, { upc: code, name: prodName, category: category, physical: 1, book: 0 });
+                            return;
+                        }
+                    }
+                } catch (e) {
+                    console.log('OpenFoodFacts fetch failed/skipped:', e);
+                }
+
+                // Fallback if no automatic matches are returned
+                alert("No automatic match found across public databases.\n\nUse the Google or Amazon buttons to instantly look up the item title and add it.");
+
+            } finally {
+                if (btn) btn.innerText = "🔍 Lookup Barcode Online (Multi-API Search)";
             }
         }
 
