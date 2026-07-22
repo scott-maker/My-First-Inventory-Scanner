@@ -3,30 +3,59 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Shop Inventory Scanner</title>
+  <title>Shop Inventory Manager</title>
   <script src="https://unpkg.com/html5-qrcode"></script>
   <style>
-    body { font-family: system-ui, sans-serif; margin: 0; padding: 16px; background: #f4f4f9; }
-    h2 { text-align: center; margin-bottom: 10px; }
-    .card { background: white; padding: 15px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 15px; }
-    #reader { width: 100%; max-width: 400px; margin: 0 auto; }
-    button, input[type="file"] { width: 100%; padding: 12px; margin-top: 8px; border-radius: 6px; border: 1px solid #ccc; font-size: 16px; }
-    button { background: #007bff; color: white; border: none; font-weight: bold; cursor: pointer; }
-    button:disabled { background: #aaa; }
-    .scan-result { font-size: 18px; margin-top: 15px; background: #eef9ff; padding: 12px; border-radius: 8px; border-left: 5px solid #007bff; }
+    body { font-family: system-ui, -apple-system, sans-serif; margin: 0; padding: 16px; background: #f4f4f9; color: #333; }
+    h2, h3 { margin-top: 0; }
+    .card { background: white; padding: 16px; border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.08); margin-bottom: 16px; }
+    #reader { width: 100%; max-width: 400px; margin: 0 auto; border-radius: 8px; overflow: hidden; }
+    
+    label { font-size: 13px; font-weight: bold; color: #555; display: block; margin-top: 8px; }
+    input[type="text"], input[type="number"], select { 
+      width: 100%; box-sizing: border-box; padding: 10px; margin-top: 4px; margin-bottom: 8px; 
+      border-radius: 6px; border: 1px solid #ccc; font-size: 15px; 
+    }
+    
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    
+    button { width: 100%; padding: 12px; margin-top: 8px; border-radius: 6px; border: none; font-size: 15px; font-weight: bold; cursor: pointer; }
+    .btn-primary { background: #007bff; color: white; }
+    .btn-success { background: #28a745; color: white; }
+    .btn-warning { background: #ffc107; color: #212529; }
+    .btn-danger { background: #dc3545; color: white; }
+    .btn-secondary { background: #6c757d; color: white; }
+    .btn-info { background: #17a2b8; color: white; }
+    .btn-sm { padding: 6px 10px; font-size: 12px; margin-top: 0; width: auto; display: inline-block; }
+    
+    .status-banner { background: #e3f2fd; color: #0d47a1; padding: 10px; border-radius: 6px; font-size: 13px; margin-bottom: 12px; display: none; }
+    
+    .scan-action-box { 
+      margin-top: 15px; padding: 16px; border-radius: 8px; background: #ffffff; 
+      border: 2px solid #007bff; text-align: left;
+    }
+    .scan-action-box.new-item { border-color: #ffc107; background: #fffdf5; }
+    
+    /* Modal Popup styling for manual editing */
+    .modal { display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); overflow-y: auto; }
+    .modal-content { background: white; margin: 10% auto; padding: 20px; border-radius: 10px; max-width: 500px; width: 90%; box-sizing: border-box; }
+    
     table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; font-size: 14px; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; font-size: 13px; }
     th { background-color: #f2f2f2; }
   </style>
 </head>
 <body>
 
-  <h2>Inventory Scanner</h2>
+  <h2 style="text-align: center;">Inventory Manager</h2>
 
-  <!-- 1. CSV File Loader -->
+  <!-- Status Banner for Local Storage Notifications -->
+  <div id="statusBanner" class="status-banner"></div>
+
+  <!-- 1. CSV Loader -->
   <div class="card">
     <h3>1. Load Inventory (CSV)</h3>
-    <p style="font-size: 12px; color: #666;">CSV Format: <b>Barcode, Name, Quantity</b></p>
+    <p style="font-size: 11px; color: #666; margin-top:-6px;">Headers: id, sku, name, category, cost, stock, reorderPoint, parLevel, orderUnit, unitsPerOrder</p>
     <input type="file" id="csvFileInput" accept=".csv" />
   </div>
 
@@ -34,32 +63,131 @@
   <div class="card">
     <h3>2. Scan Product</h3>
     <div id="reader"></div>
-    <div id="scanResult" class="scan-result" style="display:none;"></div>
+    <div id="scanResult" style="display:none;"></div>
   </div>
 
-  <!-- 3. Export Data -->
+  <!-- 3. Actions & Exports -->
   <div class="card">
-    <h3>3. Export Results</h3>
-    <button id="exportBtn" onclick="exportCSV()" disabled>Download Updated Inventory CSV</button>
+    <h3>3. Actions & Share</h3>
+    <button class="btn-warning" onclick="openEditModal()">+ Add Item Manually</button>
+    <button class="btn-info" id="emailBtn" onclick="emailCSV()" disabled>✉️ Email / Share CSV</button>
+    <button class="btn-success" id="exportBtn" onclick="exportCSV()" disabled>📥 Download Inventory CSV</button>
+    <button class="btn-danger" style="margin-top:16px; padding:8px; font-size:12px;" onclick="clearLocalStorage()">🗑️ Clear Saved Local Memory</button>
   </div>
 
-  <!-- Inventory Table Preview -->
+  <!-- Inventory Table -->
   <div class="card">
     <h3>Inventory List (<span id="itemCount">0</span>)</h3>
     <div style="overflow-x:auto;">
       <table id="inventoryTable">
         <thead>
-          <tr><th>Barcode</th><th>Name</th><th>Qty</th></tr>
+          <tr>
+            <th>SKU / ID</th>
+            <th>Name</th>
+            <th>Stock</th>
+            <th>Category</th>
+            <th>Actions</th>
+          </tr>
         </thead>
         <tbody></tbody>
       </table>
     </div>
   </div>
 
+  <!-- Edit/Add Modal -->
+  <div id="editModal" class="modal">
+    <div class="modal-content">
+      <h3 id="modalTitle">Edit Product</h3>
+      <input type="hidden" id="editIndex" value="-1">
+      
+      <div class="grid-2">
+        <div><label>ID</label><input type="text" id="field_id"></div>
+        <div><label>SKU (Barcode)</label><input type="text" id="field_sku"></div>
+      </div>
+      
+      <label>Product Name</label>
+      <input type="text" id="field_name">
+      
+      <div class="grid-2">
+        <div><label>Category</label><input type="text" id="field_category"></div>
+        <div><label>Cost ($)</label><input type="number" step="0.01" id="field_cost"></div>
+      </div>
+      
+      <div class="grid-2">
+        <div><label>Current Stock</label><input type="number" id="field_stock"></div>
+        <div><label>Reorder Point</label><input type="number" id="field_reorderPoint"></div>
+      </div>
+      
+      <div class="grid-2">
+        <div><label>Par Level</label><input type="number" id="field_parLevel"></div>
+        <div><label>Order Unit</label><input type="text" id="field_orderUnit" placeholder="e.g. Box, Ea"></div>
+      </div>
+      
+      <label>Units Per Order</label>
+      <input type="number" id="field_unitsPerOrder">
+
+      <button class="btn-primary" onclick="saveModalItem()">Save Changes</button>
+      <button class="btn-secondary" onclick="closeModal()">Cancel</button>
+    </div>
+  </div>
+
   <script>
     let inventory = [];
+    let html5QrcodeScanner;
+    let isProcessing = false;
+    const STORAGE_KEY = 'shop_inventory_app_data';
 
-    // Parse CSV File Upload
+    // Page Load: Automatically restore data from LocalStorage if available
+    window.addEventListener('DOMContentLoaded', () => {
+      loadLocalStorage();
+    });
+
+    // Local Storage Helpers
+    function saveLocalStorage() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(inventory));
+      enableActionButtons();
+    }
+
+    function loadLocalStorage() {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        try {
+          inventory = JSON.parse(saved);
+          if (inventory.length > 0) {
+            updateTable();
+            enableActionButtons();
+            showStatusBanner(`💾 Auto-restored ${inventory.length} saved items from phone memory.`);
+          }
+        } catch(e) {
+          console.error("Failed to parse local storage data:", e);
+        }
+      }
+    }
+
+    function clearLocalStorage() {
+      if (confirm("Are you sure you want to clear your saved phone memory? Make sure you have exported your CSV file first!")) {
+        localStorage.removeItem(STORAGE_KEY);
+        inventory = [];
+        updateTable();
+        document.getElementById('exportBtn').disabled = true;
+        document.getElementById('emailBtn').disabled = true;
+        showStatusBanner("🗑️ Local memory cleared.");
+      }
+    }
+
+    function showStatusBanner(msg) {
+      const banner = document.getElementById('statusBanner');
+      banner.innerText = msg;
+      banner.style.display = 'block';
+    }
+
+    function enableActionButtons() {
+      const hasData = inventory.length > 0;
+      document.getElementById('exportBtn').disabled = !hasData;
+      document.getElementById('emailBtn').disabled = !hasData;
+    }
+
+    // Load CSV File
     document.getElementById('csvFileInput').addEventListener('change', function(e) {
       const file = e.target.files[0];
       if (!file) return;
@@ -70,70 +198,240 @@
         inventory = [];
         
         lines.forEach((line, index) => {
-          if (index === 0 || !line.trim()) return; // Skip header/empty
-          const [barcode, name, qty] = line.split(',').map(s => s ? s.trim() : '');
-          if (barcode) {
-            inventory.push({ barcode, name: name || 'Unknown', qty: parseInt(qty) || 0 });
+          if (index === 0 || !line.trim()) return;
+          
+          const cols = line.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g) || line.split(',');
+          const clean = cols.map(c => c ? c.replace(/^"|"$/g, '').trim() : '');
+
+          if (clean.length > 0 && (clean[0] || clean[1] || clean[2])) {
+            inventory.push({
+              id: clean[0] || '',
+              sku: clean[1] || '',
+              name: clean[2] || 'Unnamed Product',
+              category: clean[3] || '',
+              cost: parseFloat(clean[4]) || 0,
+              stock: parseInt(clean[5]) || 0,
+              reorderPoint: parseInt(clean[6]) || 0,
+              parLevel: parseInt(clean[7]) || 0,
+              orderUnit: clean[8] || 'Ea',
+              unitsPerOrder: parseInt(clean[9]) || 1
+            });
           }
         });
 
         updateTable();
-        document.getElementById('exportBtn').disabled = false;
-        alert(`Loaded ${inventory.length} items from CSV!`);
+        saveLocalStorage();
+        showStatusBanner(`✅ Successfully imported ${inventory.length} items from CSV.`);
       };
       reader.readAsText(file);
     });
 
-    // Update UI Table
+    // Render Table UI
     function updateTable() {
       const tbody = document.querySelector('#inventoryTable tbody');
       tbody.innerHTML = '';
       document.getElementById('itemCount').innerText = inventory.length;
 
-      inventory.forEach(item => {
-        const row = `<tr><td>${item.barcode}</td><td>${item.name}</td><td><b>${item.qty}</b></td></tr>`;
+      inventory.forEach((item, index) => {
+        const row = `
+          <tr>
+            <td>${item.sku || item.id}</td>
+            <td><b>${item.name}</b></td>
+            <td><b>${item.stock}</b></td>
+            <td>${item.category}</td>
+            <td>
+              <button class="btn-warning btn-sm" onclick="openEditModal(${index})">Edit</button>
+              <button class="btn-danger btn-sm" onclick="deleteItem(${index})">X</button>
+            </td>
+          </tr>`;
         tbody.innerHTML += row;
       });
     }
 
-    // Process Scanned Barcode
+    // Barcode Read Handler
     function onScanSuccess(decodedText) {
-      const item = inventory.find(i => i.barcode === decodedText);
+      if (isProcessing) return;
+      isProcessing = true;
+
+      try { html5QrcodeScanner.pause(true); } catch(e) {}
+
+      const index = inventory.findIndex(i => i.sku === decodedText || i.id === decodedText);
       const resultDiv = document.getElementById('scanResult');
       resultDiv.style.display = 'block';
 
-      if (item) {
-        item.qty += 1; // Increment count
-        resultDiv.innerHTML = `✅ <b>Matched:</b> ${item.name}<br><b>New Stock:</b> ${item.qty}`;
-        updateTable();
+      if (index !== -1) {
+        // KNOWN ITEM
+        const item = inventory[index];
+        resultDiv.className = "scan-action-box";
+        resultDiv.innerHTML = `
+          <h4 style="margin:0 0 8px 0; color:#007bff;">✅ Matched Item</h4>
+          <p style="margin:2px 0;"><b>Name:</b> ${item.name}</p>
+          <p style="margin:2px 0;"><b>SKU:</b> ${item.sku} | <b>Category:</b> ${item.category}</p>
+          <label><b>Physical Count:</b></label>
+          <input type="number" id="scanQtyInput" value="${item.stock + 1}">
+          <button class="btn-success" onclick="saveScanCount(${index})">Save Stock & Scan Next</button>
+          <button class="btn-secondary" onclick="openEditModal(${index})">Full Edit Item</button>
+        `;
       } else {
-        resultDiv.innerHTML = `⚠️ <b>Unknown Code:</b> ${decodedText}<br><button onclick="addNewProduct('${decodedText}')">Add as New Item</button>`;
+        // UNKNOWN ITEM
+        resultDiv.className = "scan-action-box new-item";
+        resultDiv.innerHTML = `
+          <h4 style="margin:0 0 8px 0; color:#d97706;">⚠️ New Code Detected</h4>
+          <p style="margin:2px 0;"><b>Scanned Code:</b> ${decodedText}</p>
+          <button class="btn-primary" onclick="createNewScannedItem('${decodedText}')">Register New Item</button>
+          <button class="btn-secondary" onclick="resumeScanner()">Cancel / Skip</button>
+        `;
       }
     }
 
-    function addNewProduct(barcode) {
-      const name = prompt("Enter product name:") || "New Item";
-      inventory.push({ barcode, name, qty: 1 });
-      updateTable();
-      document.getElementById('scanResult').innerText = `Added ${name}!`;
+    function saveScanCount(index) {
+      const newQty = parseInt(document.getElementById('scanQtyInput').value);
+      if (!isNaN(newQty)) {
+        inventory[index].stock = newQty;
+        updateTable();
+        saveLocalStorage();
+      }
+      resumeScanner();
     }
 
-    // Export CSV
-    function exportCSV() {
-      let csvContent = "data:text/csv;charset=utf-8,Barcode,Name,Quantity\n";
+    function createNewScannedItem(code) {
+      document.getElementById('scanResult').style.display = 'none';
+      openEditModal(-1, code);
+    }
+
+    function resumeScanner() {
+      const resultDiv = document.getElementById('scanResult');
+      resultDiv.style.display = 'none';
+      resultDiv.innerHTML = '';
+      isProcessing = false;
+      try { html5QrcodeScanner.resume(); } catch(e) {}
+    }
+
+    // Modal Operations (Add / Edit)
+    function openEditModal(index = -1, scannedCode = '') {
+      document.getElementById('editIndex').value = index;
+      
+      if (index >= 0) {
+        const item = inventory[index];
+        document.getElementById('modalTitle').innerText = "Edit Product";
+        document.getElementById('field_id').value = item.id;
+        document.getElementById('field_sku').value = item.sku;
+        document.getElementById('field_name').value = item.name;
+        document.getElementById('field_category').value = item.category;
+        document.getElementById('field_cost').value = item.cost;
+        document.getElementById('field_stock').value = item.stock;
+        document.getElementById('field_reorderPoint').value = item.reorderPoint;
+        document.getElementById('field_parLevel').value = item.parLevel;
+        document.getElementById('field_orderUnit').value = item.orderUnit;
+        document.getElementById('field_unitsPerOrder').value = item.unitsPerOrder;
+      } else {
+        document.getElementById('modalTitle').innerText = "Add New Product";
+        document.getElementById('field_id').value = scannedCode ? 'ID-' + scannedCode : '';
+        document.getElementById('field_sku').value = scannedCode || '';
+        document.getElementById('field_name').value = '';
+        document.getElementById('field_category').value = '';
+        document.getElementById('field_cost').value = '0';
+        document.getElementById('field_stock').value = '1';
+        document.getElementById('field_reorderPoint').value = '0';
+        document.getElementById('field_parLevel').value = '0';
+        document.getElementById('field_orderUnit').value = 'Ea';
+        document.getElementById('field_unitsPerOrder').value = '1';
+      }
+      
+      document.getElementById('editModal').style.display = 'block';
+    }
+
+    function saveModalItem() {
+      const index = parseInt(document.getElementById('editIndex').value);
+      
+      const itemData = {
+        id: document.getElementById('field_id').value.trim(),
+        sku: document.getElementById('field_sku').value.trim(),
+        name: document.getElementById('field_name').value.trim() || 'Unnamed Item',
+        category: document.getElementById('field_category').value.trim(),
+        cost: parseFloat(document.getElementById('field_cost').value) || 0,
+        stock: parseInt(document.getElementById('field_stock').value) || 0,
+        reorderPoint: parseInt(document.getElementById('field_reorderPoint').value) || 0,
+        parLevel: parseInt(document.getElementById('field_parLevel').value) || 0,
+        orderUnit: document.getElementById('field_orderUnit').value.trim() || 'Ea',
+        unitsPerOrder: parseInt(document.getElementById('field_unitsPerOrder').value) || 1
+      };
+
+      if (index >= 0) {
+        inventory[index] = itemData;
+      } else {
+        inventory.push(itemData);
+      }
+
+      updateTable();
+      saveLocalStorage();
+      closeModal();
+    }
+
+    function deleteItem(index) {
+      if (confirm(`Delete "${inventory[index].name}"?`)) {
+        inventory.splice(index, 1);
+        updateTable();
+        saveLocalStorage();
+      }
+    }
+
+    function closeModal() {
+      document.getElementById('editModal').style.display = 'none';
+      if (isProcessing) {
+        resumeScanner();
+      }
+    }
+
+    // Helper to generate CSV raw text
+    function buildCSVString() {
+      let csv = "id,sku,name,category,cost,stock,reorderPoint,parLevel,orderUnit,unitsPerOrder\n";
       inventory.forEach(i => {
-        csvContent += `${i.barcode},${i.name},${i.qty}\n`;
+        csv += `"${i.id}","${i.sku}","${i.name}","${i.category}",${i.cost},${i.stock},${i.reorderPoint},${i.parLevel},"${i.orderUnit}",${i.unitsPerOrder}\n`;
       });
+      return csv;
+    }
+
+    // Download CSV
+    function exportCSV() {
+      const csvContent = "data:text/csv;charset=utf-8," + buildCSVString();
       const encodedUri = encodeURI(csvContent);
       const link = document.createElement("a");
       link.setAttribute("href", encodedUri);
-      link.setAttribute("download", "updated_inventory.csv");
+      link.setAttribute("download", `inventory_export_${new Date().toISOString().slice(0,10)}.csv`);
       document.body.appendChild(link);
       link.click();
+      document.body.removeChild(link);
     }
 
-    // Start Camera Scanner
-    const html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: {width: 250, height: 150} });
+    // Email / Share CSV
+    async function emailCSV() {
+      const csvText = buildCSVString();
+      const fileName = `inventory_export_${new Date().toISOString().slice(0,10)}.csv`;
+
+      // Check if phone supports native Web Share API with File sharing
+      if (navigator.canShare && navigator.canShare({ files: [new File([], fileName, { type: 'text/csv' })] })) {
+        try {
+          const file = new File([csvText], fileName, { type: 'text/csv' });
+          await navigator.share({
+            title: 'Shop Inventory Export',
+            text: 'Attached is the updated shop inventory CSV file.',
+            files: [file]
+          });
+          return;
+        } catch (err) {
+          if (err.name !== 'AbortError') console.error("Share failed:", err);
+        }
+      }
+
+      // Fallback: Opens email client with CSV text in the body
+      const subject = encodeURIComponent("Shop Inventory Export");
+      const body = encodeURIComponent("Updated Inventory Counts:\n\n" + csvText);
+      window.location.href = `mailto:?subject=${subject}&body=${body}`;
+    }
+
+    // Initialize Scanner Camera
+    html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: { width: 250, height: 150 } });
     html5QrcodeScanner.render(onScanSuccess);
   </script>
 </body>
