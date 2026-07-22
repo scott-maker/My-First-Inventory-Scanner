@@ -947,7 +947,7 @@
                             <strong>${escapeHtml(item.name)}</strong>
                             <div style="font-size: 0.75rem; color: var(--text-muted);">UPC: ${escapeHtml(item.upc || 'None')} | SKU: ${escapeHtml(item.sku || 'N/A')}</div>
                         </div>
-                        <span style="font-weight: 700; color: var(--primary); font-size: 0.8rem; white-space: nowrap; margin-left: 8px;">Assign ➔</span>
+                        <span style="font-weight: 700; color: var(--primary); font-size: 0.8rem; white-space: nowrap; margin-left: 8px;">Assign & Edit ➔</span>
                     </div>
                 `).join('');
             }
@@ -958,16 +958,23 @@
             if (index < 0 || index >= inventory.length) return;
             const item = inventory[index];
             
-            if (confirm(`Assign barcode "${code}" to "${item.name}" and increase physical count by +1?`)) {
-                inventory[index].upc = code;
-                inventory[index].physical = (inventory[index].physical || 0) + 1;
-                inventory[index].variance = inventory[index].physical - inventory[index].book;
-                
-                saveToLocalStorage();
-                renderTable();
-                alert(`Successfully assigned barcode ${code} to "${inventory[index].name}"`);
-                dismissScanResult();
-            }
+            // Clear the yellow scan result box
+            dismissScanResult(false);
+
+            // Open the 14-field modal populated with the product data, the new UPC, and Physical Count set to Current + 1
+            openProductModal(index, {
+                upc: code,
+                physical: (item.physical || 0) + 1
+            });
+
+            // Focus directly on the Physical Inventory input field so user can adjust count immediately
+            setTimeout(() => {
+                const physInput = document.getElementById('field-physical');
+                if (physInput) {
+                    physInput.focus();
+                    physInput.select();
+                }
+            }, 100);
         }
 
         function saveMatchedCount(index) {
@@ -1302,7 +1309,7 @@
         /* --- Modal Editor Logic --- */
         function openProductModal(index = -1, overrideData = null) {
             document.getElementById('modal-edit-index').value = index;
-            const title = index === -1 ? 'Add New Product' : 'Edit Product';
+            const title = index === -1 ? 'Add New Product' : (overrideData && overrideData.upc ? 'Assign UPC & Set Count' : 'Edit Product');
             document.getElementById('modal-title').innerText = title;
 
             let data = {
@@ -1312,8 +1319,10 @@
             };
 
             if (index >= 0 && inventory[index]) {
-                data = inventory[index];
-            } else if (overrideData) {
+                data = { ...inventory[index] };
+            }
+
+            if (overrideData) {
                 Object.assign(data, overrideData);
             }
 
@@ -1330,6 +1339,9 @@
 
         function closeProductModal() {
             document.getElementById('product-modal').classList.remove('active');
+            if (isScannerRunning) {
+                resumeCameraScanner();
+            }
         }
 
         function calculateModalVariance() {
