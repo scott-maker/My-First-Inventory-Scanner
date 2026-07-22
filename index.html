@@ -1,602 +1,1065 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Shop Inventory Manager</title>
-  <script src="https://unpkg.com/html5-qrcode"></script>
-  <style>
-    body { font-family: system-ui, -apple-system, sans-serif; margin: 0; padding: 16px; background: #f4f4f9; color: #333; }
-    h2, h3 { margin-top: 0; }
-    .card { background: white; padding: 16px; border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.08); margin-bottom: 16px; }
-    #reader { width: 100%; max-width: 400px; margin: 0 auto; border-radius: 8px; overflow: hidden; }
-    
-    label { font-size: 12px; font-weight: bold; color: #555; display: block; margin-top: 6px; }
-    input[type="text"], input[type="number"], select { 
-      width: 100%; box-sizing: border-box; padding: 9px; margin-top: 3px; margin-bottom: 6px; 
-      border-radius: 6px; border: 1px solid #ccc; font-size: 14px; 
-    }
-    
-    .table-input { width: 70px !important; padding: 6px !important; margin: 0 !important; text-align: center; font-weight: bold; }
-    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-    
-    button, a.btn-link { 
-      width: 100%; padding: 12px; margin-top: 8px; border-radius: 6px; border: none; 
-      font-size: 15px; font-weight: bold; cursor: pointer; box-sizing: border-box; text-align: center; text-decoration: none; display: block;
-    }
-    .btn-primary { background: #007bff; color: white; }
-    .btn-success { background: #28a745; color: white; }
-    .btn-warning { background: #ffc107; color: #212529; }
-    .btn-danger { background: #dc3545; color: white; }
-    .btn-secondary { background: #6c757d; color: white; }
-    .btn-info { background: #17a2b8; color: white; }
-    .btn-purple { background: #6f42c1; color: white; }
-    .btn-sm { padding: 6px 10px; font-size: 12px; margin-top: 0; width: auto; display: inline-block; }
-    
-    .status-banner { background: #e3f2fd; color: #0d47a1; padding: 10px; border-radius: 6px; font-size: 13px; margin-bottom: 12px; display: none; }
-    
-    .scan-action-box { 
-      margin-top: 15px; padding: 16px; border-radius: 8px; background: #ffffff; 
-      border: 2px solid #007bff; text-align: left;
-    }
-    .scan-action-box.new-item { border-color: #ffc107; background: #fffdf5; }
-    
-    .variance-tag { font-weight: bold; padding: 4px 8px; border-radius: 4px; display: inline-block; }
-    .variance-negative { background: #f8d7da; color: #721c24; }
-    .variance-zero { background: #d4edda; color: #155724; }
-    .variance-positive { background: #cce5ff; color: #004085; }
-    
-    .modal { display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); overflow-y: auto; }
-    .modal-content { background: white; margin: 5% auto; padding: 20px; border-radius: 10px; max-width: 500px; width: 90%; box-sizing: border-box; }
-    
-    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; font-size: 13px; vertical-align: middle; }
-    th { background-color: #f2f2f2; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Shop Inventory Scanner</title>
+    <!-- HTML5 QRCode Scanner Library -->
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text: #0f172a;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --success: #10b981;
+            --success-bg: #d1fae5;
+            --danger: #ef4444;
+            --danger-bg: #fee2e2;
+            --warning: #f59e0b;
+            --warning-bg: #fef3c7;
+            --info-bg: #dbeafe;
+            --radius: 10px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            padding-bottom: 40px;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 12px;
+        }
+
+        /* Header & Status Banner */
+        header {
+            background: var(--card-bg);
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+        }
+
+        .header-content {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        h1 {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .status-banner {
+            background: var(--info-bg);
+            color: #1e40af;
+            font-size: 0.85rem;
+            padding: 8px 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .btn-clear-memory {
+            background: transparent;
+            border: 1px solid #93c5fd;
+            color: #1e40af;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        /* Card Section */
+        .card {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 16px;
+            margin-top: 12px;
+            border: 1px solid var(--border);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .card-title {
+            font-size: 0.95rem;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* Buttons & Controls */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            width: 100%;
+            text-decoration: none;
+        }
+
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:active { background: var(--primary-hover); }
+        .btn-secondary { background: #f1f5f9; color: var(--text); border: 1px solid var(--border); }
+        .btn-success { background: var(--success); color: white; }
+        .btn-warning { background: var(--warning); color: white; }
+        .btn-danger { background: var(--danger); color: white; }
+
+        .btn-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .btn-group-full {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        /* CSV Loader */
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+            width: 100%;
+        }
+
+        .file-input-wrapper input[type=file] {
+            font-size: 100px;
+            position: absolute;
+            left: 0;
+            top: 0;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        /* Camera & Scanner Area */
+        #reader {
+            width: 100%;
+            border-radius: 8px;
+            overflow: hidden;
+            background: #000;
+            min-height: 200px;
+        }
+
+        #reader video {
+            object-fit: cover;
+        }
+
+        /* Result Banners */
+        .result-box {
+            padding: 14px;
+            border-radius: 8px;
+            margin-top: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .result-box.matched {
+            background: var(--info-bg);
+            border: 1px solid #bfdbfe;
+            color: #1e3a8a;
+        }
+
+        .result-box.unmatched {
+            background: var(--warning-bg);
+            border: 1px solid #fde68a;
+            color: #78350f;
+        }
+
+        /* Form Inputs */
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            margin-bottom: 10px;
+        }
+
+        .form-group label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-muted);
+        }
+
+        .form-control {
+            padding: 10px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 0.95rem;
+            width: 100%;
+            background: var(--card-bg);
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        /* Table Area */
+        .table-wrapper {
+            overflow-x: auto;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            margin-top: 8px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+            text-align: left;
+            background: var(--card-bg);
+        }
+
+        th, td {
+            padding: 10px 8px;
+            border-bottom: 1px solid var(--border);
+            white-space: nowrap;
+        }
+
+        th {
+            background: #f8fafc;
+            color: var(--text-muted);
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+        }
+
+        .table-input {
+            width: 60px;
+            padding: 6px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            text-align: center;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        /* Variance Pills */
+        .pill {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-weight: 700;
+            font-size: 0.75rem;
+        }
+
+        .pill-neg { background: var(--danger-bg); color: var(--danger); }
+        .pill-pos { background: var(--success-bg); color: var(--success); }
+        .pill-zero { background: #f1f5f9; color: var(--text-muted); }
+
+        .btn-icon {
+            padding: 6px 10px;
+            font-size: 0.8rem;
+            border-radius: 6px;
+            width: auto;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 12px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal-body {
+            background: var(--card-bg);
+            border-radius: 12px;
+            max-width: 600px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            padding: 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 10px;
+        }
+
+        .modal-header h2 { font-size: 1.1rem; }
+
+        @media (max-width: 480px) {
+            .grid-2 { grid-template-columns: 1fr; }
+        }
+    </style>
 </head>
 <body>
 
-  <h2 style="text-align: center;">Inventory Manager</h2>
+    <!-- Header & Memory Status Banner -->
+    <header>
+        <div class="header-content">
+            <h1>📦 Inventory Scanner</h1>
+        </div>
+        <div class="status-banner">
+            <span id="memory-status-text">0 items loaded from local memory</span>
+            <button class="btn-clear-memory" onclick="clearLocalStorage()">Clear Saved Memory</button>
+        </div>
+    </header>
 
-  <div id="statusBanner" class="status-banner"></div>
+    <div class="container">
 
-  <!-- 1. CSV Loader -->
-  <div class="card">
-    <h3>1. Load Inventory (CSV)</h3>
-    <p style="font-size: 11px; color: #666; margin-top:-6px;">14 Columns: <b>UPC, Name, Book, Physical, Variance, Reorder, Price, Cost, Category, Vendor, SKU, ASIN, Item#, Model#</b></p>
-    <input type="file" id="csvFileInput" accept=".csv" />
-  </div>
-
-  <!-- 2. Camera Scanner -->
-  <div class="card">
-    <h3>2. Scan Product</h3>
-    <div id="reader"></div>
-    <div id="scanResult" style="display:none;"></div>
-  </div>
-
-  <!-- 3. Actions & Share -->
-  <div class="card">
-    <h3>3. Actions & Share</h3>
-    <button class="btn-warning" onclick="openEditModal()">+ Add Item Manually</button>
-    <button class="btn-info" id="emailBtn" onclick="emailCSV()" disabled>✉️ Email / Share CSV</button>
-    <button class="btn-success" id="exportBtn" onclick="exportCSV()" disabled>📥 Download Inventory CSV</button>
-    <button class="btn-danger" style="margin-top:16px; padding:8px; font-size:12px;" onclick="clearLocalStorage()">🗑️ Clear Saved Local Memory</button>
-  </div>
-
-  <!-- Inventory Table -->
-  <div class="card">
-    <h3>Inventory List (<span id="itemCount">0</span>)</h3>
-    <div style="overflow-x:auto;">
-      <table id="inventoryTable">
-        <thead>
-          <tr>
-            <th>UPC (Bar Code)</th>
-            <th>Product Name</th>
-            <th>Book</th>
-            <th>Physical</th>
-            <th>Variance</th>
-            <th>Action</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-    </div>
-  </div>
-
-  <!-- Edit/Add Modal -->
-  <div id="editModal" class="modal">
-    <div class="modal-content">
-      <h3 id="modalTitle">Edit Product Details</h3>
-      <input type="hidden" id="editIndex" value="-1">
-      
-      <div class="grid-2">
-        <div><label>UPC (Bar Code)</label><input type="text" id="field_upc"></div>
-        <div><label>SKU</label><input type="text" id="field_sku"></div>
-      </div>
-      
-      <label>Product Name</label>
-      <input type="text" id="field_name">
-
-      <div class="grid-2">
-        <div><label>Book Inventory</label><input type="number" id="field_bookQty"></div>
-        <div><label>Physical Inventory</label><input type="number" id="field_physicalQty"></div>
-      </div>
-      
-      <div class="grid-2">
-        <div><label>Reorder Point</label><input type="number" id="field_reorderPoint"></div>
-        <div><label>Category</label><input type="text" id="field_category"></div>
-      </div>
-
-      <div class="grid-2">
-        <div><label>List Price ($)</label><input type="number" step="0.01" id="field_listPrice"></div>
-        <div><label>Cost on Delivery ($)</label><input type="number" step="0.01" id="field_costOnDelivery"></div>
-      </div>
-
-      <div class="grid-2">
-        <div><label>Vendor</label><input type="text" id="field_vendor"></div>
-        <div><label>ASIN (Amazon)</label><input type="text" id="field_asin"></div>
-      </div>
-
-      <div class="grid-2">
-        <div><label>Item Number</label><input type="text" id="field_itemNumber"></div>
-        <div><label>Model Number</label><input type="text" id="field_modelNumber"></div>
-      </div>
-
-      <button class="btn-primary" onclick="saveModalItem()">Save Changes</button>
-      <button class="btn-secondary" onclick="closeModal()">Cancel</button>
-    </div>
-  </div>
-
-  <script>
-    let inventory = [];
-    let html5QrcodeScanner;
-    let isProcessing = false;
-    const STORAGE_KEY = 'shop_inventory_app_v5';
-
-    window.addEventListener('DOMContentLoaded', () => {
-      loadLocalStorage();
-    });
-
-    function saveLocalStorage() {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(inventory));
-      enableActionButtons();
-    }
-
-    function loadLocalStorage() {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        try {
-          inventory = JSON.parse(saved);
-          if (inventory.length > 0) {
-            updateTable();
-            enableActionButtons();
-            showStatusBanner(`💾 Restored ${inventory.length} saved items from memory.`);
-          }
-        } catch(e) {
-          console.error("Local storage error:", e);
-        }
-      }
-    }
-
-    function clearLocalStorage() {
-      if (confirm("Clear saved local memory? Ensure you have downloaded or emailed your CSV first!")) {
-        localStorage.removeItem(STORAGE_KEY);
-        inventory = [];
-        updateTable();
-        document.getElementById('exportBtn').disabled = true;
-        document.getElementById('emailBtn').disabled = true;
-        showStatusBanner("🗑️ Local memory cleared.");
-      }
-    }
-
-    function showStatusBanner(msg) {
-      const banner = document.getElementById('statusBanner');
-      banner.innerText = msg;
-      banner.style.display = 'block';
-    }
-
-    function enableActionButtons() {
-      const hasData = inventory.length > 0;
-      document.getElementById('exportBtn').disabled = !hasData;
-      document.getElementById('emailBtn').disabled = !hasData;
-    }
-
-    function parseCsvLine(text) {
-      let val = '', inQuotes = false, row = [];
-      for (let i = 0; i < text.length; i++) {
-        let c = text[i];
-        if (c === '"') {
-          inQuotes = !inQuotes;
-        } else if (c === ',' && !inQuotes) {
-          row.push(val.trim().replace(/^"|"$/g, ''));
-          val = '';
-        } else {
-          val += c;
-        }
-      }
-      row.push(val.trim().replace(/^"|"$/g, ''));
-      return row;
-    }
-
-    // Load CSV File
-    document.getElementById('csvFileInput').addEventListener('change', function(e) {
-      const file = e.target.files[0];
-      if (!file) return;
-
-      const reader = new FileReader();
-      reader.onload = function(evt) {
-        const lines = evt.target.result.split('\n');
-        if (lines.length === 0) return;
-
-        const firstLineCols = parseCsvLine(lines[0]);
-        const isHeader = firstLineCols[0].toLowerCase().includes('upc') || firstLineCols[1].toLowerCase().includes('product') || firstLineCols[1].toLowerCase().includes('name');
-        const startIndex = isHeader ? 1 : 0;
-
-        inventory = [];
-        
-        for (let i = startIndex; i < lines.length; i++) {
-          if (!lines[i].trim()) continue;
-          const c = parseCsvLine(lines[i]);
-
-          if (c.length > 0 && (c[0] || c[1] || c[10])) {
-            inventory.push({
-              upc: c[0] || '',
-              name: c[1] || 'Unnamed Product',
-              bookQty: parseInt(c[2]) || 0,
-              physicalQty: (c[3] !== undefined && c[3] !== '') ? parseInt(c[3]) : 0,
-              reorderPoint: c[5] || '0',
-              listPrice: c[6] || '0',
-              costOnDelivery: c[7] || '0',
-              category: c[8] || '',
-              vendor: c[9] || '',
-              sku: c[10] || '',
-              asin: c[11] || '',
-              itemNumber: c[12] || '',
-              modelNumber: c[13] || ''
-            });
-          }
-        }
-
-        updateTable();
-        saveLocalStorage();
-        showStatusBanner(`✅ Loaded ${inventory.length} items from CSV.`);
-      };
-      reader.readAsText(file);
-    });
-
-    // Render Table UI
-    function updateTable() {
-      const tbody = document.querySelector('#inventoryTable tbody');
-      tbody.innerHTML = '';
-      document.getElementById('itemCount').innerText = inventory.length;
-
-      inventory.forEach((item, index) => {
-        const variance = item.physicalQty - item.bookQty;
-        
-        let varianceClass = "variance-zero";
-        let varianceText = variance.toString();
-        if (variance < 0) {
-          varianceClass = "variance-negative";
-        } else if (variance > 0) {
-          varianceClass = "variance-positive";
-          varianceText = "+" + variance;
-        }
-
-        const row = `
-          <tr>
-            <td>${item.upc || item.sku || 'N/A'}</td>
-            <td><b>${item.name}</b></td>
-            <td>${item.bookQty}</td>
-            <td>
-              <input type="number" class="table-input" value="${item.physicalQty}" min="0" onchange="updatePhysicalDirect(${index}, this.value)">
-            </td>
-            <td>
-              <span class="variance-tag ${varianceClass}">${varianceText}</span>
-            </td>
-            <td>
-              <button class="btn-warning btn-sm" onclick="openEditModal(${index})">Edit</button>
-              <button class="btn-danger btn-sm" onclick="deleteItem(${index})">X</button>
-            </td>
-          </tr>`;
-        tbody.innerHTML += row;
-      });
-    }
-
-    function updatePhysicalDirect(index, value) {
-      const parsedVal = parseInt(value);
-      if (!isNaN(parsedVal)) {
-        inventory[index].physicalQty = parsedVal;
-        updateTable();
-        saveLocalStorage();
-      }
-    }
-
-    // Barcode Scan Handler
-    function onScanSuccess(decodedText) {
-      if (isProcessing) return;
-      isProcessing = true;
-
-      try { html5QrcodeScanner.pause(true); } catch(e) {}
-
-      const index = inventory.findIndex(i => 
-        (i.upc && i.upc === decodedText) || 
-        (i.sku && i.sku === decodedText) || 
-        (i.itemNumber && i.itemNumber === decodedText) ||
-        (i.modelNumber && i.modelNumber === decodedText)
-      );
-      
-      const resultDiv = document.getElementById('scanResult');
-      resultDiv.style.display = 'block';
-
-      if (index !== -1) {
-        // MATCHED KNOWN ITEM
-        const item = inventory[index];
-        resultDiv.className = "scan-action-box";
-        resultDiv.innerHTML = `
-          <h4 style="margin:0 0 8px 0; color:#007bff;">✅ Matched Item</h4>
-          <p style="margin:2px 0;"><b>Name:</b> ${item.name}</p>
-          <p style="margin:2px 0;"><b>UPC:</b> ${item.upc || 'N/A'} | <b>Book Qty:</b> ${item.bookQty}</p>
-          <label><b>Physical Inventory Count:</b></label>
-          <input type="number" id="scanQtyInput" value="${item.physicalQty + 1}">
-          <button class="btn-success" onclick="saveScanCount(${index})">Save Stock & Scan Next</button>
-        `;
-      } else {
-        // UNKNOWN BARCODE
-        let optionsHtml = '<option value="">-- Choose Preexisting Item --</option>';
-        inventory.forEach((item, idx) => {
-          optionsHtml += `<option value="${idx}">${item.name} (${item.upc ? 'UPC: ' + item.upc : 'No UPC'})</option>`;
-        });
-
-        resultDiv.className = "scan-action-box new-item";
-        resultDiv.innerHTML = `
-          <h4 style="margin:0 0 8px 0; color:#d97706;">⚠️ New Barcode Detected</h4>
-          <p style="margin:2px 0;"><b>Scanned Code:</b> <code>${decodedText}</code></p>
-          
-          <button class="btn-purple" id="lookupBtn" onclick="lookupBarcodeOnline('${decodedText}')">🔍 Lookup Barcode Online</button>
-          <a class="btn-link btn-info" href="https://www.google.com/search?q=${encodeURIComponent(decodedText)}" target="_blank">🌐 Search Google for Code</a>
-
-          <div style="margin-top:12px; background: #fff; padding: 10px; border-radius: 6px; border: 1px solid #ffeeba;">
-            <label style="margin-top:0;"><b>Link to Preexisting Item (Fix Typo):</b></label>
-            <select id="linkItemSelect" onchange="onLinkSelectChange(this.value)">${optionsHtml}</select>
-            
-            <div id="linkCountContainer" style="display:none; margin-top:8px;">
-              <label><b>Physical Count:</b></label>
-              <input type="number" id="linkQtyInput" value="1" min="0">
-              <button class="btn-primary" onclick="linkBarcodeToExisting('${decodedText}')">Attach Barcode & Save</button>
+        <!-- Section 1: CSV Loader -->
+        <div class="card">
+            <div class="card-title">📂 Section 1: Import CSV Inventory</div>
+            <div class="file-input-wrapper">
+                <button class="btn btn-secondary">📄 Select & Load CSV File</button>
+                <input type="file" id="csv-file-input" accept=".csv" onchange="handleCSVImport(event)">
             </div>
-          </div>
+        </div>
 
-          <p style="text-align:center; margin:10px 0 5px 0; font-size:12px; color:#888;">— OR —</p>
+        <!-- Section 2: Camera Scanner & Online Lookup -->
+        <div class="card">
+            <div class="card-title">📷 Section 2: Camera Scanner & Lookup</div>
+            <div id="reader"></div>
+            
+            <div style="margin-top: 10px;" class="btn-group">
+                <button id="start-cam-btn" class="btn btn-primary" onclick="startCamera()">▶ Start Scanner</button>
+                <button id="stop-cam-btn" class="btn btn-danger" onclick="stopCamera()" style="display:none;">⏹ Stop Scanner</button>
+            </div>
 
-          <button class="btn-warning" onclick="createNewScannedItem('${decodedText}')">+ Create New Product</button>
-          <button class="btn-secondary" onclick="resumeScanner()">Cancel / Skip</button>
-        `;
-      }
-    }
+            <!-- Dynamic Scan Results Area -->
+            <div id="scan-result-container"></div>
 
-    // Lookup Barcode using Open Food Facts & Free APIs
-    async function lookupBarcodeOnline(code) {
-      const btn = document.getElementById('lookupBtn');
-      btn.innerText = "⏳ Looking up...";
-      btn.disabled = true;
+            <hr style="margin: 16px 0; border: none; border-top: 1px solid var(--border);">
 
-      try {
-        const response = await fetch(`https://world.openfoodfacts.org/api/v0/product/${code}.json`);
-        const data = await response.json();
+            <!-- Standalone Manual Online Search Tool -->
+            <div class="card-title" style="font-size: 0.85rem;">🔍 Standalone Manual Barcode Lookup</div>
+            <div style="display: flex; gap: 6px;">
+                <input type="text" id="manual-barcode-input" class="form-control" placeholder="Enter barcode number...">
+                <button class="btn btn-primary" style="width: auto; white-space: nowrap;" onclick="triggerManualBarcodeLookup()">Search Online</button>
+            </div>
+        </div>
 
-        if (data.status === 1 && data.product) {
-          const name = data.product.product_name || data.product.product_name_en || "Found Product";
-          const category = data.product.categories ? data.product.categories.split(',')[0] : "";
-          
-          alert(`🎉 Found Online!\n\nProduct: ${name}\nCategory: ${category}`);
-          openEditModal(-1, code, name, category);
-          document.getElementById('scanResult').style.display = 'none';
-        } else {
-          alert("❌ Item not found in public database. Try searching Google or entering the name manually.");
-          btn.innerText = "🔍 Lookup Barcode Online";
-          btn.disabled = false;
+        <!-- Section 3: Actions & Sharing -->
+        <div class="card">
+            <div class="card-title">⚡ Section 3: Actions & Sharing</div>
+            <div class="btn-group-full">
+                <button class="btn btn-secondary" onclick="openProductModal(-1)">+ Add Item Manually</button>
+                <div class="btn-group">
+                    <button class="btn btn-success" onclick="downloadCSV()">📥 Download CSV</button>
+                    <button class="btn btn-primary" onclick="shareCSV()">✉️ Email / Share CSV</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 4: Mobile Inventory Table -->
+        <div class="card">
+            <div class="card-title" style="justify-content: space-between;">
+                <span>📋 Section 4: Inventory List</span>
+                <span id="item-count-badge" style="font-size:0.8rem; font-weight: normal; color: var(--text-muted);">0 items</span>
+            </div>
+
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>UPC</th>
+                            <th>Product Name</th>
+                            <th>Book</th>
+                            <th>Physical</th>
+                            <th>Variance</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="inventory-table-body">
+                        <!-- Table rows populated dynamically -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Modal: 14-Field Product Editor -->
+    <div id="product-modal" class="modal-overlay">
+        <div class="modal-body">
+            <div class="modal-header">
+                <h2 id="modal-title">Product Details</h2>
+                <button style="background:none; border:none; font-size:1.2rem; cursor:pointer;" onclick="closeProductModal()">✕</button>
+            </div>
+            <form id="product-form" onsubmit="saveModalProduct(event)">
+                <input type="hidden" id="modal-edit-index" value="-1">
+                
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label>1. UPC (Bar Code)</label>
+                        <input type="text" id="field-upc" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label>2. Product Name</label>
+                        <input type="text" id="field-name" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label>3. Book Inventory</label>
+                        <input type="number" id="field-book" class="form-control" value="0" required oninput="calculateModalVariance()">
+                    </div>
+                    <div class="form-group">
+                        <label>4. Physical Inventory</label>
+                        <input type="number" id="field-physical" class="form-control" value="0" required oninput="calculateModalVariance()">
+                    </div>
+                    <div class="form-group">
+                        <label>5. Variance (Calculated)</label>
+                        <input type="number" id="field-variance" class="form-control" value="0" readonly style="background:#f1f5f9;">
+                    </div>
+                    <div class="form-group">
+                        <label>6. Reorder Point</label>
+                        <input type="text" id="field-reorder" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>7. List Price</label>
+                        <input type="text" id="field-listPrice" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>8. Cost on Delivery</label>
+                        <input type="text" id="field-cost" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>9. Category</label>
+                        <input type="text" id="field-category" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>10. Vendor</label>
+                        <input type="text" id="field-vendor" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>11. SKU</label>
+                        <input type="text" id="field-sku" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>12. ASIN (Amazon)</label>
+                        <input type="text" id="field-asin" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>13. Item Number</label>
+                        <input type="text" id="field-itemNo" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>14. Model Number</label>
+                        <input type="text" id="field-modelNo" class="form-control">
+                    </div>
+                </div>
+
+                <div class="btn-group" style="margin-top: 16px;">
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeProductModal()">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        /* Global Application State */
+        let inventory = [];
+        let html5QrCode = null;
+        let isScannerRunning = false;
+
+        // 14 Standard Fields mapping exact schema
+        const FIELDS = [
+            'upc', 'name', 'book', 'physical', 'variance', 
+            'reorder', 'listPrice', 'cost', 'category', 
+            'vendor', 'sku', 'asin', 'itemNo', 'modelNo'
+        ];
+
+        /* --- LocalStorage Persistence & Banner --- */
+        function saveToLocalStorage() {
+            localStorage.setItem('shop_inventory_data', JSON.stringify(inventory));
+            updateMemoryBanner();
         }
-      } catch (err) {
-        alert("Unable to reach lookup server. Please enter product details manually.");
-        btn.innerText = "🔍 Lookup Barcode Online";
-        btn.disabled = false;
-      }
-    }
 
-    function onLinkSelectChange(selectedIndex) {
-      const container = document.getElementById('linkCountContainer');
-      const qtyInput = document.getElementById('linkQtyInput');
-      
-      if (selectedIndex !== "" && inventory[selectedIndex]) {
-        container.style.display = 'block';
-        qtyInput.value = inventory[selectedIndex].physicalQty + 1;
-      } else {
-        container.style.display = 'none';
-      }
-    }
-
-    function linkBarcodeToExisting(scannedCode) {
-      const select = document.getElementById('linkItemSelect');
-      const selectedIndex = select ? select.value : '';
-
-      if (selectedIndex === '' || selectedIndex === undefined) {
-        alert('Please select a product from the list.');
-        return;
-      }
-
-      const idx = parseInt(selectedIndex);
-      if (!isNaN(idx) && inventory[idx]) {
-        const item = inventory[idx];
-        const oldUpc = item.upc;
-        item.upc = scannedCode;
-
-        const newQty = parseInt(document.getElementById('linkQtyInput').value);
-        if (!isNaN(newQty)) {
-          item.physicalQty = newQty;
+        function loadFromLocalStorage() {
+            const stored = localStorage.getItem('shop_inventory_data');
+            if (stored) {
+                try {
+                    inventory = JSON.parse(stored);
+                } catch (e) {
+                    inventory = [];
+                }
+            }
+            updateMemoryBanner();
+            renderTable();
         }
 
-        updateTable();
-        saveLocalStorage();
-        showStatusBanner(`🔗 Assigned barcode ${scannedCode} to "${item.name}"`);
-        resumeScanner();
-      }
-    }
-
-    function saveScanCount(index) {
-      const newQty = parseInt(document.getElementById('scanQtyInput').value);
-      if (!isNaN(newQty)) {
-        inventory[index].physicalQty = newQty;
-        updateTable();
-        saveLocalStorage();
-      }
-      resumeScanner();
-    }
-
-    function createNewScannedItem(code) {
-      document.getElementById('scanResult').style.display = 'none';
-      openEditModal(-1, code);
-    }
-
-    function resumeScanner() {
-      const resultDiv = document.getElementById('scanResult');
-      resultDiv.style.display = 'none';
-      resultDiv.innerHTML = '';
-      isProcessing = false;
-      try { html5QrcodeScanner.resume(); } catch(e) {}
-    }
-
-    // Modal Operations
-    function openEditModal(index = -1, scannedCode = '', autoName = '', autoCategory = '') {
-      document.getElementById('editIndex').value = index;
-      
-      if (index >= 0) {
-        const item = inventory[index];
-        document.getElementById('modalTitle').innerText = "Edit Product Details";
-        document.getElementById('field_upc').value = item.upc;
-        document.getElementById('field_name').value = item.name;
-        document.getElementById('field_bookQty').value = item.bookQty;
-        document.getElementById('field_physicalQty').value = item.physicalQty;
-        document.getElementById('field_reorderPoint').value = item.reorderPoint;
-        document.getElementById('field_listPrice').value = item.listPrice;
-        document.getElementById('field_costOnDelivery').value = item.costOnDelivery;
-        document.getElementById('field_category').value = item.category;
-        document.getElementById('field_vendor').value = item.vendor;
-        document.getElementById('field_sku').value = item.sku;
-        document.getElementById('field_asin').value = item.asin;
-        document.getElementById('field_itemNumber').value = item.itemNumber;
-        document.getElementById('field_modelNumber').value = item.modelNumber;
-      } else {
-        document.getElementById('modalTitle').innerText = "Add New Product";
-        document.getElementById('field_upc').value = scannedCode || '';
-        document.getElementById('field_name').value = autoName || '';
-        document.getElementById('field_bookQty').value = '0';
-        document.getElementById('field_physicalQty').value = '1';
-        document.getElementById('field_reorderPoint').value = '0';
-        document.getElementById('field_listPrice').value = '0';
-        document.getElementById('field_costOnDelivery').value = '0';
-        document.getElementById('field_category').value = autoCategory || '';
-        document.getElementById('field_vendor').value = '';
-        document.getElementById('field_sku').value = '';
-        document.getElementById('field_asin').value = '';
-        document.getElementById('field_itemNumber').value = '';
-        document.getElementById('field_modelNumber').value = '';
-      }
-      
-      document.getElementById('editModal').style.display = 'block';
-    }
-
-    function saveModalItem() {
-      const index = parseInt(document.getElementById('editIndex').value);
-      
-      const itemData = {
-        upc: document.getElementById('field_upc').value.trim(),
-        name: document.getElementById('field_name').value.trim() || 'Unnamed Item',
-        bookQty: parseInt(document.getElementById('field_bookQty').value) || 0,
-        physicalQty: parseInt(document.getElementById('field_physicalQty').value) || 0,
-        reorderPoint: document.getElementById('field_reorderPoint').value.trim() || '0',
-        listPrice: document.getElementById('field_listPrice').value.trim() || '0',
-        costOnDelivery: document.getElementById('field_costOnDelivery').value.trim() || '0',
-        category: document.getElementById('field_category').value.trim(),
-        vendor: document.getElementById('field_vendor').value.trim(),
-        sku: document.getElementById('field_sku').value.trim(),
-        asin: document.getElementById('field_asin').value.trim(),
-        itemNumber: document.getElementById('field_itemNumber').value.trim(),
-        modelNumber: document.getElementById('field_modelNumber').value.trim()
-      };
-
-      if (index >= 0) {
-        inventory[index] = itemData;
-      } else {
-        inventory.push(itemData);
-      }
-
-      updateTable();
-      saveLocalStorage();
-      closeModal();
-    }
-
-    function deleteItem(index) {
-      if (confirm(`Delete "${inventory[index].name}"?`)) {
-        inventory.splice(index, 1);
-        updateTable();
-        saveLocalStorage();
-      }
-    }
-
-    function closeModal() {
-      document.getElementById('editModal').style.display = 'none';
-      if (isProcessing) {
-        resumeScanner();
-      }
-    }
-
-    // Export 14-Column CSV String
-    function buildCSVString() {
-      let csv = "UPC (Bar Code),Product Name,Book Inventory,Physical inventory,Variance,Reorder Point,List price,Cost on Delivery,Category,Vendor,SKU,ASIN (Amazon),Item number,Model Number\n";
-      inventory.forEach(i => {
-        const variance = (i.physicalQty || 0) - (i.bookQty || 0);
-        csv += `"${i.upc || ''}","${i.name || ''}",${i.bookQty || 0},${i.physicalQty || 0},${variance},"${i.reorderPoint || 0}","${i.listPrice || 0}","${i.costOnDelivery || 0}","${i.category || ''}","${i.vendor || ''}","${i.sku || ''}","${i.asin || ''}","${i.itemNumber || ''}","${i.modelNumber || ''}"\n`;
-      });
-      return csv;
-    }
-
-    function exportCSV() {
-      const csvContent = "data:text/csv;charset=utf-8," + buildCSVString();
-      const encodedUri = encodeURI(csvContent);
-      const link = document.createElement("a");
-      link.setAttribute("href", encodedUri);
-      link.setAttribute("download", `inventory_counts_${new Date().toISOString().slice(0,10)}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    }
-
-    async function emailCSV() {
-      const csvText = buildCSVString();
-      const fileName = `inventory_counts_${new Date().toISOString().slice(0,10)}.csv`;
-
-      if (navigator.canShare && navigator.canShare({ files: [new File([], fileName, { type: 'text/csv' })] })) {
-        try {
-          const file = new File([csvText], fileName, { type: 'text/csv' });
-          await navigator.share({
-            title: 'Inventory Count Export',
-            text: 'Attached is the shop inventory count CSV.',
-            files: [file]
-          });
-          return;
-        } catch (err) {
-          if (err.name !== 'AbortError') console.error("Share failed:", err);
+        function updateMemoryBanner() {
+            const count = inventory.length;
+            document.getElementById('memory-status-text').innerText = `${count} item${count === 1 ? '' : 's'} loaded from local memory`;
+            document.getElementById('item-count-badge').innerText = `${count} item${count === 1 ? '' : 's'}`;
         }
-      }
 
-      const subject = encodeURIComponent("Inventory Count Export");
-      const body = encodeURIComponent("Inventory Counts:\n\n" + csvText);
-      window.location.href = `mailto:?subject=${subject}&body=${body}`;
-    }
+        function clearLocalStorage() {
+            if (confirm("Are you sure you want to clear all stored inventory data? This cannot be undone.")) {
+                localStorage.removeItem('shop_inventory_data');
+                inventory = [];
+                updateMemoryBanner();
+                renderTable();
+            }
+        }
 
-    // Initialize Camera Scanner
-    html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: { width: 250, height: 150 } });
-    html5QrcodeScanner.render(onScanSuccess);
-  </script>
+        /* --- Section 1: CSV Loader Parsing --- */
+        function handleCSVImport(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const text = e.target.result;
+                const rows = parseCSVText(text);
+                
+                if (rows.length === 0) {
+                    alert("CSV file appears to be empty.");
+                    return;
+                }
+
+                // Check for Header row
+                let startIdx = 0;
+                const firstRowJoin = rows[0].join(' ').toLowerCase();
+                if (firstRowJoin.includes('upc') || firstRowJoin.includes('product name') || firstRowJoin.includes('book')) {
+                    startIdx = 1;
+                }
+
+                const imported = [];
+                for (let i = startIdx; i < rows.length; i++) {
+                    const row = rows[i];
+                    if (row.length === 0 || (row.length === 1 && row[0] === '')) continue;
+
+                    const book = parseInt(row[2]) || 0;
+                    const physical = parseInt(row[3]) || 0;
+
+                    imported.push({
+                        upc: row[0] || '',
+                        name: row[1] || 'Unnamed Item',
+                        book: book,
+                        physical: physical,
+                        variance: physical - book,
+                        reorder: row[5] || '',
+                        listPrice: row[6] || '',
+                        cost: row[7] || '',
+                        category: row[8] || '',
+                        vendor: row[9] || '',
+                        sku: row[10] || '',
+                        asin: row[11] || '',
+                        itemNo: row[12] || '',
+                        modelNo: row[13] || ''
+                    });
+                }
+
+                inventory = imported;
+                saveToLocalStorage();
+                renderTable();
+                alert(`Successfully imported ${imported.length} items from CSV.`);
+                event.target.value = ''; // Reset file input
+            };
+            reader.readAsText(file);
+        }
+
+        // Robust CSV Line Parser (handles quotes & commas)
+        function parseCSVText(text) {
+            const lines = [];
+            let row = [];
+            let entry = '';
+            let inQuotes = false;
+
+            for (let i = 0; i < text.length; i++) {
+                const c = text[i];
+                const next = text[i + 1];
+
+                if (c === '"') {
+                    if (inQuotes && next === '"') {
+                        entry += '"';
+                        i++;
+                    } else {
+                        inQuotes = !inQuotes;
+                    }
+                } else if (c === ',' && !inQuotes) {
+                    row.push(entry.trim());
+                    entry = '';
+                } else if ((c === '\r' || c === '\n') && !inQuotes) {
+                    if (c === '\r' && next === '\n') { i++; }
+                    row.push(entry.trim());
+                    if (row.some(f => f !== '')) lines.push(row);
+                    row = [];
+                    entry = '';
+                } else {
+                    entry += c;
+                }
+            }
+            if (entry !== '' || row.length > 0) {
+                row.push(entry.trim());
+                if (row.some(f => f !== '')) lines.push(row);
+            }
+            return lines;
+        }
+
+        /* --- Section 2: Camera Scanner Logic --- */
+        async function startCamera() {
+            if (!html5QrCode) {
+                html5QrCode = new Html5Qrcode("reader");
+            }
+            
+            try {
+                await html5QrCode.start(
+                    { facingMode: "environment" },
+                    { fps: 10, qrbox: { width: 250, height: 150 } },
+                    onScanSuccess,
+                    onScanError
+                );
+                isScannerRunning = true;
+                document.getElementById('start-cam-btn').style.display = 'none';
+                document.getElementById('stop-cam-btn').style.display = 'inline-flex';
+            } catch (err) {
+                alert("Could not access camera: " + err);
+            }
+        }
+
+        async function stopCamera() {
+            if (html5QrCode && isScannerRunning) {
+                await html5QrCode.stop();
+                isScannerRunning = false;
+                document.getElementById('start-cam-btn').style.display = 'inline-flex';
+                document.getElementById('stop-cam-btn').style.display = 'none';
+            }
+        }
+
+        function pauseCameraScanner() {
+            if (html5QrCode && html5QrCode.getState() === Html5QrcodeScannerState.SCANNING) {
+                html5QrCode.pause(true);
+            }
+        }
+
+        function resumeCameraScanner() {
+            if (html5QrCode && html5QrCode.getState() === Html5QrcodeScannerState.PAUSED) {
+                html5QrCode.resume();
+            }
+        }
+
+        function onScanSuccess(decodedText) {
+            pauseCameraScanner();
+            processScannedCode(decodedText.trim());
+        }
+
+        function onScanError(error) {
+            // Silence routine scanning frame errors
+        }
+
+        function processScannedCode(code) {
+            const container = document.getElementById('scan-result-container');
+            
+            // Match against UPC, SKU, Item number, Model Number
+            const matchIndex = inventory.findIndex(item => 
+                (item.upc && item.upc.trim() === code) ||
+                (item.sku && item.sku.trim() === code) ||
+                (item.itemNo && item.itemNo.trim() === code) ||
+                (item.modelNo && item.modelNo.trim() === code)
+            );
+
+            if (matchIndex !== -1) {
+                // MATCHED KNOWN ITEM (Blue Box)
+                const item = inventory[matchIndex];
+                const nextPhysical = item.physical + 1;
+
+                container.innerHTML = `
+                    <div class="result-box matched">
+                        <div><strong>✅ Item Found:</strong> ${escapeHtml(item.name)}</div>
+                        <div style="font-size: 0.85rem;">UPC: ${escapeHtml(item.upc)} | Book Qty: ${item.book}</div>
+                        <div class="form-group" style="margin: 4px 0;">
+                            <label style="color:#1e3a8a;">New Physical Count:</label>
+                            <input type="number" id="scanned-qty-input" class="form-control" value="${nextPhysical}">
+                        </div>
+                        <div class="btn-group">
+                            <button class="btn btn-success" onclick="saveMatchedCount(${matchIndex})">Save Stock & Scan Next</button>
+                            <button class="btn btn-secondary" onclick="dismissScanResult()">Cancel / Skip</button>
+                        </div>
+                    </div>
+                `;
+            } else {
+                // UNMATCHED UNKNOWN ITEM (Yellow Box)
+                let selectOptions = inventory.map((item, idx) => 
+                    `<option value="${idx}">${escapeHtml(item.name)} (UPC: ${escapeHtml(item.upc || 'N/A')})</option>`
+                ).join('');
+
+                container.innerHTML = `
+                    <div class="result-box unmatched">
+                        <div><strong>⚠️ Barcode Not Found:</strong> <code>${escapeHtml(code)}</code></div>
+                        <div style="font-size:0.85rem;">Choose a resolution option below:</div>
+                        
+                        <div class="btn-group-full">
+                            <button class="btn btn-primary" onclick="lookupOnlineApi('${code}')">🔍 Lookup Barcode Online (API)</button>
+                            <a href="https://www.google.com/search?q=${encodeURIComponent(code)}" target="_blank" class="btn btn-secondary">🌐 Search Google for Barcode</a>
+                            
+                            ${inventory.length > 0 ? `
+                            <div style="margin-top: 6px;">
+                                <label style="font-size:0.75rem; font-weight:600;">Link to Preexisting Item (Fix Typo):</label>
+                                <div style="display:flex; gap:4px; margin-top:2px;">
+                                    <select id="link-preexisting-select" class="form-control" style="font-size:0.85rem;">
+                                        ${selectOptions}
+                                    </select>
+                                    <button class="btn btn-primary" style="width:auto;" onclick="linkBarcodeToExisting('${code}')">Link</button>
+                                </div>
+                            </div>
+                            ` : ''}
+
+                            <button class="btn btn-success" onclick="createNewWithBarcode('${code}')">+ Create New Product</button>
+                            <button class="btn btn-secondary" onclick="dismissScanResult()">Cancel / Skip</button>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        function saveMatchedCount(index) {
+            const inputVal = parseInt(document.getElementById('scanned-qty-input').value) || 0;
+            inventory[index].physical = inputVal;
+            inventory[index].variance = inventory[index].physical - inventory[index].book;
+            saveToLocalStorage();
+            renderTable();
+            dismissScanResult();
+        }
+
+        function linkBarcodeToExisting(code) {
+            const select = document.getElementById('link-preexisting-select');
+            if (!select) return;
+            const index = parseInt(select.value);
+            if (isNaN(index) || index < 0) return;
+
+            inventory[index].upc = code;
+            inventory[index].physical += 1;
+            inventory[index].variance = inventory[index].physical - inventory[index].book;
+            
+            saveToLocalStorage();
+            renderTable();
+            alert(`Linked barcode ${code} to ${inventory[index].name}`);
+            dismissScanResult();
+        }
+
+        function createNewWithBarcode(code) {
+            dismissScanResult(false);
+            openProductModal(-1, { upc: code, physical: 1, book: 0 });
+        }
+
+        function dismissScanResult(resume = true) {
+            document.getElementById('scan-result-container').innerHTML = '';
+            if (resume) resumeCameraScanner();
+        }
+
+        /* Online Barcode Search (Open Food Facts V2 API) */
+        async function lookupOnlineApi(code) {
+            try {
+                const response = await fetch(`https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(code)}.json`);
+                const data = await response.json();
+
+                if (data.status === 1 && data.product) {
+                    const prod = data.product;
+                    const prodName = prod.product_name || prod.product_name_en || "Discovered Product";
+                    const category = prod.categories ? prod.categories.split(',')[0] : "";
+                    
+                    alert(`Found Online: ${prodName}`);
+                    dismissScanResult(false);
+                    openProductModal(-1, {
+                        upc: code,
+                        name: prodName,
+                        category: category,
+                        physical: 1,
+                        book: 0
+                    });
+                } else {
+                    alert("No product data found in Open Food Facts database.");
+                }
+            } catch (err) {
+                alert("Error searching online API: " + err.message);
+            }
+        }
+
+        function triggerManualBarcodeLookup() {
+            const code = document.getElementById('manual-barcode-input').value.trim();
+            if (!code) {
+                alert("Please enter a barcode number to look up.");
+                return;
+            }
+            processScannedCode(code);
+        }
+
+        /* --- Section 3: Actions & CSV Sharing/Export --- */
+        function generateCSVString() {
+            const headers = [
+                "UPC (Bar Code)", "Product Name", "Book Inventory", "Physical inventory",
+                "Variance", "Reorder Point", "List price", "Cost on Delivery",
+                "Category", "Vendor", "SKU", "ASIN (Amazon)", "Item number", "Model Number"
+            ];
+
+            let csv = headers.map(h => `"${h}"`).join(',') + '\n';
+
+            inventory.forEach(item => {
+                const row = [
+                    item.upc || '',
+                    item.name || '',
+                    item.book || 0,
+                    item.physical || 0,
+                    (item.physical || 0) - (item.book || 0),
+                    item.reorder || '',
+                    item.listPrice || '',
+                    item.cost || '',
+                    item.category || '',
+                    item.vendor || '',
+                    item.sku || '',
+                    item.asin || '',
+                    item.itemNo || '',
+                    item.modelNo || ''
+                ];
+                csv += row.map(val => `"${String(val).replace(/"/g, '""')}"`).join(',') + '\n';
+            });
+
+            return csv;
+        }
+
+        function downloadCSV() {
+            const csvText = generateCSVString();
+            const blob = new Blob([csvText], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            const url = URL.createObjectURL(blob);
+            
+            link.setAttribute("href", url);
+            link.setAttribute("download", `inventory_export_${new Date().toISOString().slice(0,10)}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        async function shareCSV() {
+            const csvText = generateCSVString();
+            const fileName = `inventory_${new Date().toISOString().slice(0,10)}.csv`;
+            const blob = new Blob([csvText], { type: 'text/csv' });
+            const file = new File([blob], fileName, { type: 'text/csv' });
+
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                try {
+                    await navigator.share({
+                        title: 'Shop Inventory Export',
+                        text: 'Attached is the shop inventory count CSV.',
+                        files: [file]
+                    });
+                } catch (err) {
+                    if (err.name !== 'AbortError') {
+                        fallbackEmail(csvText);
+                    }
+                }
+            } else {
+                fallbackEmail(csvText);
+            }
+        }
+
+        function fallbackEmail(csvText) {
+            const subject = encodeURIComponent("Shop Inventory Data CSV");
+            const body = encodeURIComponent("Here is the exported shop inventory data:\n\n" + csvText);
+            window.location.href = `mailto:?subject=${subject}&body=${body}`;
+        }
+
+        /* --- Section 4: Table Rendering --- */
+        function renderTable() {
+            const tbody = document.getElementById('inventory-table-body');
+            tbody.innerHTML = '';
+
+            if (inventory.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color: var(--text-muted); padding: 20px;">No inventory items loaded.</td></tr>`;
+                return;
+            }
+
+            inventory.forEach((item, index) => {
+                const variance = item.physical - item.book;
+                let pillClass = 'pill-zero';
+                let varDisplay = `${variance}`;
+                if (variance < 0) {
+                    pillClass = 'pill-neg';
+                } else if (variance > 0) {
+                    pillClass = 'pill-pos';
+                    varDisplay = `+${variance}`;
+                }
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><code>${escapeHtml(item.upc || 'N/A')}</code></td>
+                    <td><strong>${escapeHtml(item.name)}</strong></td>
+                    <td>${item.book}</td>
+                    <td>
+                        <input type="number" class="table-input" value="${item.physical}" onchange="updateTablePhysical(${index}, this.value)">
+                    </td>
+                    <td><span class="pill ${pillClass}">${varDisplay}</span></td>
+                    <td>
+                        <div style="display:flex; gap:4px;">
+                            <button class="btn btn-secondary btn-icon" onclick="openProductModal(${index})">✏️ Edit</button>
+                            <button class="btn btn-danger btn-icon" onclick="deleteItem(${index})">✕</button>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function updateTablePhysical(index, value) {
+            const val = parseInt(value) || 0;
+            inventory[index].physical = val;
+            inventory[index].variance = val - inventory[index].book;
+            saveToLocalStorage();
+            renderTable();
+        }
+
+        function deleteItem(index) {
+            if (confirm(`Delete "${inventory[index].name}"?`)) {
+                inventory.splice(index, 1);
+                saveToLocalStorage();
+                renderTable();
+            }
+        }
+
+        /* --- Modal Editor Logic --- */
+        function openProductModal(index = -1, overrideData = null) {
+            document.getElementById('modal-edit-index').value = index;
+            const title = index === -1 ? 'Add New Product' : 'Edit Product';
+            document.getElementById('modal-title').innerText = title;
+
+            let data = {
+                upc: '', name: '', book: 0, physical: 0, variance: 0,
+                reorder: '', listPrice: '', cost: '', category: '',
+                vendor: '', sku: '', asin: '', itemNo: '', modelNo: ''
+            };
+
+            if (index >= 0 && inventory[index]) {
+                data = inventory[index];
+            } else if (overrideData) {
+                Object.assign(data, overrideData);
+            }
+
+            FIELDS.forEach(field => {
+                const input = document.getElementById(`field-${field}`);
+                if (input) {
+                    input.value = data[field] !== undefined ? data[field] : '';
+                }
+            });
+
+            calculateModalVariance();
+            document.getElementById('product-modal').classList.add('active');
+        }
+
+        function closeProductModal() {
+            document.getElementById('product-modal').classList.remove('active');
+        }
+
+        function calculateModalVariance() {
+            const book = parseInt(document.getElementById('field-book').value) || 0;
+            const physical = parseInt(document.getElementById('field-physical').value) || 0;
+            document.getElementById('field-variance').value = physical - book;
+        }
+
+        function saveModalProduct(e) {
+            e.preventDefault();
+            const index = parseInt(document.getElementById('modal-edit-index').value);
+
+            const book = parseInt(document.getElementById('field-book').value) || 0;
+            const physical = parseInt(document.getElementById('field-physical').value) || 0;
+
+            const itemObj = {
+                upc: document.getElementById('field-upc').value.trim(),
+                name: document.getElementById('field-name').value.trim(),
+                book: book,
+                physical: physical,
+                variance: physical - book,
+                reorder: document.getElementById('field-reorder').value.trim(),
+                listPrice: document.getElementById('field-listPrice').value.trim(),
+                cost: document.getElementById('field-cost').value.trim(),
+                category: document.getElementById('field-category').value.trim(),
+                vendor: document.getElementById('field-vendor').value.trim(),
+                sku: document.getElementById('field-sku').value.trim(),
+                asin: document.getElementById('field-asin').value.trim(),
+                itemNo: document.getElementById('field-itemNo').value.trim(),
+                modelNo: document.getElementById('field-modelNo').value.trim()
+            };
+
+            if (index >= 0) {
+                inventory[index] = itemObj;
+            } else {
+                inventory.push(itemObj);
+            }
+
+            saveToLocalStorage();
+            renderTable();
+            closeProductModal();
+        }
+
+        /* Utility Helpers */
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        /* App Initialization */
+        window.addEventListener('DOMContentLoaded', () => {
+            loadFromLocalStorage();
+        });
+    </script>
 </body>
 </html>
