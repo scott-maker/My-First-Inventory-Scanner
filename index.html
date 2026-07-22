@@ -12,7 +12,7 @@
     #reader { width: 100%; max-width: 400px; margin: 0 auto; border-radius: 8px; overflow: hidden; }
     
     label { font-size: 12px; font-weight: bold; color: #555; display: block; margin-top: 6px; }
-    input[type="text"], input[type="number"] { 
+    input[type="text"], input[type="number"], select { 
       width: 100%; box-sizing: border-box; padding: 9px; margin-top: 3px; margin-bottom: 6px; 
       border-radius: 6px; border: 1px solid #ccc; font-size: 14px; 
     }
@@ -147,7 +147,7 @@
     let inventory = [];
     let html5QrcodeScanner;
     let isProcessing = false;
-    const STORAGE_KEY = 'shop_inventory_app_v3';
+    const STORAGE_KEY = 'shop_inventory_app_v4';
 
     window.addEventListener('DOMContentLoaded', () => {
       loadLocalStorage();
@@ -197,7 +197,6 @@
       document.getElementById('emailBtn').disabled = !hasData;
     }
 
-    // Custom CSV Parser function to safely parse quoted strings
     function parseCsvLine(text) {
       let val = '', inQuotes = false, row = [];
       for (let i = 0; i < text.length; i++) {
@@ -225,7 +224,6 @@
         const lines = evt.target.result.split('\n');
         if (lines.length === 0) return;
 
-        // Auto-detect if line 0 is a header row
         const firstLineCols = parseCsvLine(lines[0]);
         const isHeader = firstLineCols[0].toLowerCase().includes('upc') || firstLineCols[1].toLowerCase().includes('product') || firstLineCols[1].toLowerCase().includes('name');
         const startIndex = isHeader ? 1 : 0;
@@ -309,7 +307,7 @@
       }
     }
 
-    // Barcode Scan Handler (Matches UPC, SKU, Item#, Model#)
+    // Barcode Scan Handler
     function onScanSuccess(decodedText) {
       if (isProcessing) return;
       isProcessing = true;
@@ -327,6 +325,7 @@
       resultDiv.style.display = 'block';
 
       if (index !== -1) {
+        // MATCHED KNOWN ITEM
         const item = inventory[index];
         resultDiv.className = "scan-action-box";
         resultDiv.innerHTML = `
@@ -338,13 +337,77 @@
           <button class="btn-success" onclick="saveScanCount(${index})">Save Stock & Scan Next</button>
         `;
       } else {
+        // UNKNOWN BARCODE
+        let optionsHtml = '<option value="">-- Choose Existing Product --</option>';
+        inventory.forEach((item, idx) => {
+          optionsHtml += `<option value="${idx}">${item.name} (${item.upc ? 'UPC: ' + item.upc : 'No UPC'})</option>`;
+        });
+
         resultDiv.className = "scan-action-box new-item";
         resultDiv.innerHTML = `
           <h4 style="margin:0 0 8px 0; color:#d97706;">⚠️ New Barcode Detected</h4>
-          <p style="margin:2px 0;"><b>Code:</b> ${decodedText}</p>
-          <button class="btn-primary" onclick="createNewScannedItem('${decodedText}')">Register New Item</button>
+          <p style="margin:2px 0;"><b>Scanned Code:</b> <code>${decodedText}</code></p>
+          
+          <div style="margin-top:12px; background: #fff; padding: 10px; border-radius: 6px; border: 1px solid #ffeeba;">
+            <label style="margin-top:0;"><b>Link to Existing Item (Correct Barcode):</b></label>
+            <select id="linkItemSelect" onchange="onLinkSelectChange(this.value)">${optionsHtml}</select>
+            
+            <div id="linkCountContainer" style="display:none; margin-top:8px;">
+              <label><b>Physical Count:</b></label>
+              <input type="number" id="linkQtyInput" value="1" min="0">
+              <button class="btn-primary" onclick="linkBarcodeToExisting('${decodedText}')">Attach Barcode & Save</button>
+            </div>
+          </div>
+
+          <p style="text-align:center; margin:10px 0 5px 0; font-size:12px; color:#888;">— OR —</p>
+
+          <button class="btn-warning" onclick="createNewScannedItem('${decodedText}')">+ Create New Product</button>
           <button class="btn-secondary" onclick="resumeScanner()">Cancel / Skip</button>
         `;
+      }
+    }
+
+    // Dynamic physical count suggestion when linking an item
+    function onLinkSelectChange(selectedIndex) {
+      const container = document.getElementById('linkCountContainer');
+      const qtyInput = document.getElementById('linkQtyInput');
+      
+      if (selectedIndex !== "" && inventory[selectedIndex]) {
+        container.style.display = 'block';
+        qtyInput.value = inventory[selectedIndex].physicalQty + 1;
+      } else {
+        container.style.display = 'none';
+      }
+    }
+
+    // Save Barcode Correction to Preexisting Item
+    function linkBarcodeToExisting(scannedCode) {
+      const select = document.getElementById('linkItemSelect');
+      const selectedIndex = select ? select.value : '';
+
+      if (selectedIndex === '' || selectedIndex === undefined) {
+        alert('Please select a product from the list to assign this barcode.');
+        return;
+      }
+
+      const idx = parseInt(selectedIndex);
+      if (!isNaN(idx) && inventory[idx]) {
+        const item = inventory[idx];
+        const oldUpc = item.upc;
+        
+        // Update UPC barcode
+        item.upc = scannedCode;
+
+        // Update Physical Count
+        const newQty = parseInt(document.getElementById('linkQtyInput').value);
+        if (!isNaN(newQty)) {
+          item.physicalQty = newQty;
+        }
+
+        updateTable();
+        saveLocalStorage();
+        showStatusBanner(`🔗 Assigned barcode ${scannedCode} to "${item.name}" (Replaced: ${oldUpc || 'None'})`);
+        resumeScanner();
       }
     }
 
