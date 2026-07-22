@@ -11,12 +11,13 @@
     .card { background: white; padding: 16px; border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.08); margin-bottom: 16px; }
     #reader { width: 100%; max-width: 400px; margin: 0 auto; border-radius: 8px; overflow: hidden; }
     
-    label { font-size: 13px; font-weight: bold; color: #555; display: block; margin-top: 8px; }
-    input[type="text"], input[type="number"], select { 
-      width: 100%; box-sizing: border-box; padding: 10px; margin-top: 4px; margin-bottom: 8px; 
-      border-radius: 6px; border: 1px solid #ccc; font-size: 15px; 
+    label { font-size: 12px; font-weight: bold; color: #555; display: block; margin-top: 6px; }
+    input[type="text"], input[type="number"] { 
+      width: 100%; box-sizing: border-box; padding: 9px; margin-top: 3px; margin-bottom: 6px; 
+      border-radius: 6px; border: 1px solid #ccc; font-size: 14px; 
     }
     
+    .table-input { width: 70px !important; padding: 6px !important; margin: 0 !important; text-align: center; font-weight: bold; }
     .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
     
     button { width: 100%; padding: 12px; margin-top: 8px; border-radius: 6px; border: none; font-size: 15px; font-weight: bold; cursor: pointer; }
@@ -36,12 +37,16 @@
     }
     .scan-action-box.new-item { border-color: #ffc107; background: #fffdf5; }
     
-    /* Modal Popup styling for manual editing */
+    .variance-tag { font-weight: bold; padding: 4px 8px; border-radius: 4px; display: inline-block; }
+    .variance-negative { background: #f8d7da; color: #721c24; }
+    .variance-zero { background: #d4edda; color: #155724; }
+    .variance-positive { background: #cce5ff; color: #004085; }
+    
     .modal { display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); overflow-y: auto; }
-    .modal-content { background: white; margin: 10% auto; padding: 20px; border-radius: 10px; max-width: 500px; width: 90%; box-sizing: border-box; }
+    .modal-content { background: white; margin: 5% auto; padding: 20px; border-radius: 10px; max-width: 500px; width: 90%; box-sizing: border-box; }
     
     table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; font-size: 13px; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; font-size: 13px; vertical-align: middle; }
     th { background-color: #f2f2f2; }
   </style>
 </head>
@@ -49,13 +54,12 @@
 
   <h2 style="text-align: center;">Inventory Manager</h2>
 
-  <!-- Status Banner for Local Storage Notifications -->
   <div id="statusBanner" class="status-banner"></div>
 
   <!-- 1. CSV Loader -->
   <div class="card">
     <h3>1. Load Inventory (CSV)</h3>
-    <p style="font-size: 11px; color: #666; margin-top:-6px;">Headers: id, sku, name, category, cost, stock, reorderPoint, parLevel, orderUnit, unitsPerOrder</p>
+    <p style="font-size: 11px; color: #666; margin-top:-6px;">14 Columns: <b>UPC, Name, Book, Physical, Variance, Reorder, Price, Cost, Category, Vendor, SKU, ASIN, Item#, Model#</b></p>
     <input type="file" id="csvFileInput" accept=".csv" />
   </div>
 
@@ -66,7 +70,7 @@
     <div id="scanResult" style="display:none;"></div>
   </div>
 
-  <!-- 3. Actions & Exports -->
+  <!-- 3. Actions & Share -->
   <div class="card">
     <h3>3. Actions & Share</h3>
     <button class="btn-warning" onclick="openEditModal()">+ Add Item Manually</button>
@@ -82,11 +86,12 @@
       <table id="inventoryTable">
         <thead>
           <tr>
-            <th>SKU / ID</th>
-            <th>Name</th>
-            <th>Stock</th>
-            <th>Category</th>
-            <th>Actions</th>
+            <th>UPC (Bar Code)</th>
+            <th>Product Name</th>
+            <th>Book</th>
+            <th>Physical</th>
+            <th>Variance</th>
+            <th>Action</th>
           </tr>
         </thead>
         <tbody></tbody>
@@ -94,37 +99,44 @@
     </div>
   </div>
 
-  <!-- Edit/Add Modal -->
+  <!-- Edit/Add Modal with All 14 Fields -->
   <div id="editModal" class="modal">
     <div class="modal-content">
-      <h3 id="modalTitle">Edit Product</h3>
+      <h3 id="modalTitle">Edit Product Details</h3>
       <input type="hidden" id="editIndex" value="-1">
       
       <div class="grid-2">
-        <div><label>ID</label><input type="text" id="field_id"></div>
-        <div><label>SKU (Barcode)</label><input type="text" id="field_sku"></div>
+        <div><label>UPC (Bar Code)</label><input type="text" id="field_upc"></div>
+        <div><label>SKU</label><input type="text" id="field_sku"></div>
       </div>
       
       <label>Product Name</label>
       <input type="text" id="field_name">
-      
+
       <div class="grid-2">
-        <div><label>Category</label><input type="text" id="field_category"></div>
-        <div><label>Cost ($)</label><input type="number" step="0.01" id="field_cost"></div>
+        <div><label>Book Inventory</label><input type="number" id="field_bookQty"></div>
+        <div><label>Physical Inventory</label><input type="number" id="field_physicalQty"></div>
       </div>
       
       <div class="grid-2">
-        <div><label>Current Stock</label><input type="number" id="field_stock"></div>
         <div><label>Reorder Point</label><input type="number" id="field_reorderPoint"></div>
+        <div><label>Category</label><input type="text" id="field_category"></div>
       </div>
-      
+
       <div class="grid-2">
-        <div><label>Par Level</label><input type="number" id="field_parLevel"></div>
-        <div><label>Order Unit</label><input type="text" id="field_orderUnit" placeholder="e.g. Box, Ea"></div>
+        <div><label>List Price ($)</label><input type="number" step="0.01" id="field_listPrice"></div>
+        <div><label>Cost on Delivery ($)</label><input type="number" step="0.01" id="field_costOnDelivery"></div>
       </div>
-      
-      <label>Units Per Order</label>
-      <input type="number" id="field_unitsPerOrder">
+
+      <div class="grid-2">
+        <div><label>Vendor</label><input type="text" id="field_vendor"></div>
+        <div><label>ASIN (Amazon)</label><input type="text" id="field_asin"></div>
+      </div>
+
+      <div class="grid-2">
+        <div><label>Item Number</label><input type="text" id="field_itemNumber"></div>
+        <div><label>Model Number</label><input type="text" id="field_modelNumber"></div>
+      </div>
 
       <button class="btn-primary" onclick="saveModalItem()">Save Changes</button>
       <button class="btn-secondary" onclick="closeModal()">Cancel</button>
@@ -135,14 +147,12 @@
     let inventory = [];
     let html5QrcodeScanner;
     let isProcessing = false;
-    const STORAGE_KEY = 'shop_inventory_app_data';
+    const STORAGE_KEY = 'shop_inventory_app_v3';
 
-    // Page Load: Automatically restore data from LocalStorage if available
     window.addEventListener('DOMContentLoaded', () => {
       loadLocalStorage();
     });
 
-    // Local Storage Helpers
     function saveLocalStorage() {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(inventory));
       enableActionButtons();
@@ -156,16 +166,16 @@
           if (inventory.length > 0) {
             updateTable();
             enableActionButtons();
-            showStatusBanner(`💾 Auto-restored ${inventory.length} saved items from phone memory.`);
+            showStatusBanner(`💾 Restored ${inventory.length} saved items from phone memory.`);
           }
         } catch(e) {
-          console.error("Failed to parse local storage data:", e);
+          console.error("Local storage error:", e);
         }
       }
     }
 
     function clearLocalStorage() {
-      if (confirm("Are you sure you want to clear your saved phone memory? Make sure you have exported your CSV file first!")) {
+      if (confirm("Clear saved local memory? Ensure you have downloaded or emailed your CSV first!")) {
         localStorage.removeItem(STORAGE_KEY);
         inventory = [];
         updateTable();
@@ -187,7 +197,25 @@
       document.getElementById('emailBtn').disabled = !hasData;
     }
 
-    // Load CSV File
+    // Custom CSV Parser function to safely parse quoted strings
+    function parseCsvLine(text) {
+      let val = '', inQuotes = false, row = [];
+      for (let i = 0; i < text.length; i++) {
+        let c = text[i];
+        if (c === '"') {
+          inQuotes = !inQuotes;
+        } else if (c === ',' && !inQuotes) {
+          row.push(val.trim().replace(/^"|"$/g, ''));
+          val = '';
+        } else {
+          val += c;
+        }
+      }
+      row.push(val.trim().replace(/^"|"$/g, ''));
+      return row;
+    }
+
+    // Load 14-Column CSV File
     document.getElementById('csvFileInput').addEventListener('change', function(e) {
       const file = e.target.files[0];
       if (!file) return;
@@ -195,33 +223,41 @@
       const reader = new FileReader();
       reader.onload = function(evt) {
         const lines = evt.target.result.split('\n');
+        if (lines.length === 0) return;
+
+        // Auto-detect if line 0 is a header row
+        const firstLineCols = parseCsvLine(lines[0]);
+        const isHeader = firstLineCols[0].toLowerCase().includes('upc') || firstLineCols[1].toLowerCase().includes('product') || firstLineCols[1].toLowerCase().includes('name');
+        const startIndex = isHeader ? 1 : 0;
+
         inventory = [];
         
-        lines.forEach((line, index) => {
-          if (index === 0 || !line.trim()) return;
-          
-          const cols = line.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g) || line.split(',');
-          const clean = cols.map(c => c ? c.replace(/^"|"$/g, '').trim() : '');
+        for (let i = startIndex; i < lines.length; i++) {
+          if (!lines[i].trim()) continue;
+          const c = parseCsvLine(lines[i]);
 
-          if (clean.length > 0 && (clean[0] || clean[1] || clean[2])) {
+          if (c.length > 0 && (c[0] || c[1] || c[10])) {
             inventory.push({
-              id: clean[0] || '',
-              sku: clean[1] || '',
-              name: clean[2] || 'Unnamed Product',
-              category: clean[3] || '',
-              cost: parseFloat(clean[4]) || 0,
-              stock: parseInt(clean[5]) || 0,
-              reorderPoint: parseInt(clean[6]) || 0,
-              parLevel: parseInt(clean[7]) || 0,
-              orderUnit: clean[8] || 'Ea',
-              unitsPerOrder: parseInt(clean[9]) || 1
+              upc: c[0] || '',
+              name: c[1] || 'Unnamed Product',
+              bookQty: parseInt(c[2]) || 0,
+              physicalQty: (c[3] !== undefined && c[3] !== '') ? parseInt(c[3]) : 0,
+              reorderPoint: c[5] || '0',
+              listPrice: c[6] || '0',
+              costOnDelivery: c[7] || '0',
+              category: c[8] || '',
+              vendor: c[9] || '',
+              sku: c[10] || '',
+              asin: c[11] || '',
+              itemNumber: c[12] || '',
+              modelNumber: c[13] || ''
             });
           }
-        });
+        }
 
         updateTable();
         saveLocalStorage();
-        showStatusBanner(`✅ Successfully imported ${inventory.length} items from CSV.`);
+        showStatusBanner(`✅ Loaded ${inventory.length} items from CSV.`);
       };
       reader.readAsText(file);
     });
@@ -233,12 +269,28 @@
       document.getElementById('itemCount').innerText = inventory.length;
 
       inventory.forEach((item, index) => {
+        const variance = item.physicalQty - item.bookQty;
+        
+        let varianceClass = "variance-zero";
+        let varianceText = variance.toString();
+        if (variance < 0) {
+          varianceClass = "variance-negative";
+        } else if (variance > 0) {
+          varianceClass = "variance-positive";
+          varianceText = "+" + variance;
+        }
+
         const row = `
           <tr>
-            <td>${item.sku || item.id}</td>
+            <td>${item.upc || item.sku || 'N/A'}</td>
             <td><b>${item.name}</b></td>
-            <td><b>${item.stock}</b></td>
-            <td>${item.category}</td>
+            <td>${item.bookQty}</td>
+            <td>
+              <input type="number" class="table-input" value="${item.physicalQty}" min="0" onchange="updatePhysicalDirect(${index}, this.value)">
+            </td>
+            <td>
+              <span class="variance-tag ${varianceClass}">${varianceText}</span>
+            </td>
             <td>
               <button class="btn-warning btn-sm" onclick="openEditModal(${index})">Edit</button>
               <button class="btn-danger btn-sm" onclick="deleteItem(${index})">X</button>
@@ -248,36 +300,48 @@
       });
     }
 
-    // Barcode Read Handler
+    function updatePhysicalDirect(index, value) {
+      const parsedVal = parseInt(value);
+      if (!isNaN(parsedVal)) {
+        inventory[index].physicalQty = parsedVal;
+        updateTable();
+        saveLocalStorage();
+      }
+    }
+
+    // Barcode Scan Handler (Matches UPC, SKU, Item#, Model#)
     function onScanSuccess(decodedText) {
       if (isProcessing) return;
       isProcessing = true;
 
       try { html5QrcodeScanner.pause(true); } catch(e) {}
 
-      const index = inventory.findIndex(i => i.sku === decodedText || i.id === decodedText);
+      const index = inventory.findIndex(i => 
+        (i.upc && i.upc === decodedText) || 
+        (i.sku && i.sku === decodedText) || 
+        (i.itemNumber && i.itemNumber === decodedText) ||
+        (i.modelNumber && i.modelNumber === decodedText)
+      );
+      
       const resultDiv = document.getElementById('scanResult');
       resultDiv.style.display = 'block';
 
       if (index !== -1) {
-        // KNOWN ITEM
         const item = inventory[index];
         resultDiv.className = "scan-action-box";
         resultDiv.innerHTML = `
           <h4 style="margin:0 0 8px 0; color:#007bff;">✅ Matched Item</h4>
           <p style="margin:2px 0;"><b>Name:</b> ${item.name}</p>
-          <p style="margin:2px 0;"><b>SKU:</b> ${item.sku} | <b>Category:</b> ${item.category}</p>
-          <label><b>Physical Count:</b></label>
-          <input type="number" id="scanQtyInput" value="${item.stock + 1}">
+          <p style="margin:2px 0;"><b>UPC:</b> ${item.upc || 'N/A'} | <b>Book Qty:</b> ${item.bookQty}</p>
+          <label><b>Physical Inventory Count:</b></label>
+          <input type="number" id="scanQtyInput" value="${item.physicalQty + 1}">
           <button class="btn-success" onclick="saveScanCount(${index})">Save Stock & Scan Next</button>
-          <button class="btn-secondary" onclick="openEditModal(${index})">Full Edit Item</button>
         `;
       } else {
-        // UNKNOWN ITEM
         resultDiv.className = "scan-action-box new-item";
         resultDiv.innerHTML = `
-          <h4 style="margin:0 0 8px 0; color:#d97706;">⚠️ New Code Detected</h4>
-          <p style="margin:2px 0;"><b>Scanned Code:</b> ${decodedText}</p>
+          <h4 style="margin:0 0 8px 0; color:#d97706;">⚠️ New Barcode Detected</h4>
+          <p style="margin:2px 0;"><b>Code:</b> ${decodedText}</p>
           <button class="btn-primary" onclick="createNewScannedItem('${decodedText}')">Register New Item</button>
           <button class="btn-secondary" onclick="resumeScanner()">Cancel / Skip</button>
         `;
@@ -287,7 +351,7 @@
     function saveScanCount(index) {
       const newQty = parseInt(document.getElementById('scanQtyInput').value);
       if (!isNaN(newQty)) {
-        inventory[index].stock = newQty;
+        inventory[index].physicalQty = newQty;
         updateTable();
         saveLocalStorage();
       }
@@ -307,35 +371,41 @@
       try { html5QrcodeScanner.resume(); } catch(e) {}
     }
 
-    // Modal Operations (Add / Edit)
+    // Modal Operations
     function openEditModal(index = -1, scannedCode = '') {
       document.getElementById('editIndex').value = index;
       
       if (index >= 0) {
         const item = inventory[index];
-        document.getElementById('modalTitle').innerText = "Edit Product";
-        document.getElementById('field_id').value = item.id;
-        document.getElementById('field_sku').value = item.sku;
+        document.getElementById('modalTitle').innerText = "Edit Product Details";
+        document.getElementById('field_upc').value = item.upc;
         document.getElementById('field_name').value = item.name;
-        document.getElementById('field_category').value = item.category;
-        document.getElementById('field_cost').value = item.cost;
-        document.getElementById('field_stock').value = item.stock;
+        document.getElementById('field_bookQty').value = item.bookQty;
+        document.getElementById('field_physicalQty').value = item.physicalQty;
         document.getElementById('field_reorderPoint').value = item.reorderPoint;
-        document.getElementById('field_parLevel').value = item.parLevel;
-        document.getElementById('field_orderUnit').value = item.orderUnit;
-        document.getElementById('field_unitsPerOrder').value = item.unitsPerOrder;
+        document.getElementById('field_listPrice').value = item.listPrice;
+        document.getElementById('field_costOnDelivery').value = item.costOnDelivery;
+        document.getElementById('field_category').value = item.category;
+        document.getElementById('field_vendor').value = item.vendor;
+        document.getElementById('field_sku').value = item.sku;
+        document.getElementById('field_asin').value = item.asin;
+        document.getElementById('field_itemNumber').value = item.itemNumber;
+        document.getElementById('field_modelNumber').value = item.modelNumber;
       } else {
         document.getElementById('modalTitle').innerText = "Add New Product";
-        document.getElementById('field_id').value = scannedCode ? 'ID-' + scannedCode : '';
-        document.getElementById('field_sku').value = scannedCode || '';
+        document.getElementById('field_upc').value = scannedCode || '';
         document.getElementById('field_name').value = '';
-        document.getElementById('field_category').value = '';
-        document.getElementById('field_cost').value = '0';
-        document.getElementById('field_stock').value = '1';
+        document.getElementById('field_bookQty').value = '0';
+        document.getElementById('field_physicalQty').value = '1';
         document.getElementById('field_reorderPoint').value = '0';
-        document.getElementById('field_parLevel').value = '0';
-        document.getElementById('field_orderUnit').value = 'Ea';
-        document.getElementById('field_unitsPerOrder').value = '1';
+        document.getElementById('field_listPrice').value = '0';
+        document.getElementById('field_costOnDelivery').value = '0';
+        document.getElementById('field_category').value = '';
+        document.getElementById('field_vendor').value = '';
+        document.getElementById('field_sku').value = '';
+        document.getElementById('field_asin').value = '';
+        document.getElementById('field_itemNumber').value = '';
+        document.getElementById('field_modelNumber').value = '';
       }
       
       document.getElementById('editModal').style.display = 'block';
@@ -345,16 +415,19 @@
       const index = parseInt(document.getElementById('editIndex').value);
       
       const itemData = {
-        id: document.getElementById('field_id').value.trim(),
-        sku: document.getElementById('field_sku').value.trim(),
+        upc: document.getElementById('field_upc').value.trim(),
         name: document.getElementById('field_name').value.trim() || 'Unnamed Item',
+        bookQty: parseInt(document.getElementById('field_bookQty').value) || 0,
+        physicalQty: parseInt(document.getElementById('field_physicalQty').value) || 0,
+        reorderPoint: document.getElementById('field_reorderPoint').value.trim() || '0',
+        listPrice: document.getElementById('field_listPrice').value.trim() || '0',
+        costOnDelivery: document.getElementById('field_costOnDelivery').value.trim() || '0',
         category: document.getElementById('field_category').value.trim(),
-        cost: parseFloat(document.getElementById('field_cost').value) || 0,
-        stock: parseInt(document.getElementById('field_stock').value) || 0,
-        reorderPoint: parseInt(document.getElementById('field_reorderPoint').value) || 0,
-        parLevel: parseInt(document.getElementById('field_parLevel').value) || 0,
-        orderUnit: document.getElementById('field_orderUnit').value.trim() || 'Ea',
-        unitsPerOrder: parseInt(document.getElementById('field_unitsPerOrder').value) || 1
+        vendor: document.getElementById('field_vendor').value.trim(),
+        sku: document.getElementById('field_sku').value.trim(),
+        asin: document.getElementById('field_asin').value.trim(),
+        itemNumber: document.getElementById('field_itemNumber').value.trim(),
+        modelNumber: document.getElementById('field_modelNumber').value.trim()
       };
 
       if (index >= 0) {
@@ -383,39 +456,37 @@
       }
     }
 
-    // Helper to generate CSV raw text
+    // Build 14-Column CSV String
     function buildCSVString() {
-      let csv = "id,sku,name,category,cost,stock,reorderPoint,parLevel,orderUnit,unitsPerOrder\n";
+      let csv = "UPC (Bar Code),Product Name,Book Inventory,Physical inventory,Variance,Reorder Point,List price,Cost on Delivery,Category,Vendor,SKU,ASIN (Amazon),Item number,Model Number\n";
       inventory.forEach(i => {
-        csv += `"${i.id}","${i.sku}","${i.name}","${i.category}",${i.cost},${i.stock},${i.reorderPoint},${i.parLevel},"${i.orderUnit}",${i.unitsPerOrder}\n`;
+        const variance = (i.physicalQty || 0) - (i.bookQty || 0);
+        csv += `"${i.upc || ''}","${i.name || ''}",${i.bookQty || 0},${i.physicalQty || 0},${variance},"${i.reorderPoint || 0}","${i.listPrice || 0}","${i.costOnDelivery || 0}","${i.category || ''}","${i.vendor || ''}","${i.sku || ''}","${i.asin || ''}","${i.itemNumber || ''}","${i.modelNumber || ''}"\n`;
       });
       return csv;
     }
 
-    // Download CSV
     function exportCSV() {
       const csvContent = "data:text/csv;charset=utf-8," + buildCSVString();
       const encodedUri = encodeURI(csvContent);
       const link = document.createElement("a");
       link.setAttribute("href", encodedUri);
-      link.setAttribute("download", `inventory_export_${new Date().toISOString().slice(0,10)}.csv`);
+      link.setAttribute("download", `inventory_counts_${new Date().toISOString().slice(0,10)}.csv`);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
     }
 
-    // Email / Share CSV
     async function emailCSV() {
       const csvText = buildCSVString();
-      const fileName = `inventory_export_${new Date().toISOString().slice(0,10)}.csv`;
+      const fileName = `inventory_counts_${new Date().toISOString().slice(0,10)}.csv`;
 
-      // Check if phone supports native Web Share API with File sharing
       if (navigator.canShare && navigator.canShare({ files: [new File([], fileName, { type: 'text/csv' })] })) {
         try {
           const file = new File([csvText], fileName, { type: 'text/csv' });
           await navigator.share({
-            title: 'Shop Inventory Export',
-            text: 'Attached is the updated shop inventory CSV file.',
+            title: 'Inventory Count Export',
+            text: 'Attached is the shop inventory count CSV.',
             files: [file]
           });
           return;
@@ -424,13 +495,12 @@
         }
       }
 
-      // Fallback: Opens email client with CSV text in the body
-      const subject = encodeURIComponent("Shop Inventory Export");
-      const body = encodeURIComponent("Updated Inventory Counts:\n\n" + csvText);
+      const subject = encodeURIComponent("Inventory Count Export");
+      const body = encodeURIComponent("Inventory Counts:\n\n" + csvText);
       window.location.href = `mailto:?subject=${subject}&body=${body}`;
     }
 
-    // Initialize Scanner Camera
+    // Initialize Camera Scanner
     html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: { width: 250, height: 150 } });
     html5QrcodeScanner.render(onScanSuccess);
   </script>
