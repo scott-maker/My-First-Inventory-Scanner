@@ -203,6 +203,12 @@
             color: #78350f;
         }
 
+        .result-box.recent-duplicate {
+            background: #fff7ed;
+            border: 1px solid #fdba74;
+            color: #9a3412;
+        }
+
         /* Form Inputs */
         .form-group {
             display: flex;
@@ -702,7 +708,8 @@
                         sku: row[10] || '',
                         asin: row[11] || '',
                         itemNo: row[12] || '',
-                        modelNo: row[13] || ''
+                        modelNo: row[13] || '',
+                        lastScannedAt: null
                     });
                 }
 
@@ -872,6 +879,20 @@
             return Array.from(set);
         }
 
+        /* Time-Ago Formatter for Recent Scan Alerts */
+        function formatTimeAgo(timestamp) {
+            if (!timestamp) return 'recently';
+            const diffMs = Date.now() - timestamp;
+            const mins = Math.floor(diffMs / (1000 * 60));
+            const hours = Math.floor(diffMs / (1000 * 60 * 60));
+            const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+            if (mins < 1) return 'just now';
+            if (mins < 60) return `${mins} minute${mins === 1 ? '' : 's'} ago`;
+            if (hours < 24) return `${hours} hour${hours === 1 ? '' : 's'} ago`;
+            return `${days} day${days === 1 ? '' : 's'} ago`;
+        }
+
         function processScannedCode(code) {
             const container = document.getElementById('scan-result-container');
             const codeVariants = getBarcodeVariants(code);
@@ -886,24 +907,46 @@
             });
 
             if (matchIndex !== -1) {
-                // MATCHED KNOWN ITEM (Blue Box)
                 const item = inventory[matchIndex];
-                const nextPhysical = item.physical + 1;
+                const now = Date.now();
+                const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+                const isScannedWithinWeek = item.lastScannedAt && (now - item.lastScannedAt < ONE_WEEK_MS);
 
-                container.innerHTML = `
-                    <div class="result-box matched">
-                        <div><strong>✅ Item Found:</strong> ${escapeHtml(item.name)}</div>
-                        <div style="font-size: 0.85rem;">UPC: ${escapeHtml(item.upc)} | Book Qty: ${item.book}</div>
-                        <div class="form-group" style="margin: 4px 0;">
-                            <label style="color:#1e3a8a;">New Physical Count:</label>
-                            <input type="number" id="scanned-qty-input" class="form-control" value="${nextPhysical}">
+                if (isScannedWithinWeek) {
+                    // ⚠️ RECENT DUPLICATE SCAN WARNING (< 7 DAYS)
+                    const timeAgoText = formatTimeAgo(item.lastScannedAt);
+                    container.innerHTML = `
+                        <div class="result-box recent-duplicate">
+                            <div><strong>⚠️ Possible Duplicate Scan Alert!</strong></div>
+                            <div><strong>${escapeHtml(item.name)}</strong> was already scanned <u>${timeAgoText}</u>. Current physical count: <strong>${item.physical}</strong>.</div>
+                            <div style="font-size:0.85rem; margin-top:2px; color:#7c2d12;">
+                                Is this an accidental duplicate scan, or extra stock found in another location?
+                            </div>
+                            <div class="btn-group-full" style="margin-top:6px;">
+                                <button class="btn btn-success" onclick="addExtraStockAndSave(${matchIndex})">➕ Extra Stock Found (+1 to Count)</button>
+                                <button class="btn btn-secondary" onclick="dismissScanResult()" style="border-color:#fdba74;">🛑 Accidental Duplicate (Cancel Scan)</button>
+                                <button class="btn btn-primary" onclick="linkBarcodeToMasterIndex('${code}', ${matchIndex})">🔢 Edit / Specify Custom Count</button>
+                            </div>
                         </div>
-                        <div class="btn-group">
-                            <button class="btn btn-success" onclick="saveMatchedCount(${matchIndex})">Save Stock & Scan Next</button>
-                            <button class="btn btn-secondary" onclick="dismissScanResult()">Cancel / Skip</button>
+                    `;
+                } else {
+                    // MATCHED KNOWN ITEM (Standard Blue Box)
+                    const nextPhysical = item.physical + 1;
+                    container.innerHTML = `
+                        <div class="result-box matched">
+                            <div><strong>✅ Item Found:</strong> ${escapeHtml(item.name)}</div>
+                            <div style="font-size: 0.85rem;">UPC: ${escapeHtml(item.upc)} | Book Qty: ${item.book}</div>
+                            <div class="form-group" style="margin: 4px 0;">
+                                <label style="color:#1e3a8a;">New Physical Count:</label>
+                                <input type="number" id="scanned-qty-input" class="form-control" value="${nextPhysical}">
+                            </div>
+                            <div class="btn-group">
+                                <button class="btn btn-success" onclick="saveMatchedCount(${matchIndex})">Save Stock & Scan Next</button>
+                                <button class="btn btn-secondary" onclick="dismissScanResult()">Cancel / Skip</button>
+                            </div>
                         </div>
-                    </div>
-                `;
+                    `;
+                }
             } else {
                 // UNMATCHED UNKNOWN ITEM (Yellow Box with Live Search & Hardware Quick Links)
                 container.innerHTML = `
@@ -948,6 +991,15 @@
                     </div>
                 `;
             }
+        }
+
+        function addExtraStockAndSave(index) {
+            inventory[index].physical = (inventory[index].physical || 0) + 1;
+            inventory[index].variance = inventory[index].physical - inventory[index].book;
+            inventory[index].lastScannedAt = Date.now();
+            saveToLocalStorage();
+            renderTable();
+            dismissScanResult();
         }
 
         /* --- Live Search & Link Barcode to Existing Product --- */
@@ -996,13 +1048,13 @@
             // Clear the yellow scan result box
             dismissScanResult(false);
 
-            // Open the 14-field modal populated with the product data, the new UPC, and Physical Count set to Current + 1
+            // Open the 14-field modal populated with product data, new UPC, and Physical Count set to Current + 1
             openProductModal(index, {
                 upc: code,
                 physical: (item.physical || 0) + 1
             });
 
-            // Focus directly on the Physical Inventory input field so user can confirm/adjust count immediately
+            // Focus directly on Physical Inventory input field
             setTimeout(() => {
                 const physInput = document.getElementById('field-physical');
                 if (physInput) {
@@ -1016,6 +1068,7 @@
             const inputVal = parseInt(document.getElementById('scanned-qty-input').value) || 0;
             inventory[index].physical = inputVal;
             inventory[index].variance = inventory[index].physical - inventory[index].book;
+            inventory[index].lastScannedAt = Date.now();
             saveToLocalStorage();
             renderTable();
             dismissScanResult();
@@ -1325,6 +1378,7 @@
             const val = parseInt(value) || 0;
             inventory[index].physical = val;
             inventory[index].variance = val - inventory[index].book;
+            inventory[index].lastScannedAt = Date.now();
             saveToLocalStorage();
             renderTable();
         }
@@ -1388,6 +1442,8 @@
             const book = parseInt(document.getElementById('field-book').value) || 0;
             const physical = parseInt(document.getElementById('field-physical').value) || 0;
 
+            const existingTime = (index >= 0 && inventory[index]) ? inventory[index].lastScannedAt : null;
+
             const itemObj = {
                 upc: document.getElementById('field-upc').value.trim(),
                 name: document.getElementById('field-name').value.trim(),
@@ -1402,7 +1458,8 @@
                 sku: document.getElementById('field-sku').value.trim(),
                 asin: document.getElementById('field-asin').value.trim(),
                 itemNo: document.getElementById('field-itemNo').value.trim(),
-                modelNo: document.getElementById('field-modelNo').value.trim()
+                modelNo: document.getElementById('field-modelNo').value.trim(),
+                lastScannedAt: Date.now()
             };
 
             if (index >= 0) {
