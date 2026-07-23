@@ -413,7 +413,7 @@
             <div class="form-group" style="margin-bottom: 10px;">
                 <label for="camera-select">📷 Choose Camera Sensor:</label>
                 <select id="camera-select" class="form-control" onchange="onCameraSelectChange()">
-                    <option value="">Default Rear Camera</option>
+                    <option value="">Detecting camera devices...</option>
                 </select>
             </div>
 
@@ -772,20 +772,12 @@
             return lines;
         }
 
-        /* --- Section 2: Robust Camera Enumeration & Scanner Logic --- */
-        async function loadAvailableCameras() {
+        /* --- Section 2: Camera Enumeration & Scanner Logic --- */
+        function loadAvailableCameras() {
             const select = document.getElementById('camera-select');
             
-            try {
-                // Request camera permission explicitly first to unlock device labels on mobile
-                if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-                    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-                    stream.getTracks().forEach(track => track.stop()); // Immediately release test stream
-                }
-
-                const devices = await Html5Qrcode.getCameras();
+            Html5Qrcode.getCameras().then(devices => {
                 select.innerHTML = '';
-
                 if (devices && devices.length > 0) {
                     let defaultSelected = false;
 
@@ -794,6 +786,7 @@
                         option.value = device.id;
                         option.text = device.label || `Camera ${index + 1}`;
                         
+                        // Smart auto-select: preferred rear/back camera
                         const labelLower = (device.label || '').toLowerCase();
                         if (!defaultSelected && (
                             labelLower.includes('back') || 
@@ -809,16 +802,16 @@
                         select.appendChild(option);
                     });
 
+                    // Fallback to first camera if no rear keyword matched
                     if (!defaultSelected && select.options.length > 0) {
                         select.options[0].selected = true;
                     }
                 } else {
-                    select.innerHTML = '<option value="">Default Rear Camera</option>';
+                    select.innerHTML = '<option value="">No cameras detected</option>';
                 }
-            } catch (err) {
-                console.warn("Camera detection notice:", err);
-                select.innerHTML = '<option value="">Default Rear Camera</option>';
-            }
+            }).catch(err => {
+                select.innerHTML = '<option value="">Camera access permission needed</option>';
+            });
         }
 
         async function onCameraSelectChange() {
@@ -833,77 +826,47 @@
                 html5QrCode = new Html5Qrcode("reader");
             }
 
-            // Safely stop existing scan if already running or paused
-            const state = html5QrCode.getState();
-            if (state === Html5QrcodeScannerState.SCANNING || state === Html5QrcodeScannerState.PAUSED) {
-                try {
-                    await html5QrCode.stop();
-                } catch(e) {}
-            }
-
             const select = document.getElementById('camera-select');
             const selectedCameraId = select ? select.value : null;
 
-            // Build array of camera configurations to try in fallback sequence
-            let configsToTry = [];
+            let cameraConfig = { facingMode: "environment" };
             if (selectedCameraId && selectedCameraId !== "") {
-                configsToTry.push(selectedCameraId);
+                cameraConfig = selectedCameraId;
             }
-            configsToTry.push({ facingMode: "environment" });
-            configsToTry.push({ facingMode: "user" });
-
-            let started = false;
-            let lastErr = null;
-
-            for (let config of configsToTry) {
-                try {
-                    await html5QrCode.start(
-                        config,
-                        { fps: 10, qrbox: { width: 250, height: 150 } },
-                        onScanSuccess,
-                        onScanError
-                    );
-                    started = true;
-                    isScannerRunning = true;
-                    document.getElementById('start-cam-btn').style.display = 'none';
-                    document.getElementById('stop-cam-btn').style.display = 'inline-flex';
-                    break;
-                } catch (err) {
-                    lastErr = err;
-                    console.warn("Camera attempt failed with config:", config, err);
-                }
+            
+            try {
+                await html5QrCode.start(
+                    cameraConfig,
+                    { fps: 10, qrbox: { width: 250, height: 150 } },
+                    onScanSuccess,
+                    onScanError
+                );
+                isScannerRunning = true;
+                document.getElementById('start-cam-btn').style.display = 'none';
+                document.getElementById('stop-cam-btn').style.display = 'inline-flex';
+            } catch (err) {
+                alert("Could not access camera: " + err);
             }
+        }
 
-            if (!started) {
-                alert("Could not start camera.\n\nPlease ensure you have granted camera permissions to your browser.\nError: " + (lastErr || "Camera unavailable"));
+        async function stopCamera() {
+            if (html5QrCode && isScannerRunning) {
+                await html5QrCode.stop();
+                isScannerRunning = false;
                 document.getElementById('start-cam-btn').style.display = 'inline-flex';
                 document.getElementById('stop-cam-btn').style.display = 'none';
             }
         }
 
-        async function stopCamera() {
-            if (html5QrCode) {
-                const state = html5QrCode.getState();
-                if (state === Html5QrcodeScannerState.SCANNING || state === Html5QrcodeScannerState.PAUSED) {
-                    try {
-                        await html5QrCode.stop();
-                    } catch(e) {}
-                }
-            }
-            isScannerRunning = false;
-            document.getElementById('start-cam-btn').style.display = 'inline-flex';
-            document.getElementById('stop-cam-btn').style.display = 'none';
-        }
-
         function pauseCameraScanner() {
             if (html5QrCode && html5QrCode.getState() === Html5QrcodeScannerState.SCANNING) {
-                try { html5QrCode.pause(true); } catch(e) {}
+                html5QrCode.pause(true);
             }
         }
 
         function resumeCameraScanner() {
             if (html5QrCode && html5QrCode.getState() === Html5QrcodeScannerState.PAUSED) {
-                try { html5QrCode.resume(); } catch(e) {}
+                html5QrCode.resume();
             }
         }
 
@@ -925,58 +888,50 @@
                 modalHtml5QrCode = new Html5Qrcode("modal-reader");
             }
 
-            // Temporarily pause main scanner
+            // Temporarily pause main camera to release video hardware resource
             if (html5QrCode && isScannerRunning) {
-                pauseCameraScanner();
+                try {
+                    pauseCameraScanner();
+                } catch (e) {}
             }
 
             const select = document.getElementById('camera-select');
             const selectedCameraId = select ? select.value : null;
 
-            let configsToTry = [];
+            let cameraConfig = { facingMode: "environment" };
             if (selectedCameraId && selectedCameraId !== "") {
-                configsToTry.push(selectedCameraId);
-            }
-            configsToTry.push({ facingMode: "environment" });
-            configsToTry.push({ facingMode: "user" });
-
-            let started = false;
-            for (let config of configsToTry) {
-                try {
-                    await modalHtml5QrCode.start(
-                        config,
-                        { fps: 10, qrbox: { width: 220, height: 130 } },
-                        onModalScanSuccess,
-                        (err) => {}
-                    );
-                    started = true;
-                    isModalScannerRunning = true;
-                    break;
-                } catch(e) {}
+                cameraConfig = selectedCameraId;
             }
 
-            if (!started) {
-                alert("Could not access camera for modal scan. Check camera permissions.");
+            try {
+                await modalHtml5QrCode.start(
+                    cameraConfig,
+                    { fps: 10, qrbox: { width: 220, height: 130 } },
+                    onModalScanSuccess,
+                    (err) => {}
+                );
+                isModalScannerRunning = true;
+            } catch (err) {
+                alert("Could not access camera for modal scan: " + err);
                 wrapper.style.display = 'none';
             }
         }
 
         async function stopModalCameraScanner() {
-            if (modalHtml5QrCode) {
-                const state = modalHtml5QrCode.getState();
-                if (state === Html5QrcodeScannerState.SCANNING || state === Html5QrcodeScannerState.PAUSED) {
-                    try {
-                        await modalHtml5QrCode.stop();
-                    } catch(e) {}
-                }
+            if (modalHtml5QrCode && isModalScannerRunning) {
+                try {
+                    await modalHtml5QrCode.stop();
+                } catch(e) {}
                 isModalScannerRunning = false;
             }
             const wrapper = document.getElementById('modal-scanner-wrapper');
             if (wrapper) wrapper.style.display = 'none';
 
-            // Resume main scanner if active
-            if (isScannerRunning && html5QrCode && html5QrCode.getState() === Html5QrcodeScannerState.PAUSED) {
-                resumeCameraScanner();
+            // Resume main scanner if it was running
+            if (html5QrCode && isScannerRunning) {
+                try {
+                    resumeCameraScanner();
+                } catch(e) {}
             }
         }
 
@@ -1084,14 +1039,8 @@
                         <div style="font-size:0.85rem;">Choose a resolution option below:</div>
                         
                         <div class="btn-group-full">
-                            <button id="api-lookup-btn" class="btn btn-primary" onclick="lookupOnlineApi('${code}')">🔍 Automated Online Lookup & Smart Match</button>
+                            <button id="api-lookup-btn" class="btn btn-primary" onclick="lookupOnlineApi('${code}')">🔍 Automated Online Lookup (Multi-API)</button>
                             
-                            <!-- Smart Matches in Local Inventory Box (Populated after online lookup) -->
-                            <div id="smart-inventory-matches-box" style="display:none; background:#eff6ff; padding:10px; border-radius:8px; border:1px solid #bfdbfe;">
-                                <label style="font-size:0.78rem; font-weight:700; color:#1e40af;">🎯 Closest Matches in Your Saved Inventory:</label>
-                                <div id="smart-matches-list" style="margin-top:6px; display:flex; flex-direction:column; gap:6px;"></div>
-                            </div>
-
                             <!-- Search Candidates Container (Populated via CORS fetch if found) -->
                             <div id="online-candidates-box" style="display:none; background:white; padding:10px; border-radius:8px; border:1px solid #fcd34d;">
                                 <label style="font-size:0.75rem; font-weight:700; color:#78350f;">💡 Product Candidates Found Online:</label>
@@ -1190,13 +1139,16 @@
             if (index < 0 || index >= inventory.length) return;
             const item = inventory[index];
             
+            // Clear the yellow scan result box
             dismissScanResult(false);
 
+            // Open the 14-field modal populated with product data, new UPC, and Physical Count set to Current + 1
             openProductModal(index, {
                 upc: code,
                 physical: (item.physical || 0) + 1
             });
 
+            // Focus directly on Physical Inventory input field
             setTimeout(() => {
                 const physInput = document.getElementById('field-physical');
                 if (physInput) {
@@ -1226,149 +1178,93 @@
             if (resume) resumeCameraScanner();
         }
 
-        /* --- Smart Text Matcher --- */
-        function findTopLocalMatchesForTitles(onlineTitles) {
-            if (!inventory || inventory.length === 0 || !onlineTitles || onlineTitles.length === 0) return [];
-
-            const tokenize = str => (str || '')
-                .toLowerCase()
-                .replace(/[^a-z0-9\s]/g, ' ')
-                .split(/\s+/)
-                .filter(w => w.length > 1);
-
-            const onlineTokens = new Set();
-            onlineTitles.forEach(title => {
-                tokenize(title).forEach(t => onlineTokens.add(t));
-            });
-
-            if (onlineTokens.size === 0) return [];
-
-            const scored = inventory.map((item, index) => {
-                const itemText = `${item.name || ''} ${item.category || ''} ${item.sku || ''} ${item.vendor || ''} ${item.modelNo || ''}`;
-                const itemTokens = tokenize(itemText);
-                
-                let matchCount = 0;
-                itemTokens.forEach(token => {
-                    if (onlineTokens.has(token)) matchCount += 1;
-                });
-
-                let bonus = 0;
-                onlineTitles.forEach(t => {
-                    const cleanT = t.toLowerCase();
-                    const cleanName = (item.name || '').toLowerCase();
-                    if (cleanName && (cleanT.includes(cleanName) || cleanName.includes(cleanT))) {
-                        bonus += 2;
-                    }
-                });
-
-                const score = (matchCount / Math.max(1, itemTokens.length)) + bonus;
-                return { item, index, score, matchCount };
-            });
-
-            return scored
-                .filter(x => x.matchCount > 0 || x.score > 0.5)
-                .sort((a, b) => b.score - a.score)
-                .slice(0, 3);
-        }
-
-        /* --- Multi-Database, Web Search Proxy & Smart Local Matching Lookup --- */
+        /* --- Multi-Database & CORS Search Proxy Lookup --- */
         async function lookupOnlineApi(code) {
             const btn = document.getElementById('api-lookup-btn');
-            if (btn) btn.innerText = "⏳ Searching retail databases & local inventory...";
+            if (btn) btn.innerText = "⏳ Searching hardware & retail databases...";
 
             const codeVariants = getBarcodeVariants(code);
-            let foundTitles = [];
+            let foundMatch = false;
 
             try {
-                // 1. Query UPC Item DB & Open Products Facts
                 for (let vCode of codeVariants) {
+                    if (foundMatch) break;
+
+                    // 1. Try UPC Item DB
                     try {
                         const upcRes = await fetch(`https://api.upcitemdb.com/prod/trial/lookup?upc=${encodeURIComponent(vCode)}`);
                         if (upcRes.ok) {
                             const upcData = await upcRes.json();
                             if (upcData.items && upcData.items.length > 0) {
-                                foundTitles.push(upcData.items[0].title);
+                                const item = upcData.items[0];
+                                const prodName = item.title || "Discovered Hardware Item";
+                                alert(`Found in Retail Goods Database:\n${prodName}`);
+                                dismissScanResult(false);
+                                openProductModal(-1, { upc: code, name: prodName, category: item.category || item.brand || "", physical: 1, book: 0 });
+                                foundMatch = true;
+                                break;
                             }
                         }
                     } catch (e) {}
 
+                    // 2. Try Open Products Facts
                     try {
                         const opfRes = await fetch(`https://world.openproductsfacts.org/api/v2/product/${encodeURIComponent(vCode)}.json`);
                         if (opfRes.ok) {
                             const opfData = await opfRes.json();
                             if (opfData.status === 1 && opfData.product) {
-                                const prodName = opfData.product.product_name || opfData.product.product_name_en;
-                                if (prodName) foundTitles.push(prodName);
+                                const prod = opfData.product;
+                                const prodName = prod.product_name || prod.product_name_en || "Discovered Product";
+                                alert(`Found in Open Products Database:\n${prodName}`);
+                                dismissScanResult(false);
+                                openProductModal(-1, { upc: code, name: prodName, physical: 1, book: 0 });
+                                foundMatch = true;
+                                break;
                             }
                         }
                     } catch (e) {}
                 }
 
-                // 2. Query DuckDuckGo web search via CORS Proxy if needed
-                if (foundTitles.length === 0) {
-                    try {
-                        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent('https://html.duckduckgo.com/html/?q=' + encodeURIComponent(code))}`;
-                        const ddgRes = await fetch(proxyUrl);
-                        if (ddgRes.ok) {
-                            const ddgData = await ddgRes.json();
-                            const parser = new DOMParser();
-                            const doc = parser.parseFromString(ddgData.contents, 'text/html');
-                            const links = Array.from(doc.querySelectorAll('.result__title a')).slice(0, 4);
+                // If no exact API hit, perform DuckDuckGo Open Search via CORS proxy to build a candidate title list
+                if (!foundMatch) {
+                    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent('https://html.duckduckgo.com/html/?q=' + encodeURIComponent(code))}`;
+                    const ddgRes = await fetch(proxyUrl);
+                    
+                    if (ddgRes.ok) {
+                        const ddgData = await ddgRes.json();
+                        const parser = new DOMParser();
+                        const doc = parser.parseFromString(ddgData.contents, 'text/html');
+                        const links = Array.from(doc.querySelectorAll('.result__title a')).slice(0, 4);
 
-                            links.forEach(link => {
-                                const cleanTitle = link.textContent.trim().replace(/\|.*$/,'').replace(/- Home Depot.*$/i,'').replace(/- Lowe's.*$/i,'').trim();
-                                if (cleanTitle) foundTitles.push(cleanTitle);
-                            });
+                        if (links.length > 0) {
+                            const candidateBox = document.getElementById('online-candidates-box');
+                            const candidateList = document.getElementById('candidates-list');
+                            
+                            if (candidateBox && candidateList) {
+                                candidateList.innerHTML = links.map(link => {
+                                    const titleText = link.textContent.trim().replace(/\|.*$/,'').replace(/- Home Depot.*$/i,'').replace(/- Lowe's.*$/i,'').trim();
+                                    return `
+                                        <button class="btn btn-secondary" style="text-align:left; justify-content:space-between; font-size:0.8rem; padding:6px 10px;" 
+                                                onclick="createNewWithBarcode('${code}', '${escapeHtml(titleText)}')">
+                                            <span>📄 ${escapeHtml(titleText)}</span>
+                                            <span style="color:var(--primary); font-weight:700;">Use ➔</span>
+                                        </button>
+                                    `;
+                                }).join('');
+                                candidateBox.style.display = 'block';
+                                alert("Extracted potential product candidates from online web search! Check the list in the yellow box.");
+                                return;
+                            }
                         }
-                    } catch (e) {}
-                }
-
-                // 3. Process online search titles and calculate top 3 matches in local inventory
-                const localMatches = findTopLocalMatchesForTitles(foundTitles);
-                const smartBox = document.getElementById('smart-inventory-matches-box');
-                const smartList = document.getElementById('smart-matches-list');
-
-                if (localMatches.length > 0 && smartBox && smartList) {
-                    smartList.innerHTML = localMatches.map(m => `
-                        <div style="display:flex; justify-content:space-between; align-items:center; background:white; padding:8px; border-radius:6px; border:1px solid #bfdbfe;">
-                            <div>
-                                <strong style="font-size:0.85rem; color:#0f172a;">${escapeHtml(m.item.name)}</strong>
-                                <div style="font-size:0.75rem; color:#64748b;">SKU: ${escapeHtml(m.item.sku || 'N/A')} | Current Count: ${m.item.physical}</div>
-                            </div>
-                            <button class="btn btn-success" style="width:auto; padding:6px 10px; font-size:0.8rem; white-space:nowrap;" onclick="linkBarcodeToMasterIndex('${code}', ${m.index})">🔗 Assign & Edit</button>
-                        </div>
-                    `).join('');
-                    smartBox.style.display = 'block';
-                }
-
-                // Display candidate web titles if found
-                if (foundTitles.length > 0) {
-                    const candidateBox = document.getElementById('online-candidates-box');
-                    const candidateList = document.getElementById('candidates-list');
-                    if (candidateBox && candidateList) {
-                        candidateList.innerHTML = foundTitles.slice(0, 4).map(titleText => `
-                            <button class="btn btn-secondary" style="text-align:left; justify-content:space-between; font-size:0.8rem; padding:6px 10px;" 
-                                    onclick="createNewWithBarcode('${code}', '${escapeHtml(titleText)}')">
-                                <span>📄 ${escapeHtml(titleText)}</span>
-                                <span style="color:var(--primary); font-weight:700;">Use ➔</span>
-                            </button>
-                        `).join('');
-                        candidateBox.style.display = 'block';
                     }
 
-                    if (localMatches.length > 0) {
-                        alert(`Found ${localMatches.length} matching product(s) in your saved inventory! Check the blue section below.`);
-                    } else {
-                        alert("Found product candidates online! Check the candidates list below or use quick-search buttons.");
-                    }
-                } else {
-                    alert("No automatic match found online.\n\nUse the quick-search buttons for Home Depot, Lowe's, or Amazon below to view the item name.");
+                    alert("No automatic match found.\n\nUse the quick-search buttons for Home Depot, Lowe's, or Amazon below to view the item name and add it.");
                 }
 
             } catch (err) {
                 alert("Search complete. Use the Home Depot, Lowe's, or Amazon buttons below to locate the item name.");
             } finally {
-                if (btn) btn.innerText = "🔍 Automated Online Lookup & Smart Match";
+                if (btn) btn.innerText = "🔍 Automated Online Lookup (Multi-API)";
             }
         }
 
@@ -1438,6 +1334,7 @@
                 return null;
             }
 
+            // Filter active column definitions in exact order
             const activeCols = ALL_COLUMNS.filter(col => selectedExportColumns.includes(col.id));
 
             let csv = activeCols.map(c => `"${c.label}"`).join(',') + '\n';
@@ -1517,6 +1414,7 @@
                 return;
             }
 
+            // Filter inventory by live search query
             const filteredInventory = inventory.filter(item => {
                 if (!searchQuery) return true;
                 return (item.name && item.name.toLowerCase().includes(searchQuery)) ||
@@ -1525,6 +1423,7 @@
                        (item.category && item.category.toLowerCase().includes(searchQuery));
             });
 
+            // Update badge count based on search results
             const countBadge = document.getElementById('item-count-badge');
             if (searchQuery) {
                 countBadge.innerText = `${filteredInventory.length} of ${inventory.length} items`;
@@ -1538,7 +1437,7 @@
             }
 
             filteredInventory.forEach((item) => {
-                const masterIndex = inventory.indexOf(item);
+                const masterIndex = inventory.indexOf(item); // Master index in global inventory array
                 const variance = item.physical - item.book;
                 let pillClass = 'pill-zero';
                 let varDisplay = `${variance}`;
@@ -1587,8 +1486,8 @@
         }
 
         /* --- Modal Editor Logic --- */
-        async function openProductModal(index = -1, overrideData = null) {
-            await stopModalCameraScanner();
+        function openProductModal(index = -1, overrideData = null) {
+            stopModalCameraScanner();
 
             document.getElementById('modal-edit-index').value = index;
             const title = index === -1 ? 'Add New Product' : (overrideData && overrideData.upc ? 'Assign UPC & Set Count' : 'Edit Product');
@@ -1681,9 +1580,9 @@
         }
 
         /* App Initialization */
-        window.addEventListener('DOMContentLoaded', async () => {
+        window.addEventListener('DOMContentLoaded', () => {
             loadFromLocalStorage();
-            await loadAvailableCameras();
+            loadAvailableCameras();
         });
     </script>
 </body>
