@@ -177,7 +177,7 @@
             min-height: 200px;
         }
 
-        #reader video {
+        #reader video, #modal-reader video {
             object-fit: cover;
         }
 
@@ -230,6 +230,7 @@
             font-size: 0.95rem;
             width: 100%;
             background: var(--card-bg);
+            transition: background-color 0.3s ease;
         }
 
         .form-control:focus {
@@ -499,10 +500,19 @@
                     <button type="button" class="btn btn-secondary" onclick="closeProductModal()">Cancel</button>
                 </div>
 
+                <!-- Modal Mini Barcode Scanner Container -->
+                <div id="modal-scanner-wrapper" style="display:none; background: #000; border-radius: 8px; padding: 8px; margin-bottom: 12px; text-align: center;">
+                    <div id="modal-reader" style="width:100%; min-height:180px;"></div>
+                    <button type="button" class="btn btn-danger" style="margin-top: 8px; font-size: 0.8rem; padding: 6px;" onclick="stopModalCameraScanner()">⏹ Stop Camera Scan</button>
+                </div>
+
                 <div class="grid-2">
                     <div class="form-group">
                         <label>1. UPC (Bar Code)</label>
-                        <input type="text" id="field-upc" class="form-control" required>
+                        <div style="display: flex; gap: 4px;">
+                            <input type="text" id="field-upc" class="form-control" required>
+                            <button type="button" class="btn btn-primary" style="width: auto; padding: 6px 10px; font-size: 0.8rem; white-space: nowrap;" onclick="startModalCameraScanner()">📷 Scan</button>
+                        </div>
                     </div>
                     <div class="form-group">
                         <label>2. Product Name</label>
@@ -597,7 +607,9 @@
         /* Global Application State */
         let inventory = [];
         let html5QrCode = null;
+        let modalHtml5QrCode = null;
         let isScannerRunning = false;
+        let isModalScannerRunning = false;
 
         // 14 Standard Fields schema mapping
         const ALL_COLUMNS = [
@@ -865,6 +877,72 @@
 
         function onScanError(error) {
             // Silence routine scanning frame errors
+        }
+
+        /* --- In-Modal Camera Scanner Logic --- */
+        async function startModalCameraScanner() {
+            const wrapper = document.getElementById('modal-scanner-wrapper');
+            wrapper.style.display = 'block';
+
+            if (!modalHtml5QrCode) {
+                modalHtml5QrCode = new Html5Qrcode("modal-reader");
+            }
+
+            // Temporarily pause main camera to release video hardware resource
+            if (html5QrCode && isScannerRunning) {
+                try {
+                    pauseCameraScanner();
+                } catch (e) {}
+            }
+
+            const select = document.getElementById('camera-select');
+            const selectedCameraId = select ? select.value : null;
+
+            let cameraConfig = { facingMode: "environment" };
+            if (selectedCameraId && selectedCameraId !== "") {
+                cameraConfig = selectedCameraId;
+            }
+
+            try {
+                await modalHtml5QrCode.start(
+                    cameraConfig,
+                    { fps: 10, qrbox: { width: 220, height: 130 } },
+                    onModalScanSuccess,
+                    (err) => {}
+                );
+                isModalScannerRunning = true;
+            } catch (err) {
+                alert("Could not access camera for modal scan: " + err);
+                wrapper.style.display = 'none';
+            }
+        }
+
+        async function stopModalCameraScanner() {
+            if (modalHtml5QrCode && isModalScannerRunning) {
+                try {
+                    await modalHtml5QrCode.stop();
+                } catch(e) {}
+                isModalScannerRunning = false;
+            }
+            const wrapper = document.getElementById('modal-scanner-wrapper');
+            if (wrapper) wrapper.style.display = 'none';
+
+            // Resume main scanner if it was running
+            if (html5QrCode && isScannerRunning) {
+                try {
+                    resumeCameraScanner();
+                } catch(e) {}
+            }
+        }
+
+        function onModalScanSuccess(decodedText) {
+            const upcInput = document.getElementById('field-upc');
+            if (upcInput) {
+                upcInput.value = decodedText.trim();
+                upcInput.style.backgroundColor = '#d1fae5';
+                setTimeout(() => { upcInput.style.backgroundColor = ''; }, 1200);
+            }
+            stopModalCameraScanner();
         }
 
         /* Barcode Normalizer (handles leading zeros in UPC-A / EAN-13) */
@@ -1393,6 +1471,8 @@
 
         /* --- Modal Editor Logic --- */
         function openProductModal(index = -1, overrideData = null) {
+            stopModalCameraScanner();
+
             document.getElementById('modal-edit-index').value = index;
             const title = index === -1 ? 'Add New Product' : (overrideData && overrideData.upc ? 'Assign UPC & Set Count' : 'Edit Product');
             document.getElementById('modal-title').innerText = title;
@@ -1422,7 +1502,8 @@
             document.getElementById('product-modal').classList.add('active');
         }
 
-        function closeProductModal() {
+        async function closeProductModal() {
+            await stopModalCameraScanner();
             document.getElementById('product-modal').classList.remove('active');
             if (isScannerRunning) {
                 resumeCameraScanner();
@@ -1441,8 +1522,6 @@
 
             const book = parseInt(document.getElementById('field-book').value) || 0;
             const physical = parseInt(document.getElementById('field-physical').value) || 0;
-
-            const existingTime = (index >= 0 && inventory[index]) ? inventory[index].lastScannedAt : null;
 
             const itemObj = {
                 upc: document.getElementById('field-upc').value.trim(),
