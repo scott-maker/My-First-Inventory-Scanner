@@ -413,7 +413,7 @@
             <div class="form-group" style="margin-bottom: 10px;">
                 <label for="camera-select">📷 Choose Camera Sensor:</label>
                 <select id="camera-select" class="form-control" onchange="onCameraSelectChange()">
-                    <option value="">Detecting camera devices...</option>
+                    <option value="">Default Rear Camera</option>
                 </select>
             </div>
 
@@ -772,12 +772,20 @@
             return lines;
         }
 
-        /* --- Section 2: Camera Enumeration & Scanner Logic --- */
-        function loadAvailableCameras() {
+        /* --- Section 2: Robust Camera Enumeration & Scanner Logic --- */
+        async function loadAvailableCameras() {
             const select = document.getElementById('camera-select');
             
-            Html5Qrcode.getCameras().then(devices => {
+            try {
+                // Request camera permission explicitly first to unlock device labels on mobile
+                if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                    stream.getTracks().forEach(track => track.stop()); // Immediately release test stream
+                }
+
+                const devices = await Html5Qrcode.getCameras();
                 select.innerHTML = '';
+
                 if (devices && devices.length > 0) {
                     let defaultSelected = false;
 
@@ -786,7 +794,6 @@
                         option.value = device.id;
                         option.text = device.label || `Camera ${index + 1}`;
                         
-                        // Smart auto-select: preferred rear/back camera
                         const labelLower = (device.label || '').toLowerCase();
                         if (!defaultSelected && (
                             labelLower.includes('back') || 
@@ -802,16 +809,16 @@
                         select.appendChild(option);
                     });
 
-                    // Fallback to first camera if no rear keyword matched
                     if (!defaultSelected && select.options.length > 0) {
                         select.options[0].selected = true;
                     }
                 } else {
-                    select.innerHTML = '<option value="">No cameras detected</option>';
+                    select.innerHTML = '<option value="">Default Rear Camera</option>';
                 }
-            }).catch(err => {
-                select.innerHTML = '<option value="">Camera access permission needed</option>';
-            });
+            } catch (err) {
+                console.warn("Camera detection notice:", err);
+                select.innerHTML = '<option value="">Default Rear Camera</option>';
+            }
         }
 
         async function onCameraSelectChange() {
@@ -826,47 +833,77 @@
                 html5QrCode = new Html5Qrcode("reader");
             }
 
+            // Safely stop existing scan if already running or paused
+            const state = html5QrCode.getState();
+            if (state === Html5QrcodeScannerState.SCANNING || state === Html5QrcodeScannerState.PAUSED) {
+                try {
+                    await html5QrCode.stop();
+                } catch(e) {}
+            }
+
             const select = document.getElementById('camera-select');
             const selectedCameraId = select ? select.value : null;
 
-            let cameraConfig = { facingMode: "environment" };
+            // Build array of camera configurations to try in fallback sequence
+            let configsToTry = [];
             if (selectedCameraId && selectedCameraId !== "") {
-                cameraConfig = selectedCameraId;
+                configsToTry.push(selectedCameraId);
             }
-            
-            try {
-                await html5QrCode.start(
-                    cameraConfig,
-                    { fps: 10, qrbox: { width: 250, height: 150 } },
-                    onScanSuccess,
-                    onScanError
-                );
-                isScannerRunning = true;
-                document.getElementById('start-cam-btn').style.display = 'none';
-                document.getElementById('stop-cam-btn').style.display = 'inline-flex';
-            } catch (err) {
-                alert("Could not access camera: " + err);
-            }
-        }
+            configsToTry.push({ facingMode: "environment" });
+            configsToTry.push({ facingMode: "user" });
 
-        async function stopCamera() {
-            if (html5QrCode && isScannerRunning) {
-                await html5QrCode.stop();
-                isScannerRunning = false;
+            let started = false;
+            let lastErr = null;
+
+            for (let config of configsToTry) {
+                try {
+                    await html5QrCode.start(
+                        config,
+                        { fps: 10, qrbox: { width: 250, height: 150 } },
+                        onScanSuccess,
+                        onScanError
+                    );
+                    started = true;
+                    isScannerRunning = true;
+                    document.getElementById('start-cam-btn').style.display = 'none';
+                    document.getElementById('stop-cam-btn').style.display = 'inline-flex';
+                    break;
+                } catch (err) {
+                    lastErr = err;
+                    console.warn("Camera attempt failed with config:", config, err);
+                }
+            }
+
+            if (!started) {
+                alert("Could not start camera.\n\nPlease ensure you have granted camera permissions to your browser.\nError: " + (lastErr || "Camera unavailable"));
                 document.getElementById('start-cam-btn').style.display = 'inline-flex';
                 document.getElementById('stop-cam-btn').style.display = 'none';
             }
         }
 
+        async function stopCamera() {
+            if (html5QrCode) {
+                const state = html5QrCode.getState();
+                if (state === Html5QrcodeScannerState.SCANNING || state === Html5QrcodeScannerState.PAUSED) {
+                    try {
+                        await html5QrCode.stop();
+                    } catch(e) {}
+                }
+            }
+            isScannerRunning = false;
+            document.getElementById('start-cam-btn').style.display = 'inline-flex';
+            document.getElementById('stop-cam-btn').style.display = 'none';
+        }
+
         function pauseCameraScanner() {
             if (html5QrCode && html5QrCode.getState() === Html5QrcodeScannerState.SCANNING) {
-                html5QrCode.pause(true);
+                try { html5QrCode.pause(true); } catch(e) {}
             }
         }
 
         function resumeCameraScanner() {
             if (html5QrCode && html5QrCode.getState() === Html5QrcodeScannerState.PAUSED) {
-                html5QrCode.resume();
+                try { html5QrCode.resume(); } catch(e) {}
             }
         }
 
@@ -888,50 +925,58 @@
                 modalHtml5QrCode = new Html5Qrcode("modal-reader");
             }
 
-            // Temporarily pause main camera to release video hardware resource
+            // Temporarily pause main scanner
             if (html5QrCode && isScannerRunning) {
-                try {
-                    pauseCameraScanner();
-                } catch (e) {}
+                pauseCameraScanner();
             }
 
             const select = document.getElementById('camera-select');
             const selectedCameraId = select ? select.value : null;
 
-            let cameraConfig = { facingMode: "environment" };
+            let configsToTry = [];
             if (selectedCameraId && selectedCameraId !== "") {
-                cameraConfig = selectedCameraId;
+                configsToTry.push(selectedCameraId);
+            }
+            configsToTry.push({ facingMode: "environment" });
+            configsToTry.push({ facingMode: "user" });
+
+            let started = false;
+            for (let config of configsToTry) {
+                try {
+                    await modalHtml5QrCode.start(
+                        config,
+                        { fps: 10, qrbox: { width: 220, height: 130 } },
+                        onModalScanSuccess,
+                        (err) => {}
+                    );
+                    started = true;
+                    isModalScannerRunning = true;
+                    break;
+                } catch(e) {}
             }
 
-            try {
-                await modalHtml5QrCode.start(
-                    cameraConfig,
-                    { fps: 10, qrbox: { width: 220, height: 130 } },
-                    onModalScanSuccess,
-                    (err) => {}
-                );
-                isModalScannerRunning = true;
-            } catch (err) {
-                alert("Could not access camera for modal scan: " + err);
+            if (!started) {
+                alert("Could not access camera for modal scan. Check camera permissions.");
                 wrapper.style.display = 'none';
             }
         }
 
         async function stopModalCameraScanner() {
-            if (modalHtml5QrCode && isModalScannerRunning) {
-                try {
-                    await modalHtml5QrCode.stop();
-                } catch(e) {}
+            if (modalHtml5QrCode) {
+                const state = modalHtml5QrCode.getState();
+                if (state === Html5QrcodeScannerState.SCANNING || state === Html5QrcodeScannerState.PAUSED) {
+                    try {
+                        await modalHtml5QrCode.stop();
+                    } catch(e) {}
+                }
                 isModalScannerRunning = false;
             }
             const wrapper = document.getElementById('modal-scanner-wrapper');
             if (wrapper) wrapper.style.display = 'none';
 
-            // Resume main scanner if it was running
-            if (html5QrCode && isScannerRunning) {
-                try {
-                    resumeCameraScanner();
-                } catch(e) {}
+            // Resume main scanner if active
+            if (isScannerRunning && html5QrCode && html5QrCode.getState() === Html5QrcodeScannerState.PAUSED) {
+                resumeCameraScanner();
             }
         }
 
@@ -1145,16 +1190,13 @@
             if (index < 0 || index >= inventory.length) return;
             const item = inventory[index];
             
-            // Clear the yellow scan result box
             dismissScanResult(false);
 
-            // Open the 14-field modal populated with product data, new UPC, and Physical Count set to Current + 1
             openProductModal(index, {
                 upc: code,
                 physical: (item.physical || 0) + 1
             });
 
-            // Focus directly on Physical Inventory input field
             setTimeout(() => {
                 const physInput = document.getElementById('field-physical');
                 if (physInput) {
@@ -1184,7 +1226,7 @@
             if (resume) resumeCameraScanner();
         }
 
-        /* --- Smart Text Matcher: Compares online product titles against saved local inventory --- */
+        /* --- Smart Text Matcher --- */
         function findTopLocalMatchesForTitles(onlineTitles) {
             if (!inventory || inventory.length === 0 || !onlineTitles || onlineTitles.length === 0) return [];
 
@@ -1396,7 +1438,6 @@
                 return null;
             }
 
-            // Filter active column definitions in exact order
             const activeCols = ALL_COLUMNS.filter(col => selectedExportColumns.includes(col.id));
 
             let csv = activeCols.map(c => `"${c.label}"`).join(',') + '\n';
@@ -1476,7 +1517,6 @@
                 return;
             }
 
-            // Filter inventory by live search query
             const filteredInventory = inventory.filter(item => {
                 if (!searchQuery) return true;
                 return (item.name && item.name.toLowerCase().includes(searchQuery)) ||
@@ -1485,7 +1525,6 @@
                        (item.category && item.category.toLowerCase().includes(searchQuery));
             });
 
-            // Update badge count based on search results
             const countBadge = document.getElementById('item-count-badge');
             if (searchQuery) {
                 countBadge.innerText = `${filteredInventory.length} of ${inventory.length} items`;
@@ -1499,7 +1538,7 @@
             }
 
             filteredInventory.forEach((item) => {
-                const masterIndex = inventory.indexOf(item); // Master index in global inventory array
+                const masterIndex = inventory.indexOf(item);
                 const variance = item.physical - item.book;
                 let pillClass = 'pill-zero';
                 let varDisplay = `${variance}`;
@@ -1548,8 +1587,8 @@
         }
 
         /* --- Modal Editor Logic --- */
-        function openProductModal(index = -1, overrideData = null) {
-            stopModalCameraScanner();
+        async function openProductModal(index = -1, overrideData = null) {
+            await stopModalCameraScanner();
 
             document.getElementById('modal-edit-index').value = index;
             const title = index === -1 ? 'Add New Product' : (overrideData && overrideData.upc ? 'Assign UPC & Set Count' : 'Edit Product');
@@ -1642,9 +1681,9 @@
         }
 
         /* App Initialization */
-        window.addEventListener('DOMContentLoaded', () => {
+        window.addEventListener('DOMContentLoaded', async () => {
             loadFromLocalStorage();
-            loadAvailableCameras();
+            await loadAvailableCameras();
         });
     </script>
 </body>
