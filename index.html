@@ -1039,8 +1039,14 @@
                         <div style="font-size:0.85rem;">Choose a resolution option below:</div>
                         
                         <div class="btn-group-full">
-                            <button id="api-lookup-btn" class="btn btn-primary" onclick="lookupOnlineApi('${code}')">🔍 Automated Online Lookup (Multi-API)</button>
+                            <button id="api-lookup-btn" class="btn btn-primary" onclick="lookupOnlineApi('${code}')">🔍 Automated Online Lookup & Smart Match</button>
                             
+                            <!-- Smart Matches in Local Inventory Box (Populated after online lookup) -->
+                            <div id="smart-inventory-matches-box" style="display:none; background:#eff6ff; padding:10px; border-radius:8px; border:1px solid #bfdbfe;">
+                                <label style="font-size:0.78rem; font-weight:700; color:#1e40af;">🎯 Closest Matches in Your Saved Inventory:</label>
+                                <div id="smart-matches-list" style="margin-top:6px; display:flex; flex-direction:column; gap:6px;"></div>
+                            </div>
+
                             <!-- Search Candidates Container (Populated via CORS fetch if found) -->
                             <div id="online-candidates-box" style="display:none; background:white; padding:10px; border-radius:8px; border:1px solid #fcd34d;">
                                 <label style="font-size:0.75rem; font-weight:700; color:#78350f;">💡 Product Candidates Found Online:</label>
@@ -1178,93 +1184,149 @@
             if (resume) resumeCameraScanner();
         }
 
-        /* --- Multi-Database & CORS Search Proxy Lookup --- */
+        /* --- Smart Text Matcher: Compares online product titles against saved local inventory --- */
+        function findTopLocalMatchesForTitles(onlineTitles) {
+            if (!inventory || inventory.length === 0 || !onlineTitles || onlineTitles.length === 0) return [];
+
+            const tokenize = str => (str || '')
+                .toLowerCase()
+                .replace(/[^a-z0-9\s]/g, ' ')
+                .split(/\s+/)
+                .filter(w => w.length > 1);
+
+            const onlineTokens = new Set();
+            onlineTitles.forEach(title => {
+                tokenize(title).forEach(t => onlineTokens.add(t));
+            });
+
+            if (onlineTokens.size === 0) return [];
+
+            const scored = inventory.map((item, index) => {
+                const itemText = `${item.name || ''} ${item.category || ''} ${item.sku || ''} ${item.vendor || ''} ${item.modelNo || ''}`;
+                const itemTokens = tokenize(itemText);
+                
+                let matchCount = 0;
+                itemTokens.forEach(token => {
+                    if (onlineTokens.has(token)) matchCount += 1;
+                });
+
+                let bonus = 0;
+                onlineTitles.forEach(t => {
+                    const cleanT = t.toLowerCase();
+                    const cleanName = (item.name || '').toLowerCase();
+                    if (cleanName && (cleanT.includes(cleanName) || cleanName.includes(cleanT))) {
+                        bonus += 2;
+                    }
+                });
+
+                const score = (matchCount / Math.max(1, itemTokens.length)) + bonus;
+                return { item, index, score, matchCount };
+            });
+
+            return scored
+                .filter(x => x.matchCount > 0 || x.score > 0.5)
+                .sort((a, b) => b.score - a.score)
+                .slice(0, 3);
+        }
+
+        /* --- Multi-Database, Web Search Proxy & Smart Local Matching Lookup --- */
         async function lookupOnlineApi(code) {
             const btn = document.getElementById('api-lookup-btn');
-            if (btn) btn.innerText = "⏳ Searching hardware & retail databases...";
+            if (btn) btn.innerText = "⏳ Searching retail databases & local inventory...";
 
             const codeVariants = getBarcodeVariants(code);
-            let foundMatch = false;
+            let foundTitles = [];
 
             try {
+                // 1. Query UPC Item DB & Open Products Facts
                 for (let vCode of codeVariants) {
-                    if (foundMatch) break;
-
-                    // 1. Try UPC Item DB
                     try {
                         const upcRes = await fetch(`https://api.upcitemdb.com/prod/trial/lookup?upc=${encodeURIComponent(vCode)}`);
                         if (upcRes.ok) {
                             const upcData = await upcRes.json();
                             if (upcData.items && upcData.items.length > 0) {
-                                const item = upcData.items[0];
-                                const prodName = item.title || "Discovered Hardware Item";
-                                alert(`Found in Retail Goods Database:\n${prodName}`);
-                                dismissScanResult(false);
-                                openProductModal(-1, { upc: code, name: prodName, category: item.category || item.brand || "", physical: 1, book: 0 });
-                                foundMatch = true;
-                                break;
+                                foundTitles.push(upcData.items[0].title);
                             }
                         }
                     } catch (e) {}
 
-                    // 2. Try Open Products Facts
                     try {
                         const opfRes = await fetch(`https://world.openproductsfacts.org/api/v2/product/${encodeURIComponent(vCode)}.json`);
                         if (opfRes.ok) {
                             const opfData = await opfRes.json();
                             if (opfData.status === 1 && opfData.product) {
-                                const prod = opfData.product;
-                                const prodName = prod.product_name || prod.product_name_en || "Discovered Product";
-                                alert(`Found in Open Products Database:\n${prodName}`);
-                                dismissScanResult(false);
-                                openProductModal(-1, { upc: code, name: prodName, physical: 1, book: 0 });
-                                foundMatch = true;
-                                break;
+                                const prodName = opfData.product.product_name || opfData.product.product_name_en;
+                                if (prodName) foundTitles.push(prodName);
                             }
                         }
                     } catch (e) {}
                 }
 
-                // If no exact API hit, perform DuckDuckGo Open Search via CORS proxy to build a candidate title list
-                if (!foundMatch) {
-                    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent('https://html.duckduckgo.com/html/?q=' + encodeURIComponent(code))}`;
-                    const ddgRes = await fetch(proxyUrl);
-                    
-                    if (ddgRes.ok) {
-                        const ddgData = await ddgRes.json();
-                        const parser = new DOMParser();
-                        const doc = parser.parseFromString(ddgData.contents, 'text/html');
-                        const links = Array.from(doc.querySelectorAll('.result__title a')).slice(0, 4);
+                // 2. Query DuckDuckGo web search via CORS Proxy if needed
+                if (foundTitles.length === 0) {
+                    try {
+                        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent('https://html.duckduckgo.com/html/?q=' + encodeURIComponent(code))}`;
+                        const ddgRes = await fetch(proxyUrl);
+                        if (ddgRes.ok) {
+                            const ddgData = await ddgRes.json();
+                            const parser = new DOMParser();
+                            const doc = parser.parseFromString(ddgData.contents, 'text/html');
+                            const links = Array.from(doc.querySelectorAll('.result__title a')).slice(0, 4);
 
-                        if (links.length > 0) {
-                            const candidateBox = document.getElementById('online-candidates-box');
-                            const candidateList = document.getElementById('candidates-list');
-                            
-                            if (candidateBox && candidateList) {
-                                candidateList.innerHTML = links.map(link => {
-                                    const titleText = link.textContent.trim().replace(/\|.*$/,'').replace(/- Home Depot.*$/i,'').replace(/- Lowe's.*$/i,'').trim();
-                                    return `
-                                        <button class="btn btn-secondary" style="text-align:left; justify-content:space-between; font-size:0.8rem; padding:6px 10px;" 
-                                                onclick="createNewWithBarcode('${code}', '${escapeHtml(titleText)}')">
-                                            <span>📄 ${escapeHtml(titleText)}</span>
-                                            <span style="color:var(--primary); font-weight:700;">Use ➔</span>
-                                        </button>
-                                    `;
-                                }).join('');
-                                candidateBox.style.display = 'block';
-                                alert("Extracted potential product candidates from online web search! Check the list in the yellow box.");
-                                return;
-                            }
+                            links.forEach(link => {
+                                const cleanTitle = link.textContent.trim().replace(/\|.*$/,'').replace(/- Home Depot.*$/i,'').replace(/- Lowe's.*$/i,'').trim();
+                                if (cleanTitle) foundTitles.push(cleanTitle);
+                            });
                         }
+                    } catch (e) {}
+                }
+
+                // 3. Process online search titles and calculate top 3 matches in local inventory
+                const localMatches = findTopLocalMatchesForTitles(foundTitles);
+                const smartBox = document.getElementById('smart-inventory-matches-box');
+                const smartList = document.getElementById('smart-matches-list');
+
+                if (localMatches.length > 0 && smartBox && smartList) {
+                    smartList.innerHTML = localMatches.map(m => `
+                        <div style="display:flex; justify-content:space-between; align-items:center; background:white; padding:8px; border-radius:6px; border:1px solid #bfdbfe;">
+                            <div>
+                                <strong style="font-size:0.85rem; color:#0f172a;">${escapeHtml(m.item.name)}</strong>
+                                <div style="font-size:0.75rem; color:#64748b;">SKU: ${escapeHtml(m.item.sku || 'N/A')} | Current Count: ${m.item.physical}</div>
+                            </div>
+                            <button class="btn btn-success" style="width:auto; padding:6px 10px; font-size:0.8rem; white-space:nowrap;" onclick="linkBarcodeToMasterIndex('${code}', ${m.index})">🔗 Assign & Edit</button>
+                        </div>
+                    `).join('');
+                    smartBox.style.display = 'block';
+                }
+
+                // Display candidate web titles if found
+                if (foundTitles.length > 0) {
+                    const candidateBox = document.getElementById('online-candidates-box');
+                    const candidateList = document.getElementById('candidates-list');
+                    if (candidateBox && candidateList) {
+                        candidateList.innerHTML = foundTitles.slice(0, 4).map(titleText => `
+                            <button class="btn btn-secondary" style="text-align:left; justify-content:space-between; font-size:0.8rem; padding:6px 10px;" 
+                                    onclick="createNewWithBarcode('${code}', '${escapeHtml(titleText)}')">
+                                <span>📄 ${escapeHtml(titleText)}</span>
+                                <span style="color:var(--primary); font-weight:700;">Use ➔</span>
+                            </button>
+                        `).join('');
+                        candidateBox.style.display = 'block';
                     }
 
-                    alert("No automatic match found.\n\nUse the quick-search buttons for Home Depot, Lowe's, or Amazon below to view the item name and add it.");
+                    if (localMatches.length > 0) {
+                        alert(`Found ${localMatches.length} matching product(s) in your saved inventory! Check the blue section below.`);
+                    } else {
+                        alert("Found product candidates online! Check the candidates list below or use quick-search buttons.");
+                    }
+                } else {
+                    alert("No automatic match found online.\n\nUse the quick-search buttons for Home Depot, Lowe's, or Amazon below to view the item name.");
                 }
 
             } catch (err) {
                 alert("Search complete. Use the Home Depot, Lowe's, or Amazon buttons below to locate the item name.");
             } finally {
-                if (btn) btn.innerText = "🔍 Automated Online Lookup (Multi-API)";
+                if (btn) btn.innerText = "🔍 Automated Online Lookup & Smart Match";
             }
         }
 
