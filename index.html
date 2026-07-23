@@ -998,12 +998,18 @@
                             <div><strong>⚠️ Possible Duplicate Scan Alert!</strong></div>
                             <div><strong>${escapeHtml(item.name)}</strong> was already scanned <u>${timeAgoText}</u>. Current physical count: <strong>${item.physical}</strong>.</div>
                             <div style="font-size:0.85rem; margin-top:2px; color:#7c2d12;">
-                                Is this an accidental duplicate scan, or extra stock found in another location?
+                                Found extra stock or a case in a different location? Enter the quantity found below to add it to the physical total.
                             </div>
-                            <div class="btn-group-full" style="margin-top:6px;">
-                                <button class="btn btn-success" onclick="addExtraStockAndSave(${matchIndex})">➕ Extra Stock Found (+1 to Count)</button>
+                            
+                            <div class="form-group" style="margin: 4px 0;">
+                                <label style="color:#7c2d12; font-weight:700;">Quantity Found to Add:</label>
+                                <input type="number" id="extra-stock-qty-input" class="form-control" value="1" min="1" style="background:#ffffff; border-color:#fdba74; font-weight:700;">
+                            </div>
+
+                            <div class="btn-group-full" style="margin-top:4px;">
+                                <button class="btn btn-success" onclick="addExtraStockAndSave(${matchIndex})">➕ Add Quantity to Total Stock</button>
                                 <button class="btn btn-secondary" onclick="dismissScanResult()" style="border-color:#fdba74;">🛑 Accidental Duplicate (Cancel Scan)</button>
-                                <button class="btn btn-primary" onclick="linkBarcodeToMasterIndex('${code}', ${matchIndex})">🔢 Edit / Specify Custom Count</button>
+                                <button class="btn btn-primary" onclick="linkBarcodeToMasterIndex('${code}', ${matchIndex})">✏️ Open Full Product Editor</button>
                             </div>
                         </div>
                     `;
@@ -1071,10 +1077,20 @@
             }
         }
 
+        /* Add Extra Stock (Custom Quantity) and Update Timestamp */
         function addExtraStockAndSave(index) {
-            inventory[index].physical = (inventory[index].physical || 0) + 1;
+            const extraInput = document.getElementById('extra-stock-qty-input');
+            const qtyToAdd = parseInt(extraInput ? extraInput.value : 1) || 0;
+
+            if (qtyToAdd <= 0) {
+                alert("Please enter a valid quantity greater than 0.");
+                return;
+            }
+
+            inventory[index].physical = (inventory[index].physical || 0) + qtyToAdd;
             inventory[index].variance = inventory[index].physical - inventory[index].book;
             inventory[index].lastScannedAt = Date.now();
+            
             saveToLocalStorage();
             renderTable();
             dismissScanResult();
