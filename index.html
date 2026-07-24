@@ -483,7 +483,7 @@
 
     </div>
 
-    <!-- Modal 1: 14-Field Product Editor -->
+    <!-- Modal 1: 20-Field Product Editor -->
     <div id="product-modal" class="modal-overlay">
         <div class="modal-body">
             <div class="modal-header">
@@ -535,35 +535,59 @@
                         <input type="text" id="field-reorder" class="form-control">
                     </div>
                     <div class="form-group">
-                        <label>7. List Price</label>
+                        <label>7. parLevel</label>
+                        <input type="text" id="field-parLevel" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>8. unit</label>
+                        <input type="text" id="field-unit" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>9. orderUnit</label>
+                        <input type="text" id="field-orderUnit" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>10. unitsPerOrder</label>
+                        <input type="text" id="field-unitsPerOrder" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>11. status</label>
+                        <input type="text" id="field-status" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>12. List Price</label>
                         <input type="text" id="field-listPrice" class="form-control">
                     </div>
                     <div class="form-group">
-                        <label>8. Cost on Delivery</label>
+                        <label>13. Cost on Delivery</label>
                         <input type="text" id="field-cost" class="form-control">
                     </div>
                     <div class="form-group">
-                        <label>9. Category</label>
+                        <label>14. Category</label>
                         <input type="text" id="field-category" class="form-control">
                     </div>
                     <div class="form-group">
-                        <label>10. Vendor</label>
+                        <label>15. Vendor</label>
                         <input type="text" id="field-vendor" class="form-control">
                     </div>
                     <div class="form-group">
-                        <label>11. SKU</label>
+                        <label>16. Website</label>
+                        <input type="text" id="field-website" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>17. SKU</label>
                         <input type="text" id="field-sku" class="form-control">
                     </div>
                     <div class="form-group">
-                        <label>12. ASIN (Amazon)</label>
+                        <label>18. ASIN (Amazon)</label>
                         <input type="text" id="field-asin" class="form-control">
                     </div>
                     <div class="form-group">
-                        <label>13. Item Number</label>
+                        <label>19. Item Number</label>
                         <input type="text" id="field-itemNo" class="form-control">
                     </div>
                     <div class="form-group">
-                        <label>14. Model Number</label>
+                        <label>20. Model Number</label>
                         <input type="text" id="field-modelNo" class="form-control">
                     </div>
                 </div>
@@ -611,7 +635,7 @@
         let isScannerRunning = false;
         let isModalScannerRunning = false;
 
-        // 14 Standard Fields schema mapping
+        // 20 Standard Fields schema mapping (Sync ready across apps)
         const ALL_COLUMNS = [
             { id: 'upc', label: 'UPC (Bar Code)' },
             { id: 'name', label: 'Product Name' },
@@ -619,10 +643,16 @@
             { id: 'physical', label: 'Physical inventory' },
             { id: 'variance', label: 'Variance' },
             { id: 'reorder', label: 'Reorder Point' },
+            { id: 'parLevel', label: 'parLevel' },
+            { id: 'unit', label: 'unit' },
+            { id: 'orderUnit', label: 'orderUnit' },
+            { id: 'unitsPerOrder', label: 'unitsPerOrder' },
+            { id: 'status', label: 'status' },
             { id: 'listPrice', label: 'List price' },
             { id: 'cost', label: 'Cost on Delivery' },
             { id: 'category', label: 'Category' },
             { id: 'vendor', label: 'Vendor' },
+            { id: 'website', label: 'Website' },
             { id: 'sku', label: 'SKU' },
             { id: 'asin', label: 'ASIN (Amazon)' },
             { id: 'itemNo', label: 'Item number' },
@@ -712,14 +742,20 @@
                         physical: physical,
                         variance: physical - book,
                         reorder: row[5] || '',
-                        listPrice: row[6] || '',
-                        cost: row[7] || '',
-                        category: row[8] || '',
-                        vendor: row[9] || '',
-                        sku: row[10] || '',
-                        asin: row[11] || '',
-                        itemNo: row[12] || '',
-                        modelNo: row[13] || '',
+                        parLevel: row[6] || '',
+                        unit: row[7] || '',
+                        orderUnit: row[8] || '',
+                        unitsPerOrder: row[9] || '',
+                        status: row[10] || '',
+                        listPrice: row[11] || '',
+                        cost: row[12] || '',
+                        category: row[13] || '',
+                        vendor: row[14] || '',
+                        website: row[15] || '',
+                        sku: row[16] || '',
+                        asin: row[17] || '',
+                        itemNo: row[18] || '',
+                        modelNo: row[19] || '',
                         lastScannedAt: null
                     });
                 }
@@ -1621,8 +1657,9 @@
 
             let data = {
                 upc: '', name: '', book: 0, physical: 0, variance: 0,
-                reorder: '', listPrice: '', cost: '', category: '',
-                vendor: '', sku: '', asin: '', itemNo: '', modelNo: ''
+                reorder: '', parLevel: '', unit: '', orderUnit: '', unitsPerOrder: '', status: '',
+                listPrice: '', cost: '', category: '', vendor: '', website: '',
+                sku: '', asin: '', itemNo: '', modelNo: ''
             };
 
             if (index >= 0 && inventory[index]) {
@@ -1672,10 +1709,16 @@
                 physical: physical,
                 variance: physical - book,
                 reorder: document.getElementById('field-reorder').value.trim(),
+                parLevel: document.getElementById('field-parLevel').value.trim(),
+                unit: document.getElementById('field-unit').value.trim(),
+                orderUnit: document.getElementById('field-orderUnit').value.trim(),
+                unitsPerOrder: document.getElementById('field-unitsPerOrder').value.trim(),
+                status: document.getElementById('field-status').value.trim(),
                 listPrice: document.getElementById('field-listPrice').value.trim(),
                 cost: document.getElementById('field-cost').value.trim(),
                 category: document.getElementById('field-category').value.trim(),
                 vendor: document.getElementById('field-vendor').value.trim(),
+                website: document.getElementById('field-website').value.trim(),
                 sku: document.getElementById('field-sku').value.trim(),
                 asin: document.getElementById('field-asin').value.trim(),
                 itemNo: document.getElementById('field-itemNo').value.trim(),
