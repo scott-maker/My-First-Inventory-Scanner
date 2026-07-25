@@ -127,6 +127,15 @@
                     <span>📷 Barcode Scanner & Lookup</span>
                     <button id="btn-cam-toggle" class="btn btn-primary" style="width:auto; padding:4px 8px; font-size:0.75rem;" onclick="toggleCamera()">Start Scanner</button>
                 </div>
+
+                <!-- Camera Sensor Selector Dropdown -->
+                <div class="form-group" style="margin-bottom: 10px;">
+                    <label for="camera-select">📷 Choose Camera Sensor / Lens:</label>
+                    <select id="camera-select" class="form-control" onchange="onCameraSelectChange()">
+                        <option value="">Default Rear Camera</option>
+                    </select>
+                </div>
+
                 <div id="reader" style="display:none;"></div>
                 <div id="scan-result"></div>
             </div>
@@ -400,6 +409,7 @@
 
         let currentSOCart = [];
         let html5QrCode = null;
+        let isScannerRunning = false;
 
         function saveState() {
             localStorage.setItem('jomarket_products', JSON.stringify(products));
@@ -465,24 +475,124 @@
             if (tabId === 'tab-vendor-history') renderVendorHistory();
         }
 
-        /* --- CAMERA SCANNER --- */
-        function toggleCamera() {
+        /* --- CAMERA ENUMERATION & SCANNER --- */
+        async function loadAvailableCameras() {
+            const select = document.getElementById('camera-select');
+            if (!select) return;
+
+            try {
+                // Request brief permission to obtain human-readable lens labels
+                if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                    stream.getTracks().forEach(track => track.stop());
+                }
+
+                const devices = await Html5Qrcode.getCameras();
+                select.innerHTML = '';
+
+                if (devices && devices.length > 0) {
+                    let defaultSelected = false;
+
+                    devices.forEach((device, index) => {
+                        const option = document.createElement('option');
+                        option.value = device.id;
+                        option.text = device.label || `Camera ${index + 1}`;
+
+                        const labelLower = (device.label || '').toLowerCase();
+                        if (!defaultSelected && (
+                            labelLower.includes('back') || 
+                            labelLower.includes('rear') || 
+                            labelLower.includes('environment') || 
+                            labelLower.includes('main') ||
+                            labelLower.includes('0')
+                        )) {
+                            option.selected = true;
+                            defaultSelected = true;
+                        }
+
+                        select.appendChild(option);
+                    });
+
+                    if (!defaultSelected && select.options.length > 0) {
+                        select.options[0].selected = true;
+                    }
+                } else {
+                    select.innerHTML = '<option value="">Default Rear Camera</option>';
+                }
+            } catch (err) {
+                select.innerHTML = '<option value="">Default Rear Camera</option>';
+            }
+        }
+
+        async function onCameraSelectChange() {
+            if (isScannerRunning) {
+                await stopCamera();
+                await startCamera();
+            }
+        }
+
+        async function startCamera() {
             const reader = document.getElementById('reader');
             const btn = document.getElementById('btn-cam-toggle');
 
+            reader.style.display = 'block';
+            btn.innerText = '⏹ Stop Scanner';
+
+            if (!html5QrCode) {
+                html5QrCode = new Html5Qrcode("reader");
+            }
+
+            const state = html5QrCode.getState();
+            if (state === Html5QrcodeScannerState.SCANNING || state === Html5QrcodeScannerState.PAUSED) {
+                try { await html5QrCode.stop(); } catch(e) {}
+            }
+
+            const select = document.getElementById('camera-select');
+            const selectedCameraId = select ? select.value : null;
+
+            let cameraConfig = (selectedCameraId && selectedCameraId !== "") 
+                ? selectedCameraId 
+                : { facingMode: "environment" };
+
+            try {
+                await html5QrCode.start(
+                    cameraConfig,
+                    { fps: 10, qrbox: { width: 250, height: 150 } },
+                    (code) => {
+                        document.getElementById('inv-search').value = code;
+                        renderInventoryTable();
+                        stopCamera();
+                    },
+                    (err) => {}
+                );
+                isScannerRunning = true;
+            } catch (err) {
+                alert("Could not start selected camera lens: " + (err || "Camera unavailable"));
+                stopCamera();
+            }
+        }
+
+        async function stopCamera() {
+            const reader = document.getElementById('reader');
+            const btn = document.getElementById('btn-cam-toggle');
+
+            if (html5QrCode) {
+                const state = html5QrCode.getState();
+                if (state === Html5QrcodeScannerState.SCANNING || state === Html5QrcodeScannerState.PAUSED) {
+                    try { await html5QrCode.stop(); } catch(e) {}
+                }
+            }
+            isScannerRunning = false;
+            reader.style.display = 'none';
+            btn.innerText = 'Start Scanner';
+        }
+
+        function toggleCamera() {
+            const reader = document.getElementById('reader');
             if (reader.style.display === 'none') {
-                reader.style.display = 'block';
-                btn.innerText = '⏹ Stop Scanner';
-                if (!html5QrCode) html5QrCode = new Html5Qrcode("reader");
-                html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: 200 }, (code) => {
-                    document.getElementById('inv-search').value = code;
-                    renderInventoryTable();
-                    toggleCamera();
-                }, () => {});
+                startCamera();
             } else {
-                reader.style.display = 'none';
-                btn.innerText = 'Start Scanner';
-                if (html5QrCode) html5QrCode.stop().catch(()=>{});
+                stopCamera();
             }
         }
 
@@ -754,7 +864,6 @@
             const subject = encodeURIComponent(`Invoice Dispatch Receipt - ${so.soId}`);
             const body = encodeURIComponent(`Jomarket Dispatch Invoice #${so.soId}\nTotal: $${so.totalAmount.toFixed(2)}\nTarget: ${so.customerAddress}`);
 
-            // Crash Safeguard: Background Anchor element trigger
             const a = document.createElement('a');
             a.href = `mailto:${so.customerEmail}?subject=${subject}&body=${body}`;
             a.target = '_blank';
@@ -1113,9 +1222,10 @@
         function closeModal(id) { document.getElementById(id).classList.remove('active'); }
         function escapeHtml(str) { return String(str||'').replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
 
-        window.addEventListener('DOMContentLoaded', () => {
+        window.addEventListener('DOMContentLoaded', async () => {
             updateDashboard();
             renderInventoryTable();
+            await loadAvailableCameras();
         });
     </script>
 </body>
