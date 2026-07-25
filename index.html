@@ -63,6 +63,8 @@
         .form-group label { font-size: 0.8rem; font-weight: 600; color: var(--text-muted); }
         .form-control { padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.9rem; width: 100%; background: var(--card-bg); }
 
+        .flex-row-gap { display: flex; gap: 6px; align-items: center; }
+
         /* Tables */
         .table-wrapper { overflow-x: auto; border-radius: 8px; border: 1px solid var(--border); margin-top: 8px; }
         table { width: 100%; border-collapse: collapse; font-size: 0.82rem; text-align: left; background: var(--card-bg); }
@@ -81,7 +83,7 @@
         .modal-body { background: var(--card-bg); border-radius: 12px; max-width: 650px; width: 100%; max-height: 90vh; overflow-y: auto; padding: 16px; }
         .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
 
-        #reader { width: 100%; border-radius: 8px; overflow: hidden; background: #000; min-height: 180px; margin-bottom: 10px; }
+        .scanner-box { width: 100%; border-radius: 8px; overflow: hidden; background: #000; min-height: 180px; margin-bottom: 10px; display: none; }
 
         @media (max-width: 600px) {
             .dash-grid { grid-template-columns: repeat(2, 1fr); }
@@ -120,26 +122,8 @@
             <div class="dash-card"><div class="dash-val" id="dash-savings" style="color:var(--success)">$0.00</div><div class="dash-lbl">Total Savings</div></div>
         </div>
 
-        <!-- TAB 1: INVENTORY -->
+        <!-- TAB 1: INVENTORY CATALOG (Main Page - Scanner Removed) -->
         <div id="tab-inventory" class="tab-content">
-            <div class="card">
-                <div class="card-title">
-                    <span>📷 Barcode Scanner & Lookup</span>
-                    <button id="btn-cam-toggle" class="btn btn-primary" style="width:auto; padding:4px 8px; font-size:0.75rem;" onclick="toggleCamera()">Start Scanner</button>
-                </div>
-
-                <!-- Camera Sensor Selector Dropdown -->
-                <div class="form-group" style="margin-bottom: 10px;">
-                    <label for="camera-select">📷 Choose Camera Sensor / Lens:</label>
-                    <select id="camera-select" class="form-control" onchange="onCameraSelectChange()">
-                        <option value="">Default Rear Camera</option>
-                    </select>
-                </div>
-
-                <div id="reader" style="display:none;"></div>
-                <div id="scan-result"></div>
-            </div>
-
             <div class="card">
                 <div class="card-title">
                     <span>📦 Inventory Master Catalog</span>
@@ -170,7 +154,7 @@
             </div>
         </div>
 
-        <!-- TAB 2: JOMARKET SALES ENTRY -->
+        <!-- TAB 2: JOMARKET SALES ENTRY (Includes Sales Scanner) -->
         <div id="tab-sales" class="tab-content" style="display:none;">
             <div class="card">
                 <div class="card-title">🛒 Outgoing Sales Dispatch Sheet</div>
@@ -183,11 +167,21 @@
 
                 <hr style="margin:12px 0; border:none; border-top:1px solid var(--border);">
 
-                <div class="card-title" style="font-size:0.85rem;">AddItem to Sales Order</div>
+                <div class="card-title" style="font-size:0.85rem;">Add Item to Sales Order</div>
+                
+                <!-- Sales Barcode Scanner Container -->
+                <div id="sales-reader-box" class="scanner-box">
+                    <div id="sales-reader" style="width:100%; min-height:180px;"></div>
+                    <button type="button" class="btn btn-danger" style="margin-top:6px; font-size:0.75rem; padding:4px;" onclick="stopSalesScanner()">⏹ Close Scanner</button>
+                </div>
+
                 <div class="grid-2">
                     <div class="form-group">
                         <label>Select Product</label>
-                        <select id="so-item-select" class="form-control"></select>
+                        <div class="flex-row-gap">
+                            <select id="so-item-select" class="form-control"></select>
+                            <button type="button" class="btn btn-primary" style="width:auto; white-space:nowrap; padding:6px 10px; font-size:0.8rem;" onclick="startSalesScanner()">📷 Scan</button>
+                        </div>
                     </div>
                     <div class="form-group"><label>Cost Code</label><input type="text" id="so-cost-code" class="form-control" placeholder="e.g. CC-401"></div>
                 </div>
@@ -279,10 +273,30 @@
             </div>
         </div>
 
-        <!-- TAB 7: PHYSICAL COUNT -->
+        <!-- TAB 7: PHYSICAL COUNT & AUDIT RECONCILIATION (Includes Physical Audit Scanner) -->
         <div id="tab-physical" class="tab-content" style="display:none;">
+            <!-- Physical Reconciliation Scanner Card -->
             <div class="card">
-                <div class="card-title">📋 Physical Inventory Reconciliation</div>
+                <div class="card-title">
+                    <span>📷 Scan Barcode for Physical Reconciliation</span>
+                    <button id="btn-phys-toggle" class="btn btn-primary" style="width:auto; padding:4px 8px; font-size:0.75rem;" onclick="togglePhysScanner()">Start Audit Scanner</button>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 8px;">
+                    <label for="phys-camera-select">📷 Choose Camera Lens:</label>
+                    <select id="phys-camera-select" class="form-control" onchange="onPhysCameraChange()">
+                        <option value="">Default Rear Camera</option>
+                    </select>
+                </div>
+
+                <div id="phys-reader-box" class="scanner-box">
+                    <div id="phys-reader" style="width:100%; min-height:180px;"></div>
+                </div>
+                <div id="phys-scan-result"></div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">📋 Physical Inventory Reconciliation Ledger</div>
                 <div class="table-wrapper">
                     <table>
                         <thead>
@@ -326,17 +340,30 @@
 
     </div>
 
-    <!-- MODAL 1: Product Editor -->
+    <!-- MODAL 1: Product Editor (Includes Add Item UPC Scanner) -->
     <div id="modal-product" class="modal-overlay">
         <div class="modal-body">
             <div class="modal-header">
                 <h3 id="modal-prod-title">Product Details</h3>
                 <button onclick="closeModal('modal-product')" style="border:none; background:none; font-size:1.2rem; cursor:pointer;">✕</button>
             </div>
+
+            <!-- In-Modal Scanner Box for UPC capture -->
+            <div id="modal-upc-reader-box" class="scanner-box">
+                <div id="modal-upc-reader" style="width:100%; min-height:180px;"></div>
+                <button type="button" class="btn btn-danger" style="margin-top:6px; font-size:0.75rem; padding:4px;" onclick="stopModalUPCScanner()">⏹ Stop Camera Scan</button>
+            </div>
+
             <form id="form-product" onsubmit="saveProduct(event)">
                 <input type="hidden" id="fp-id">
                 <div class="grid-2">
-                    <div class="form-group"><label>UPC (Bar Code)</label><input type="text" id="fp-upc" class="form-control"></div>
+                    <div class="form-group">
+                        <label>UPC (Bar Code)</label>
+                        <div class="flex-row-gap">
+                            <input type="text" id="fp-upc" class="form-control">
+                            <button type="button" class="btn btn-primary" style="width:auto; white-space:nowrap; padding:6px 10px; font-size:0.8rem;" onclick="startModalUPCScanner()">📷 Scan</button>
+                        </div>
+                    </div>
                     <div class="form-group"><label>Product Name</label><input type="text" id="fp-name" class="form-control" required></div>
                     <div class="form-group"><label>Book Inventory (Stock)</label><input type="number" id="fp-stock" class="form-control" value="0"></div>
                     <div class="form-group"><label>Physical Inventory</label><input type="number" id="fp-physical" class="form-control" value="0"></div>
@@ -408,8 +435,16 @@
         let poBuilderQueue = JSON.parse(localStorage.getItem('jomarket_po_builder')) || [];
 
         let currentSOCart = [];
-        let html5QrCode = null;
-        let isScannerRunning = false;
+
+        /* SCANNER INSTANCES */
+        let physQrCode = null;
+        let isPhysScannerRunning = false;
+
+        let salesQrCode = null;
+        let isSalesScannerRunning = false;
+
+        let modalQrCode = null;
+        let isModalScannerRunning = false;
 
         function saveState() {
             localStorage.setItem('jomarket_products', JSON.stringify(products));
@@ -459,6 +494,9 @@
 
         /* --- NAVIGATION --- */
         function switchTab(tabId, btn) {
+            stopPhysScanner();
+            stopSalesScanner();
+
             document.querySelectorAll('.tab-content').forEach(t => t.style.display = 'none');
             document.querySelectorAll('.nav-tab').forEach(b => b.classList.remove('active'));
             document.getElementById(tabId).style.display = 'block';
@@ -475,13 +513,12 @@
             if (tabId === 'tab-vendor-history') renderVendorHistory();
         }
 
-        /* --- CAMERA ENUMERATION & SCANNER --- */
-        async function loadAvailableCameras() {
-            const select = document.getElementById('camera-select');
+        /* --- CAMERA ENUMERATION UTILITY --- */
+        async function loadCameraOptions(selectId) {
+            const select = document.getElementById(selectId);
             if (!select) return;
 
             try {
-                // Request brief permission to obtain human-readable lens labels
                 if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
                     const stream = await navigator.mediaDevices.getUserMedia({ video: true });
                     stream.getTracks().forEach(track => track.stop());
@@ -524,76 +561,176 @@
             }
         }
 
-        async function onCameraSelectChange() {
-            if (isScannerRunning) {
-                await stopCamera();
-                await startCamera();
+        /* --- SCANNER 1: PHYSICAL INVENTORY AUDIT SCANNER --- */
+        async function startPhysScanner() {
+            const box = document.getElementById('phys-reader-box');
+            const btn = document.getElementById('btn-phys-toggle');
+            box.style.display = 'block';
+            btn.innerText = '⏹ Stop Audit Scanner';
+
+            if (!physQrCode) physQrCode = new Html5Qrcode("phys-reader");
+
+            const select = document.getElementById('phys-camera-select');
+            const cameraConfig = (select && select.value) ? select.value : { facingMode: "environment" };
+
+            try {
+                await physQrCode.start(
+                    cameraConfig,
+                    { fps: 10, qrbox: { width: 250, height: 150 } },
+                    onPhysBarcodeScanned,
+                    (err) => {}
+                );
+                isPhysScannerRunning = true;
+            } catch (err) {
+                alert("Could not start audit camera: " + err);
+                stopPhysScanner();
             }
         }
 
-        async function startCamera() {
-            const reader = document.getElementById('reader');
-            const btn = document.getElementById('btn-cam-toggle');
+        async function stopPhysScanner() {
+            const box = document.getElementById('phys-reader-box');
+            const btn = document.getElementById('btn-phys-toggle');
 
-            reader.style.display = 'block';
-            btn.innerText = '⏹ Stop Scanner';
-
-            if (!html5QrCode) {
-                html5QrCode = new Html5Qrcode("reader");
+            if (physQrCode) {
+                const state = physQrCode.getState();
+                if (state === Html5QrcodeScannerState.SCANNING || state === Html5QrcodeScannerState.PAUSED) {
+                    try { await physQrCode.stop(); } catch(e) {}
+                }
             }
+            isPhysScannerRunning = false;
+            if (box) box.style.display = 'none';
+            if (btn) btn.innerText = 'Start Audit Scanner';
+        }
 
-            const state = html5QrCode.getState();
-            if (state === Html5QrcodeScannerState.SCANNING || state === Html5QrcodeScannerState.PAUSED) {
-                try { await html5QrCode.stop(); } catch(e) {}
+        function togglePhysScanner() {
+            if (isPhysScannerRunning) stopPhysScanner();
+            else startPhysScanner();
+        }
+
+        async function onPhysCameraChange() {
+            if (isPhysScannerRunning) {
+                await stopPhysScanner();
+                await startPhysScanner();
             }
+        }
 
-            const select = document.getElementById('camera-select');
-            const selectedCameraId = select ? select.value : null;
+        function onPhysBarcodeScanned(code) {
+            const clean = code.trim();
+            const p = products.find(x => 
+                (x.upc || '').trim() === clean || 
+                (x.sku || '').trim().toLowerCase() === clean.toLowerCase() ||
+                (x.itemNumber || '').trim().toLowerCase() === clean.toLowerCase()
+            );
 
-            let cameraConfig = (selectedCameraId && selectedCameraId !== "") 
-                ? selectedCameraId 
-                : { facingMode: "environment" };
+            const resDiv = document.getElementById('phys-scan-result');
+
+            if (p) {
+                p.physicalInventory = (parseInt(p.physicalInventory) || 0) + 1;
+                p.variance = p.physicalInventory - p.stock;
+                saveState();
+                renderPhysicalTable();
+
+                const diff = p.variance;
+                let varText = diff === 0 ? 'Balanced' : (diff > 0 ? `+${diff}` : `${diff}`);
+                resDiv.innerHTML = `
+                    <div style="background:var(--success-bg); border:1px solid var(--success); color:#065f46; padding:10px; border-radius:8px; font-size:0.85rem; margin-top:8px;">
+                        <strong>✅ Item Counted (+1):</strong> ${escapeHtml(p.name)}<br>
+                        Physical Count: <strong>${p.physicalInventory}</strong> (Book Stock: ${p.stock} | Variance: <strong>${varText}</strong>)
+                    </div>
+                `;
+            } else {
+                resDiv.innerHTML = `
+                    <div style="background:var(--danger-bg); border:1px solid var(--danger); color:#991b1b; padding:10px; border-radius:8px; font-size:0.85rem; margin-top:8px;">
+                        <strong>⚠️ Barcode Not Found:</strong> <code>${escapeHtml(clean)}</code><br>
+                        This code is not assigned to any product. Add it in the Inventory tab first.
+                    </div>
+                `;
+            }
+        }
+
+        /* --- SCANNER 2: OUTGOING SALES SHEET SCANNER --- */
+        async function startSalesScanner() {
+            const box = document.getElementById('sales-reader-box');
+            box.style.display = 'block';
+
+            if (!salesQrCode) salesQrCode = new Html5Qrcode("sales-reader");
 
             try {
-                await html5QrCode.start(
-                    cameraConfig,
-                    { fps: 10, qrbox: { width: 250, height: 150 } },
+                await salesQrCode.start(
+                    { facingMode: "environment" },
+                    { fps: 10, qrbox: { width: 220, height: 140 } },
                     (code) => {
-                        document.getElementById('inv-search').value = code;
-                        renderInventoryTable();
-                        stopCamera();
+                        const clean = code.trim();
+                        const p = products.find(x => 
+                            (x.upc || '').trim() === clean || 
+                            (x.sku || '').trim().toLowerCase() === clean.toLowerCase()
+                        );
+                        if (p) {
+                            if (p.stock <= 0) alert(`Product "${p.name}" found, but it is OUT OF STOCK!`);
+                            else {
+                                document.getElementById('so-item-select').value = p.id;
+                                alert(`Selected: ${p.name}`);
+                            }
+                            stopSalesScanner();
+                        } else {
+                            alert(`No product found with barcode: ${clean}`);
+                        }
                     },
                     (err) => {}
                 );
-                isScannerRunning = true;
+                isSalesScannerRunning = true;
             } catch (err) {
-                alert("Could not start selected camera lens: " + (err || "Camera unavailable"));
-                stopCamera();
+                alert("Could not start camera for sales selection: " + err);
+                stopSalesScanner();
             }
         }
 
-        async function stopCamera() {
-            const reader = document.getElementById('reader');
-            const btn = document.getElementById('btn-cam-toggle');
-
-            if (html5QrCode) {
-                const state = html5QrCode.getState();
+        async function stopSalesScanner() {
+            const box = document.getElementById('sales-reader-box');
+            if (salesQrCode) {
+                const state = salesQrCode.getState();
                 if (state === Html5QrcodeScannerState.SCANNING || state === Html5QrcodeScannerState.PAUSED) {
-                    try { await html5QrCode.stop(); } catch(e) {}
+                    try { await salesQrCode.stop(); } catch(e) {}
                 }
             }
-            isScannerRunning = false;
-            reader.style.display = 'none';
-            btn.innerText = 'Start Scanner';
+            isSalesScannerRunning = false;
+            if (box) box.style.display = 'none';
         }
 
-        function toggleCamera() {
-            const reader = document.getElementById('reader');
-            if (reader.style.display === 'none') {
-                startCamera();
-            } else {
-                stopCamera();
+        /* --- SCANNER 3: IN-MODAL ADD/EDIT ITEM UPC SCANNER --- */
+        async function startModalUPCScanner() {
+            const box = document.getElementById('modal-upc-reader-box');
+            box.style.display = 'block';
+
+            if (!modalQrCode) modalQrCode = new Html5Qrcode("modal-upc-reader");
+
+            try {
+                await modalQrCode.start(
+                    { facingMode: "environment" },
+                    { fps: 10, qrbox: { width: 220, height: 130 } },
+                    (code) => {
+                        document.getElementById('fp-upc').value = code.trim();
+                        stopModalUPCScanner();
+                    },
+                    (err) => {}
+                );
+                isModalScannerRunning = true;
+            } catch (err) {
+                alert("Could not start camera in modal: " + err);
+                stopModalUPCScanner();
             }
+        }
+
+        async function stopModalUPCScanner() {
+            const box = document.getElementById('modal-upc-reader-box');
+            if (modalQrCode) {
+                const state = modalQrCode.getState();
+                if (state === Html5QrcodeScannerState.SCANNING || state === Html5QrcodeScannerState.PAUSED) {
+                    try { await modalQrCode.stop(); } catch(e) {}
+                }
+            }
+            isModalScannerRunning = false;
+            if (box) box.style.display = 'none';
         }
 
         /* --- INVENTORY TAB --- */
@@ -633,7 +770,9 @@
         }
 
         /* --- PRODUCT EDIT & DELETE --- */
-        function openProductModal(id) {
+        async function openProductModal(id) {
+            await stopModalUPCScanner();
+
             const p = products.find(x => x.id === String(id)) || { id: '', upc: '', name: '', stock: 0, physicalInventory: 0, reorderPoint: 0, parLevel: 0, unit: '', orderUnit: '', unitsPerOrder: 1, listPrice: 0, cost: 0, category: '', preferredVendor: '', sku: '' };
             
             document.getElementById('modal-prod-title').innerText = id === -1 ? 'Add New Product' : `Edit: ${p.name}`;
@@ -777,7 +916,6 @@
                 sentAt: new Date().toLocaleString()
             };
 
-            // Deduct stock & trigger auto PO builder
             soObj.items.forEach(item => {
                 const p = products.find(x => x.id === item.id);
                 if (p) {
@@ -1077,7 +1215,6 @@
                     logProductHistory(p.id, 'Reception', qty, `PO #${po.id} received`);
                 }
 
-                // Price variance calculation
                 const savings = (i.baseCost - actPrice) * qty;
                 po.receptionHistory.push({ itemId: i.id, qty, actPrice, priceVariance: savings });
             });
@@ -1219,13 +1356,17 @@
             alert("CSV Imported successfully!");
         }
 
-        function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+        async function closeModal(id) { 
+            if (id === 'modal-product') await stopModalUPCScanner();
+            document.getElementById(id).classList.remove('active'); 
+        }
+
         function escapeHtml(str) { return String(str||'').replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
 
         window.addEventListener('DOMContentLoaded', async () => {
             updateDashboard();
             renderInventoryTable();
-            await loadAvailableCameras();
+            await loadCameraOptions('phys-camera-select');
         });
     </script>
 </body>
