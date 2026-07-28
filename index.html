@@ -289,14 +289,13 @@
                     <button id="btn-phys-toggle" class="btn btn-primary" style="width:auto; padding:4px 8px; font-size:0.75rem;" onclick="togglePhysScanner()">Start Audit Scanner</button>
                 </div>
 
-                <div class="form-group" style="margin-bottom: 8px;">
-                    <label for="phys-camera-select">📷 Choose Camera Sensor / Lens:</label>
-                    <select id="phys-camera-select" class="form-control" onchange="onPhysCameraChange()">
-                        <option value="">Default Rear Camera</option>
-                    </select>
-                </div>
-
                 <div id="phys-reader-box" class="scanner-box">
+                    <div class="form-group" style="padding: 8px; background: #ffffff;">
+                        <label for="phys-camera-select">📷 Choose Camera Sensor / Lens:</label>
+                        <select id="phys-camera-select" class="form-control" onchange="onPhysCameraChange()">
+                            <option value="">Default Rear Camera</option>
+                        </select>
+                    </div>
                     <div id="phys-reader" style="width:100%; min-height:180px;"></div>
                 </div>
                 <div id="phys-scan-result"></div>
@@ -533,84 +532,105 @@
             if (tabId === 'tab-vendor-history') renderVendorHistory();
         }
 
-        /* --- CAMERA ENUMERATION UTILITY --- */
-        async function loadCameraOptions() {
-            const selectIds = ['phys-camera-select', 'sales-camera-select', 'modal-camera-select'];
+        /* --- SAFE USER-GESTURE CAMERA ENUMERATION & ENGINE --- */
+        async function populateCameraDropdown(selectId) {
+            const select = document.getElementById(selectId);
+            if (!select) return;
 
             try {
-                if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-                    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-                    stream.getTracks().forEach(track => track.stop());
-                }
-
                 const devices = await Html5Qrcode.getCameras();
-
-                selectIds.forEach(selectId => {
-                    const select = document.getElementById(selectId);
-                    if (!select) return;
-
+                if (devices && devices.length > 0) {
+                    const currentVal = select.value;
                     select.innerHTML = '';
+                    let defaultSelected = false;
 
-                    if (devices && devices.length > 0) {
-                        let defaultSelected = false;
+                    devices.forEach((device, index) => {
+                        const option = document.createElement('option');
+                        option.value = device.id;
+                        option.text = device.label || `Camera ${index + 1}`;
 
-                        devices.forEach((device, index) => {
-                            const option = document.createElement('option');
-                            option.value = device.id;
-                            option.text = device.label || `Camera ${index + 1}`;
-
-                            const labelLower = (device.label || '').toLowerCase();
-                            if (!defaultSelected && (
-                                labelLower.includes('back') || 
-                                labelLower.includes('rear') || 
-                                labelLower.includes('environment') || 
-                                labelLower.includes('main') ||
-                                labelLower.includes('0')
-                            )) {
-                                option.selected = true;
-                                defaultSelected = true;
-                            }
-
-                            select.appendChild(option);
-                        });
-
-                        if (!defaultSelected && select.options.length > 0) {
-                            select.options[0].selected = true;
+                        const labelLower = (device.label || '').toLowerCase();
+                        if (!defaultSelected && (
+                            labelLower.includes('back') || 
+                            labelLower.includes('rear') || 
+                            labelLower.includes('environment') || 
+                            labelLower.includes('main') ||
+                            labelLower.includes('0')
+                        )) {
+                            option.selected = true;
+                            defaultSelected = true;
                         }
-                    } else {
-                        select.innerHTML = '<option value="">Default Rear Camera</option>';
+
+                        select.appendChild(option);
+                    });
+
+                    if (!defaultSelected && select.options.length > 0) {
+                        select.options[0].selected = true;
                     }
-                });
+
+                    if (currentVal && Array.from(select.options).some(o => o.value === currentVal)) {
+                        select.value = currentVal;
+                    }
+                } else {
+                    select.innerHTML = '<option value="">Default Rear Camera</option>';
+                }
             } catch (err) {
-                selectIds.forEach(selectId => {
-                    const select = document.getElementById(selectId);
-                    if (select) select.innerHTML = '<option value="">Default Rear Camera</option>';
-                });
+                select.innerHTML = '<option value="">Default Rear Camera</option>';
+            }
+        }
+
+        async function startGenericScanner(qrInstance, boxId, selectId, onScanSuccess) {
+            const box = document.getElementById(boxId);
+            if (box) box.style.display = 'block';
+
+            await populateCameraDropdown(selectId);
+
+            const select = document.getElementById(selectId);
+            const selectedId = select ? select.value : null;
+
+            let configsToTry = [];
+            if (selectedId && selectedId !== "") {
+                configsToTry.push(selectedId);
+            }
+            configsToTry.push({ facingMode: "environment" });
+            configsToTry.push({ facingMode: "user" });
+
+            let started = false;
+            let lastErr = null;
+
+            for (let config of configsToTry) {
+                try {
+                    await qrInstance.start(
+                        config,
+                        { fps: 10, qrbox: { width: 230, height: 140 } },
+                        onScanSuccess,
+                        (err) => {}
+                    );
+                    started = true;
+                    break;
+                } catch (e) {
+                    lastErr = e;
+                }
+            }
+
+            if (!started) {
+                if (box) box.style.display = 'none';
+                throw new Error("Could not access camera lens: " + (lastErr || "Permissions denied"));
             }
         }
 
         /* --- SCANNER 1: PHYSICAL INVENTORY AUDIT SCANNER --- */
         async function startPhysScanner() {
-            const box = document.getElementById('phys-reader-box');
             const btn = document.getElementById('btn-phys-toggle');
-            box.style.display = 'block';
             btn.innerText = '⏹ Stop Audit Scanner';
 
             if (!physQrCode) physQrCode = new Html5Qrcode("phys-reader");
 
-            const select = document.getElementById('phys-camera-select');
-            const cameraConfig = (select && select.value) ? select.value : { facingMode: "environment" };
-
             try {
-                await physQrCode.start(
-                    cameraConfig,
-                    { fps: 10, qrbox: { width: 250, height: 150 } },
-                    onPhysBarcodeScanned,
-                    (err) => {}
-                );
+                await startGenericScanner(physQrCode, 'phys-reader-box', 'phys-camera-select', onPhysBarcodeScanned);
                 isPhysScannerRunning = true;
             } catch (err) {
-                alert("Could not start audit camera: " + err);
+                alert(err.message || err);
                 stopPhysScanner();
             }
         }
@@ -637,7 +657,7 @@
 
         async function onPhysCameraChange() {
             if (isPhysScannerRunning) {
-                await stopPhysScanner();
+                if (physQrCode) try { await physQrCode.stop(); } catch(e) {}
                 await startPhysScanner();
             }
         }
@@ -678,40 +698,29 @@
 
         /* --- SCANNER 2: OUTGOING SALES SHEET SCANNER --- */
         async function startSalesScanner() {
-            const box = document.getElementById('sales-reader-box');
-            box.style.display = 'block';
-
             if (!salesQrCode) salesQrCode = new Html5Qrcode("sales-reader");
 
-            const select = document.getElementById('sales-camera-select');
-            const cameraConfig = (select && select.value) ? select.value : { facingMode: "environment" };
-
             try {
-                await salesQrCode.start(
-                    cameraConfig,
-                    { fps: 10, qrbox: { width: 220, height: 140 } },
-                    (code) => {
-                        const clean = code.trim();
-                        const p = products.find(x => 
-                            (x.upc || '').trim() === clean || 
-                            (x.sku || '').trim().toLowerCase() === clean.toLowerCase()
-                        );
-                        if (p) {
-                            if (p.stock <= 0) alert(`Product "${p.name}" found, but it is OUT OF STOCK!`);
-                            else {
-                                document.getElementById('so-item-select').value = p.id;
-                                alert(`Selected: ${p.name}`);
-                            }
-                            stopSalesScanner();
-                        } else {
-                            alert(`No product found with barcode: ${clean}`);
+                await startGenericScanner(salesQrCode, 'sales-reader-box', 'sales-camera-select', (code) => {
+                    const clean = code.trim();
+                    const p = products.find(x => 
+                        (x.upc || '').trim() === clean || 
+                        (x.sku || '').trim().toLowerCase() === clean.toLowerCase()
+                    );
+                    if (p) {
+                        if (p.stock <= 0) alert(`Product "${p.name}" found, but it is OUT OF STOCK!`);
+                        else {
+                            document.getElementById('so-item-select').value = p.id;
+                            alert(`Selected: ${p.name}`);
                         }
-                    },
-                    (err) => {}
-                );
+                        stopSalesScanner();
+                    } else {
+                        alert(`No product found with barcode: ${clean}`);
+                    }
+                });
                 isSalesScannerRunning = true;
             } catch (err) {
-                alert("Could not start camera for sales selection: " + err);
+                alert(err.message || err);
                 stopSalesScanner();
             }
         }
@@ -730,34 +739,23 @@
 
         async function onSalesCameraChange() {
             if (isSalesScannerRunning) {
-                await stopSalesScanner();
+                if (salesQrCode) try { await salesQrCode.stop(); } catch(e) {}
                 await startSalesScanner();
             }
         }
 
         /* --- SCANNER 3: IN-MODAL ADD/EDIT ITEM UPC SCANNER --- */
         async function startModalUPCScanner() {
-            const box = document.getElementById('modal-upc-reader-box');
-            box.style.display = 'block';
-
             if (!modalQrCode) modalQrCode = new Html5Qrcode("modal-upc-reader");
 
-            const select = document.getElementById('modal-camera-select');
-            const cameraConfig = (select && select.value) ? select.value : { facingMode: "environment" };
-
             try {
-                await modalQrCode.start(
-                    cameraConfig,
-                    { fps: 10, qrbox: { width: 220, height: 130 } },
-                    (code) => {
-                        document.getElementById('fp-upc').value = code.trim();
-                        stopModalUPCScanner();
-                    },
-                    (err) => {}
-                );
+                await startGenericScanner(modalQrCode, 'modal-upc-reader-box', 'modal-camera-select', (code) => {
+                    document.getElementById('fp-upc').value = code.trim();
+                    stopModalUPCScanner();
+                });
                 isModalScannerRunning = true;
             } catch (err) {
-                alert("Could not start camera in modal: " + err);
+                alert(err.message || err);
                 stopModalUPCScanner();
             }
         }
@@ -776,7 +774,7 @@
 
         async function onModalCameraChange() {
             if (isModalScannerRunning) {
-                await stopModalUPCScanner();
+                if (modalQrCode) try { await modalQrCode.stop(); } catch(e) {}
                 await startModalUPCScanner();
             }
         }
@@ -1472,10 +1470,9 @@
 
         function escapeHtml(str) { return String(str||'').replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
 
-        window.addEventListener('DOMContentLoaded', async () => {
+        window.addEventListener('DOMContentLoaded', () => {
             updateDashboard();
             renderInventoryTable();
-            await loadCameraOptions();
         });
     </script>
 </body>
