@@ -85,11 +85,6 @@
 
         .scanner-box { width: 100%; border-radius: 8px; overflow: hidden; background: #000; min-height: 180px; margin-bottom: 10px; display: none; }
 
-        /* Startup Camera Prompt Overlay */
-        #permission-prompt-modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15, 23, 42, 0.85); z-index: 2000; align-items: center; justify-content: center; padding: 20px; }
-        #permission-prompt-modal.show { display: flex; }
-        .prompt-card { background: white; padding: 24px; border-radius: 16px; text-align: center; max-width: 400px; width: 100%; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2); }
-
         @media (max-width: 600px) {
             .dash-grid { grid-template-columns: repeat(2, 1fr); }
             .grid-2 { display: flex; flex-direction: column; gap: 8px; }
@@ -98,18 +93,6 @@
     </style>
 </head>
 <body>
-
-    <!-- On-Load Permission Trigger Modal (For browsers requiring user gesture) -->
-    <div id="permission-prompt-modal">
-        <div class="prompt-card">
-            <div style="font-size: 2.5rem; margin-bottom: 8px;">📷</div>
-            <h3 style="margin-bottom: 8px; font-size: 1.2rem;">Camera Access Required</h3>
-            <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 18px;">
-                Jomarket Manager uses your camera to scan barcodes for physical inventory audits and sales dispatches.
-            </p>
-            <button class="btn btn-primary" style="padding: 12px; font-size: 0.95rem;" onclick="triggerCameraPermissionPrompt()">Allow Camera Access</button>
-        </div>
-    </div>
 
     <header>
         <div class="header-content">
@@ -188,7 +171,7 @@
                 
                 <div id="sales-reader-box" class="scanner-box">
                     <div id="sales-reader" style="width:100%; min-height:180px;"></div>
-                    <button type="button" class="btn btn-danger" style="margin-top:6px; font-size:0.75rem; padding:4px;" onclick="stopSalesScanner()">⏹ Close Scanner</button>
+                    <button type="button" class="btn btn-danger" style="margin-top:6px; font-size:0.75rem; padding:4px;" onclick="stopAllScanners()">⏹ Close Scanner</button>
                 </div>
 
                 <div class="grid-2">
@@ -299,8 +282,8 @@
 
                 <div class="form-group" style="margin-bottom: 8px;">
                     <label for="phys-camera-select">📷 Choose Camera Lens:</label>
-                    <select id="phys-camera-select" class="form-control">
-                        <option value="">Default Camera</option>
+                    <select id="phys-camera-select" class="form-control" onchange="onPhysCameraChange()">
+                        <option value="">Default Rear Camera</option>
                     </select>
                 </div>
 
@@ -365,7 +348,7 @@
 
             <div id="modal-upc-reader-box" class="scanner-box">
                 <div id="modal-upc-reader" style="width:100%; min-height:180px;"></div>
-                <button type="button" class="btn btn-danger" style="margin-top:6px; font-size:0.75rem; padding:4px;" onclick="stopModalUPCScanner()">⏹ Stop Camera Scan</button>
+                <button type="button" class="btn btn-danger" style="margin-top:6px; font-size:0.75rem; padding:4px;" onclick="stopAllScanners()">⏹ Stop Camera Scan</button>
             </div>
 
             <form id="form-product" onsubmit="saveProduct(event)">
@@ -478,33 +461,6 @@
             }
         }
 
-        /* --- UPFRONT CAMERA PERMISSION PROMPT --- */
-        async function requestCameraPermissionOnLoad() {
-            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
-
-            try {
-                // Triggers native browser system dialog (While using app / Only this time)
-                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-                stream.getTracks().forEach(track => track.stop());
-                await populateCameraOptions('phys-camera-select');
-                document.getElementById('permission-prompt-modal').classList.remove('show');
-            } catch (err) {
-                // If auto-prompt was blocked by browser security policy requiring touch, show user gesture modal
-                document.getElementById('permission-prompt-modal').classList.add('show');
-            }
-        }
-
-        async function triggerCameraPermissionPrompt() {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-                stream.getTracks().forEach(track => track.stop());
-                await populateCameraOptions('phys-camera-select');
-                document.getElementById('permission-prompt-modal').classList.remove('show');
-            } catch (err) {
-                handleCameraError(err, "Camera Access");
-            }
-        }
-
         /* --- DASHBOARD METRICS --- */
         function updateDashboard() {
             document.getElementById('dash-tot-prod').innerText = products.length;
@@ -534,9 +490,8 @@
         }
 
         /* --- NAVIGATION --- */
-        function switchTab(tabId, btn) {
-            stopPhysScanner();
-            stopSalesScanner();
+        async function switchTab(tabId, btn) {
+            await stopAllScanners();
 
             document.querySelectorAll('.tab-content').forEach(t => t.style.display = 'none');
             document.querySelectorAll('.nav-tab').forEach(b => b.classList.remove('active'));
@@ -554,17 +509,47 @@
             if (tabId === 'tab-vendor-history') renderVendorHistory();
         }
 
-        /* --- USER-FRIENDLY CAMERA ERROR HANDLER --- */
+        /* --- UNIFIED HARDWARE RESET & CLEAN STOP --- */
+        async function stopAllScanners() {
+            const list = [
+                { inst: physQrCode, box: 'phys-reader-box', btn: 'btn-phys-toggle', text: 'Start Audit Scanner' },
+                { inst: salesQrCode, box: 'sales-reader-box' },
+                { inst: modalQrCode, box: 'modal-upc-reader-box' }
+            ];
+
+            for (let item of list) {
+                if (item.inst) {
+                    try {
+                        const state = item.inst.getState();
+                        if (state === Html5QrcodeScannerState.SCANNING || state === Html5QrcodeScannerState.PAUSED) {
+                            await item.inst.stop();
+                        }
+                    } catch (e) {}
+                }
+                if (item.box) {
+                    const el = document.getElementById(item.box);
+                    if (el) el.style.display = 'none';
+                }
+                if (item.btn) {
+                    const el = document.getElementById(item.btn);
+                    if (el) el.innerText = item.text;
+                }
+            }
+            isPhysScannerRunning = false;
+            isSalesScannerRunning = false;
+            isModalScannerRunning = false;
+        }
+
         function handleCameraError(err, cameraLabel = "Camera") {
             const errStr = String(err || '');
             if (errStr.includes("NotAllowedError") || errStr.includes("Permission denied") || errStr.includes("PermissionDeniedError")) {
-                alert("📷 Camera Access Blocked!\n\nCamera access is currently turned off in your browser or phone settings.\n\n📱 iPhone (Safari):\n1. Open iPhone Settings -> Safari -> Camera.\n2. Set permission to 'Allow'.\n\n🤖 Android (Chrome):\n1. Open Android Settings -> Apps -> Chrome -> Permissions -> Camera.\n2. Set permission to 'Allow'.\n\nThen refresh this web page!");
+                alert("📷 Camera Access Blocked!\n\nYour browser or OS blocked camera access.\n\nSteps to fix:\n1. Ensure you access this site via HTTPS (e.g. GitHub Pages).\n2. Open device Settings -> Safari/Chrome -> Camera -> Allow.\n3. Reload page and try scanning again.");
             } else {
-                alert(`Could not start ${cameraLabel}: ` + (err || "Camera unavailable"));
+                alert(`Could not start ${cameraLabel}: ` + (err || "Hardware unavailable"));
             }
         }
 
-        /* --- SAFE CAMERA ENUMERATION --- */
+        /* --- SAFE CAMERA OPTION LIST POPULATION (Populates after 1st successful scan start) --- */
         async function populateCameraOptions(selectId) {
             const select = document.getElementById(selectId);
             if (!select) return;
@@ -572,22 +557,41 @@
             try {
                 const devices = await Html5Qrcode.getCameras();
                 if (devices && devices.length > 0) {
+                    const currentVal = select.value;
                     select.innerHTML = '';
+                    let defaultSelected = false;
+
                     devices.forEach((device, index) => {
                         const option = document.createElement('option');
                         option.value = device.id;
                         option.text = device.label || `Camera ${index + 1}`;
-                        if ((device.label || '').toLowerCase().includes('back') || (device.label || '').toLowerCase().includes('rear')) {
+                        
+                        if (device.id === currentVal) {
                             option.selected = true;
+                            defaultSelected = true;
+                        } else if (!defaultSelected && (
+                            (device.label || '').toLowerCase().includes('back') || 
+                            (device.label || '').toLowerCase().includes('rear') ||
+                            (device.label || '').toLowerCase().includes('environment') ||
+                            (device.label || '').toLowerCase().includes('main')
+                        )) {
+                            option.selected = true;
+                            defaultSelected = true;
                         }
                         select.appendChild(option);
                     });
+
+                    if (!defaultSelected && select.options.length > 0) {
+                        select.options[0].selected = true;
+                    }
                 }
             } catch (err) {}
         }
 
-        /* --- SCANNER 1: PHYSICAL INVENTORY AUDIT SCANNER --- */
+        /* --- SCANNER 1: PHYSICAL INVENTORY AUDIT SCANNER (APP 1 FALLBACK LOOP) --- */
         async function startPhysScanner() {
+            await stopAllScanners();
+
             const box = document.getElementById('phys-reader-box');
             const btn = document.getElementById('btn-phys-toggle');
             box.style.display = 'block';
@@ -596,41 +600,50 @@
             if (!physQrCode) physQrCode = new Html5Qrcode("phys-reader");
 
             const select = document.getElementById('phys-camera-select');
-            const cameraConfig = (select && select.value) ? select.value : { facingMode: "environment" };
+            const selectedId = select ? select.value : "";
 
-            try {
-                await physQrCode.start(
-                    cameraConfig,
-                    { fps: 10, qrbox: { width: 250, height: 150 } },
-                    onPhysBarcodeScanned,
-                    (err) => {}
-                );
-                isPhysScannerRunning = true;
-                populateCameraOptions('phys-camera-select');
-            } catch (err) {
-                stopPhysScanner();
-                handleCameraError(err, "Audit Camera");
+            let configsToTry = [];
+            if (selectedId && selectedId !== "") {
+                configsToTry.push(selectedId);
             }
-        }
+            configsToTry.push({ facingMode: "environment" });
+            configsToTry.push({ facingMode: "user" });
 
-        async function stopPhysScanner() {
-            const box = document.getElementById('phys-reader-box');
-            const btn = document.getElementById('btn-phys-toggle');
+            let started = false;
+            let lastErr = null;
 
-            if (physQrCode) {
-                const state = physQrCode.getState();
-                if (state === Html5QrcodeScannerState.SCANNING || state === Html5QrcodeScannerState.PAUSED) {
-                    try { await physQrCode.stop(); } catch(e) {}
+            for (let config of configsToTry) {
+                try {
+                    await physQrCode.start(
+                        config,
+                        { fps: 10, qrbox: { width: 250, height: 150 } },
+                        onPhysBarcodeScanned,
+                        (err) => {}
+                    );
+                    started = true;
+                    isPhysScannerRunning = true;
+                    populateCameraOptions('phys-camera-select');
+                    break;
+                } catch (err) {
+                    lastErr = err;
                 }
             }
-            isPhysScannerRunning = false;
-            if (box) box.style.display = 'none';
-            if (btn) btn.innerText = 'Start Audit Scanner';
+
+            if (!started) {
+                await stopAllScanners();
+                handleCameraError(lastErr, "Audit Camera");
+            }
         }
 
-        function togglePhysScanner() {
-            if (isPhysScannerRunning) stopPhysScanner();
-            else startPhysScanner();
+        async function togglePhysScanner() {
+            if (isPhysScannerRunning) await stopAllScanners();
+            else await startPhysScanner();
+        }
+
+        async function onPhysCameraChange() {
+            if (isPhysScannerRunning) {
+                await startPhysScanner();
+            }
         }
 
         function onPhysBarcodeScanned(code) {
@@ -667,89 +680,93 @@
             }
         }
 
-        /* --- SCANNER 2: OUTGOING SALES SHEET SCANNER --- */
+        /* --- SCANNER 2: OUTGOING SALES SHEET SCANNER (APP 1 FALLBACK LOOP) --- */
         async function startSalesScanner() {
+            await stopAllScanners();
+
             const box = document.getElementById('sales-reader-box');
             box.style.display = 'block';
 
             if (!salesQrCode) salesQrCode = new Html5Qrcode("sales-reader");
 
-            try {
-                await salesQrCode.start(
-                    { facingMode: "environment" },
-                    { fps: 10, qrbox: { width: 220, height: 140 } },
-                    (code) => {
-                        const clean = code.trim();
-                        const p = products.find(x => 
-                            (x.upc || '').trim() === clean || 
-                            (x.sku || '').trim().toLowerCase() === clean.toLowerCase()
-                        );
-                        if (p) {
-                            if (p.stock <= 0) alert(`Product "${p.name}" found, but it is OUT OF STOCK!`);
-                            else {
-                                document.getElementById('so-item-select').value = p.id;
-                                alert(`Selected: ${p.name}`);
-                            }
-                            stopSalesScanner();
-                        } else {
-                            alert(`No product found with barcode: ${clean}`);
-                        }
-                    },
-                    (err) => {}
-                );
-                isSalesScannerRunning = true;
-            } catch (err) {
-                stopSalesScanner();
-                handleCameraError(err, "Sales Scanner");
-            }
-        }
+            let configsToTry = [{ facingMode: "environment" }, { facingMode: "user" }];
+            let started = false;
+            let lastErr = null;
 
-        async function stopSalesScanner() {
-            const box = document.getElementById('sales-reader-box');
-            if (salesQrCode) {
-                const state = salesQrCode.getState();
-                if (state === Html5QrcodeScannerState.SCANNING || state === Html5QrcodeScannerState.PAUSED) {
-                    try { await salesQrCode.stop(); } catch(e) {}
+            for (let config of configsToTry) {
+                try {
+                    await salesQrCode.start(
+                        config,
+                        { fps: 10, qrbox: { width: 220, height: 140 } },
+                        (code) => {
+                            const clean = code.trim();
+                            const p = products.find(x => 
+                                (x.upc || '').trim() === clean || 
+                                (x.sku || '').trim().toLowerCase() === clean.toLowerCase()
+                            );
+                            if (p) {
+                                if (p.stock <= 0) alert(`Product "${p.name}" found, but it is OUT OF STOCK!`);
+                                else {
+                                    document.getElementById('so-item-select').value = p.id;
+                                    alert(`Selected: ${p.name}`);
+                                }
+                                stopAllScanners();
+                            } else {
+                                alert(`No product found with barcode: ${clean}`);
+                            }
+                        },
+                        (err) => {}
+                    );
+                    started = true;
+                    isSalesScannerRunning = true;
+                    break;
+                } catch (err) {
+                    lastErr = err;
                 }
             }
-            isSalesScannerRunning = false;
-            if (box) box.style.display = 'none';
+
+            if (!started) {
+                await stopAllScanners();
+                handleCameraError(lastErr, "Sales Scanner");
+            }
         }
 
-        /* --- SCANNER 3: IN-MODAL ADD/EDIT ITEM UPC SCANNER --- */
+        /* --- SCANNER 3: IN-MODAL ADD/EDIT ITEM UPC SCANNER (APP 1 FALLBACK LOOP) --- */
         async function startModalUPCScanner() {
+            await stopAllScanners();
+
             const box = document.getElementById('modal-upc-reader-box');
             box.style.display = 'block';
 
             if (!modalQrCode) modalQrCode = new Html5Qrcode("modal-upc-reader");
 
-            try {
-                await modalQrCode.start(
-                    { facingMode: "environment" },
-                    { fps: 10, qrbox: { width: 220, height: 130 } },
-                    (code) => {
-                        document.getElementById('fp-upc').value = code.trim();
-                        stopModalUPCScanner();
-                    },
-                    (err) => {}
-                );
-                isModalScannerRunning = true;
-            } catch (err) {
-                stopModalUPCScanner();
-                handleCameraError(err, "Product UPC Scanner");
-            }
-        }
+            let configsToTry = [{ facingMode: "environment" }, { facingMode: "user" }];
+            let started = false;
+            let lastErr = null;
 
-        async function stopModalUPCScanner() {
-            const box = document.getElementById('modal-upc-reader-box');
-            if (modalQrCode) {
-                const state = modalQrCode.getState();
-                if (state === Html5QrcodeScannerState.SCANNING || state === Html5QrcodeScannerState.PAUSED) {
-                    try { await modalQrCode.stop(); } catch(e) {}
+            for (let config of configsToTry) {
+                try {
+                    await modalQrCode.start(
+                        config,
+                        { fps: 10, qrbox: { width: 220, height: 130 } },
+                        (code) => {
+                            document.getElementById('fp-upc').value = code.trim();
+                            stopAllScanners();
+                        },
+                        (err) => {}
+                    );
+                    started = true;
+                    isModalScannerRunning = true;
+                    break;
+                } catch (err) {
+                    lastErr = err;
                 }
             }
-            isModalScannerRunning = false;
-            if (box) box.style.display = 'none';
+
+            if (!started) {
+                await stopAllScanners();
+                handleCameraError(lastErr, "Product UPC Scanner");
+            }
         }
 
         /* --- INVENTORY TAB --- */
@@ -790,7 +807,7 @@
 
         /* --- PRODUCT EDIT & DELETE --- */
         async function openProductModal(id) {
-            await stopModalUPCScanner();
+            await stopAllScanners();
 
             const p = products.find(x => x.id === String(id)) || { id: '', upc: '', name: '', stock: 0, physicalInventory: 0, reorderPoint: 0, parLevel: 0, unit: '', orderUnit: '', unitsPerOrder: 1, listPrice: 0, cost: 0, category: '', preferredVendor: '', sku: '' };
             
@@ -1376,16 +1393,16 @@
         }
 
         async function closeModal(id) { 
-            if (id === 'modal-product') await stopModalUPCScanner();
+            await stopAllScanners();
             document.getElementById(id).classList.remove('active'); 
         }
 
         function escapeHtml(str) { return String(str||'').replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
 
-        window.addEventListener('DOMContentLoaded', async () => {
+        /* ABSOLUTELY NO CAMERA RUNNING ON LOAD */
+        window.addEventListener('DOMContentLoaded', () => {
             updateDashboard();
             renderInventoryTable();
-            await requestCameraPermissionOnLoad();
         });
     </script>
 </body>
