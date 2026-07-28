@@ -130,17 +130,16 @@
                     <div style="display:flex; gap:4px;">
                         <button class="btn btn-secondary" style="width:auto; font-size:0.75rem;" onclick="openProductModal(-1)">+ Add Item</button>
                         <button class="btn btn-secondary" style="width:auto; font-size:0.75rem;" onclick="openCSVImportModal()">📥 Import CSV</button>
-                        <button class="btn btn-secondary" style="width:auto; font-size:0.75rem;" onclick="download21ColCSV()">📤 Export CSV</button>
+                        <button class="btn btn-secondary" style="width:auto; font-size:0.75rem;" onclick="download20ColCSV()">📤 Export CSV</button>
                     </div>
                 </div>
-                <input type="text" id="inv-search" class="form-control" placeholder="🔍 Search name, UPC, SKU, Brand, Vendor..." oninput="renderInventoryTable()">
+                <input type="text" id="inv-search" class="form-control" placeholder="🔍 Search name, UPC, SKU, Vendor..." oninput="renderInventoryTable()">
                 <div class="table-wrapper">
                     <table>
                         <thead>
                             <tr>
                                 <th>Build</th>
                                 <th>Product Name</th>
-                                <th>Brand</th>
                                 <th>UPC / Barcode</th>
                                 <th>Book Stock</th>
                                 <th>Reorder Point</th>
@@ -170,14 +169,7 @@
 
                 <div class="card-title" style="font-size:0.85rem;">Add Item to Sales Order</div>
                 
-                <!-- Sales Barcode Scanner Container & Lens Selector -->
                 <div id="sales-reader-box" class="scanner-box">
-                    <div class="form-group" style="padding: 8px; background: #ffffff;">
-                        <label for="sales-camera-select">📷 Choose Camera Sensor / Lens:</label>
-                        <select id="sales-camera-select" class="form-control" onchange="onSalesCameraChange()">
-                            <option value="">Default Rear Camera</option>
-                        </select>
-                    </div>
                     <div id="sales-reader" style="width:100%; min-height:180px;"></div>
                     <button type="button" class="btn btn-danger" style="margin-top:6px; font-size:0.75rem; padding:4px;" onclick="stopSalesScanner()">⏹ Close Scanner</button>
                 </div>
@@ -282,20 +274,20 @@
 
         <!-- TAB 7: PHYSICAL COUNT & AUDIT RECONCILIATION -->
         <div id="tab-physical" class="tab-content" style="display:none;">
-            <!-- Physical Reconciliation Scanner Card -->
             <div class="card">
                 <div class="card-title">
                     <span>📷 Scan Barcode for Physical Reconciliation</span>
                     <button id="btn-phys-toggle" class="btn btn-primary" style="width:auto; padding:4px 8px; font-size:0.75rem;" onclick="togglePhysScanner()">Start Audit Scanner</button>
                 </div>
 
+                <div class="form-group" style="margin-bottom: 8px;">
+                    <label for="phys-camera-select">📷 Choose Camera Lens:</label>
+                    <select id="phys-camera-select" class="form-control">
+                        <option value="">Default Camera</option>
+                    </select>
+                </div>
+
                 <div id="phys-reader-box" class="scanner-box">
-                    <div class="form-group" style="padding: 8px; background: #ffffff;">
-                        <label for="phys-camera-select">📷 Choose Camera Sensor / Lens:</label>
-                        <select id="phys-camera-select" class="form-control" onchange="onPhysCameraChange()">
-                            <option value="">Default Rear Camera</option>
-                        </select>
-                    </div>
                     <div id="phys-reader" style="width:100%; min-height:180px;"></div>
                 </div>
                 <div id="phys-scan-result"></div>
@@ -346,7 +338,7 @@
 
     </div>
 
-    <!-- MODAL 1: Product Editor (Includes Add Item UPC Scanner & Brand Field) -->
+    <!-- MODAL 1: Product Editor -->
     <div id="modal-product" class="modal-overlay">
         <div class="modal-body">
             <div class="modal-header">
@@ -354,14 +346,7 @@
                 <button onclick="closeModal('modal-product')" style="border:none; background:none; font-size:1.2rem; cursor:pointer;">✕</button>
             </div>
 
-            <!-- In-Modal Scanner Box & Lens Selector for UPC capture -->
             <div id="modal-upc-reader-box" class="scanner-box">
-                <div class="form-group" style="padding: 8px; background: #ffffff;">
-                    <label for="modal-camera-select">📷 Choose Camera Sensor / Lens:</label>
-                    <select id="modal-camera-select" class="form-control" onchange="onModalCameraChange()">
-                        <option value="">Default Rear Camera</option>
-                    </select>
-                </div>
                 <div id="modal-upc-reader" style="width:100%; min-height:180px;"></div>
                 <button type="button" class="btn btn-danger" style="margin-top:6px; font-size:0.75rem; padding:4px;" onclick="stopModalUPCScanner()">⏹ Stop Camera Scan</button>
             </div>
@@ -377,7 +362,6 @@
                         </div>
                     </div>
                     <div class="form-group"><label>Product Name</label><input type="text" id="fp-name" class="form-control" required></div>
-                    <div class="form-group"><label>Brand</label><input type="text" id="fp-brand" class="form-control"></div>
                     <div class="form-group"><label>Book Inventory (Stock)</label><input type="number" id="fp-stock" class="form-control" value="0"></div>
                     <div class="form-group"><label>Physical Inventory</label><input type="number" id="fp-physical" class="form-control" value="0"></div>
                     <div class="form-group"><label>Reorder Threshold</label><input type="number" id="fp-reorder" class="form-control" value="0"></div>
@@ -386,14 +370,10 @@
                     <div class="form-group"><label>Wholesale Order Unit (case)</label><input type="text" id="fp-orderUnit" class="form-control"></div>
                     <div class="form-group"><label>Units Per Order</label><input type="number" id="fp-unitsPerOrder" class="form-control" value="1"></div>
                     <div class="form-group"><label>List Price ($)</label><input type="number" step="0.01" id="fp-listPrice" class="form-control" value="0.00"></div>
-                    <div class="form-group"><label>Cost ($)</label><input type="number" step="0.01" id="fp-cost" class="form-control" value="0.00"></div>
+                    <div class="form-group"><label>Cost on Delivery ($)</label><input type="number" step="0.01" id="fp-cost" class="form-control" value="0.00"></div>
                     <div class="form-group"><label>Category</label><input type="text" id="fp-category" class="form-control"></div>
                     <div class="form-group"><label>Preferred Vendor</label><input type="text" id="fp-vendor" class="form-control"></div>
-                    <div class="form-group"><label>Website</label><input type="text" id="fp-website" class="form-control"></div>
                     <div class="form-group"><label>SKU</label><input type="text" id="fp-sku" class="form-control"></div>
-                    <div class="form-group"><label>ASIN (Amazon)</label><input type="text" id="fp-asin" class="form-control"></div>
-                    <div class="form-group"><label>Item Number</label><input type="text" id="fp-itemNumber" class="form-control"></div>
-                    <div class="form-group"><label>Model Number</label><input type="text" id="fp-modelNumber" class="form-control"></div>
                 </div>
                 <div class="btn-group" style="margin-top:12px;">
                     <button type="submit" class="btn btn-success">💾 Save Product</button>
@@ -410,8 +390,8 @@
                 <h3>📥 Import CSV Data</h3>
                 <button onclick="closeModal('modal-csv')" style="border:none; background:none; font-size:1.2rem; cursor:pointer;">✕</button>
             </div>
-            <p style="font-size:0.8rem; color:var(--text-muted); margin-bottom:8px;">Paste 21-column CSV text below matching standard header structure:</p>
-            <textarea id="raw-csv-text" class="form-control" rows="8" placeholder="UPC (Bar Code),Product Name,Brand,Book Inventory,Physical inventory..."></textarea>
+            <p style="font-size:0.8rem; color:var(--text-muted); margin-bottom:8px;">Paste 20-column standard CSV text below:</p>
+            <textarea id="raw-csv-text" class="form-control" rows="8" placeholder="UPC,Product Name,Book Inventory..."></textarea>
             <div class="btn-group" style="margin-top:12px;">
                 <button class="btn btn-success" onclick="processRawCSVImport()">Import Inventory</button>
                 <button class="btn btn-secondary" onclick="closeModal('modal-csv')">Cancel</button>
@@ -431,15 +411,13 @@
     </div>
 
     <script>
-        /* --- 21-COLUMN SCHEMA KEYS & EXACT CSV HEADERS --- */
-        const COLUMNS_21 = ['upc','name','brand','stock','physicalInventory','variance','reorderPoint','parLevel','unit','orderUnit','unitsPerOrder','status','listPrice','cost','category','preferredVendor','website','sku','asin','itemNumber','modelNumber'];
-
-        const CSV_HEADERS = ['UPC (Bar Code)','Product Name','Brand','Book Inventory','Physical inventory','Variance','Reorder Point','parLevel','Base Unit','orderUnit','unitsPerOrder','status','List price','Cost','Category','Vendor','Website','SKU','ASIN (Amazon)','Item number','Model Number'];
+        /* --- 20-COLUMN SCHEMA KEYS --- */
+        const COLUMNS_20 = ['upc','name','stock','physicalInventory','variance','reorderPoint','parLevel','unit','orderUnit','unitsPerOrder','status','listPrice','cost','category','preferredVendor','website','sku','asin','itemNumber','modelNumber'];
 
         /* --- STATE VARIABLES WITH LOCAL STORAGE SYNC --- */
         let products = JSON.parse(localStorage.getItem('jomarket_products')) || [
-            { id: '1', upc: '0123456789', name: 'Espresso Beans 1lb', brand: 'Acme', stock: 12, physicalInventory: 12, variance: 0, reorderPoint: 5, parLevel: 20, unit: 'bag', orderUnit: 'case', unitsPerOrder: 6, status: 'In Stock', listPrice: 18.00, cost: 9.50, category: 'Beverage', preferredVendor: 'Acme Coffee Co', website: '', sku: 'AC-ESP-1', asin: '', itemNumber: 'IT-101', modelNumber: 'M-1' },
-            { id: '2', upc: '9876543210', name: 'Commercial Paper Towels', brand: 'Janitorial', stock: 3, physicalInventory: 3, variance: 0, reorderPoint: 4, parLevel: 15, unit: 'roll', orderUnit: 'box', unitsPerOrder: 12, status: 'Low Stock', listPrice: 2.50, cost: 1.10, category: 'Supplies', preferredVendor: 'Janitorial Direct', website: '', sku: 'JD-PT-12', asin: '', itemNumber: 'IT-102', modelNumber: 'M-2' }
+            { id: '1', upc: '0123456789', name: 'Espresso Beans 1lb', stock: 12, physicalInventory: 12, variance: 0, reorderPoint: 5, parLevel: 20, unit: 'bag', orderUnit: 'case', unitsPerOrder: 6, status: 'In Stock', listPrice: 18.00, cost: 9.50, category: 'Beverage', preferredVendor: 'Acme Coffee Co', website: '', sku: 'AC-ESP-1', asin: '', itemNumber: 'IT-101', modelNumber: 'M-1' },
+            { id: '2', upc: '9876543210', name: 'Commercial Paper Towels', stock: 3, physicalInventory: 3, variance: 0, reorderPoint: 4, parLevel: 15, unit: 'roll', orderUnit: 'box', unitsPerOrder: 12, status: 'Low Stock', listPrice: 2.50, cost: 1.10, category: 'Supplies', preferredVendor: 'Janitorial Direct', website: '', sku: 'JD-PT-12', asin: '', itemNumber: 'IT-102', modelNumber: 'M-2' }
         ];
 
         let vendors = JSON.parse(localStorage.getItem('jomarket_vendors')) || [
@@ -532,105 +510,51 @@
             if (tabId === 'tab-vendor-history') renderVendorHistory();
         }
 
-        /* --- SAFE USER-GESTURE CAMERA ENUMERATION & ENGINE --- */
-        async function populateCameraDropdown(selectId) {
+        /* --- SAFE CAMERA ENUMERATION (Triggers only when camera starts) --- */
+        async function populateCameraOptions(selectId) {
             const select = document.getElementById(selectId);
             if (!select) return;
 
             try {
                 const devices = await Html5Qrcode.getCameras();
                 if (devices && devices.length > 0) {
-                    const currentVal = select.value;
                     select.innerHTML = '';
-                    let defaultSelected = false;
-
                     devices.forEach((device, index) => {
                         const option = document.createElement('option');
                         option.value = device.id;
                         option.text = device.label || `Camera ${index + 1}`;
-
-                        const labelLower = (device.label || '').toLowerCase();
-                        if (!defaultSelected && (
-                            labelLower.includes('back') || 
-                            labelLower.includes('rear') || 
-                            labelLower.includes('environment') || 
-                            labelLower.includes('main') ||
-                            labelLower.includes('0')
-                        )) {
+                        if ((device.label || '').toLowerCase().includes('back') || (device.label || '').toLowerCase().includes('rear')) {
                             option.selected = true;
-                            defaultSelected = true;
                         }
-
                         select.appendChild(option);
                     });
-
-                    if (!defaultSelected && select.options.length > 0) {
-                        select.options[0].selected = true;
-                    }
-
-                    if (currentVal && Array.from(select.options).some(o => o.value === currentVal)) {
-                        select.value = currentVal;
-                    }
-                } else {
-                    select.innerHTML = '<option value="">Default Rear Camera</option>';
                 }
-            } catch (err) {
-                select.innerHTML = '<option value="">Default Rear Camera</option>';
-            }
-        }
-
-        async function startGenericScanner(qrInstance, boxId, selectId, onScanSuccess) {
-            const box = document.getElementById(boxId);
-            if (box) box.style.display = 'block';
-
-            await populateCameraDropdown(selectId);
-
-            const select = document.getElementById(selectId);
-            const selectedId = select ? select.value : null;
-
-            let configsToTry = [];
-            if (selectedId && selectedId !== "") {
-                configsToTry.push(selectedId);
-            }
-            configsToTry.push({ facingMode: "environment" });
-            configsToTry.push({ facingMode: "user" });
-
-            let started = false;
-            let lastErr = null;
-
-            for (let config of configsToTry) {
-                try {
-                    await qrInstance.start(
-                        config,
-                        { fps: 10, qrbox: { width: 230, height: 140 } },
-                        onScanSuccess,
-                        (err) => {}
-                    );
-                    started = true;
-                    break;
-                } catch (e) {
-                    lastErr = e;
-                }
-            }
-
-            if (!started) {
-                if (box) box.style.display = 'none';
-                throw new Error("Could not access camera lens: " + (lastErr || "Permissions denied"));
-            }
+            } catch (err) {}
         }
 
         /* --- SCANNER 1: PHYSICAL INVENTORY AUDIT SCANNER --- */
         async function startPhysScanner() {
+            const box = document.getElementById('phys-reader-box');
             const btn = document.getElementById('btn-phys-toggle');
+            box.style.display = 'block';
             btn.innerText = '⏹ Stop Audit Scanner';
 
             if (!physQrCode) physQrCode = new Html5Qrcode("phys-reader");
 
+            const select = document.getElementById('phys-camera-select');
+            const cameraConfig = (select && select.value) ? select.value : { facingMode: "environment" };
+
             try {
-                await startGenericScanner(physQrCode, 'phys-reader-box', 'phys-camera-select', onPhysBarcodeScanned);
+                await physQrCode.start(
+                    cameraConfig,
+                    { fps: 10, qrbox: { width: 250, height: 150 } },
+                    onPhysBarcodeScanned,
+                    (err) => {}
+                );
                 isPhysScannerRunning = true;
+                populateCameraOptions('phys-camera-select');
             } catch (err) {
-                alert(err.message || err);
+                alert("Could not start audit camera: " + err);
                 stopPhysScanner();
             }
         }
@@ -653,13 +577,6 @@
         function togglePhysScanner() {
             if (isPhysScannerRunning) stopPhysScanner();
             else startPhysScanner();
-        }
-
-        async function onPhysCameraChange() {
-            if (isPhysScannerRunning) {
-                if (physQrCode) try { await physQrCode.stop(); } catch(e) {}
-                await startPhysScanner();
-            }
         }
 
         function onPhysBarcodeScanned(code) {
@@ -698,29 +615,37 @@
 
         /* --- SCANNER 2: OUTGOING SALES SHEET SCANNER --- */
         async function startSalesScanner() {
+            const box = document.getElementById('sales-reader-box');
+            box.style.display = 'block';
+
             if (!salesQrCode) salesQrCode = new Html5Qrcode("sales-reader");
 
             try {
-                await startGenericScanner(salesQrCode, 'sales-reader-box', 'sales-camera-select', (code) => {
-                    const clean = code.trim();
-                    const p = products.find(x => 
-                        (x.upc || '').trim() === clean || 
-                        (x.sku || '').trim().toLowerCase() === clean.toLowerCase()
-                    );
-                    if (p) {
-                        if (p.stock <= 0) alert(`Product "${p.name}" found, but it is OUT OF STOCK!`);
-                        else {
-                            document.getElementById('so-item-select').value = p.id;
-                            alert(`Selected: ${p.name}`);
+                await salesQrCode.start(
+                    { facingMode: "environment" },
+                    { fps: 10, qrbox: { width: 220, height: 140 } },
+                    (code) => {
+                        const clean = code.trim();
+                        const p = products.find(x => 
+                            (x.upc || '').trim() === clean || 
+                            (x.sku || '').trim().toLowerCase() === clean.toLowerCase()
+                        );
+                        if (p) {
+                            if (p.stock <= 0) alert(`Product "${p.name}" found, but it is OUT OF STOCK!`);
+                            else {
+                                document.getElementById('so-item-select').value = p.id;
+                                alert(`Selected: ${p.name}`);
+                            }
+                            stopSalesScanner();
+                        } else {
+                            alert(`No product found with barcode: ${clean}`);
                         }
-                        stopSalesScanner();
-                    } else {
-                        alert(`No product found with barcode: ${clean}`);
-                    }
-                });
+                    },
+                    (err) => {}
+                );
                 isSalesScannerRunning = true;
             } catch (err) {
-                alert(err.message || err);
+                alert("Could not start camera for sales selection: " + err);
                 stopSalesScanner();
             }
         }
@@ -737,25 +662,26 @@
             if (box) box.style.display = 'none';
         }
 
-        async function onSalesCameraChange() {
-            if (isSalesScannerRunning) {
-                if (salesQrCode) try { await salesQrCode.stop(); } catch(e) {}
-                await startSalesScanner();
-            }
-        }
-
         /* --- SCANNER 3: IN-MODAL ADD/EDIT ITEM UPC SCANNER --- */
         async function startModalUPCScanner() {
+            const box = document.getElementById('modal-upc-reader-box');
+            box.style.display = 'block';
+
             if (!modalQrCode) modalQrCode = new Html5Qrcode("modal-upc-reader");
 
             try {
-                await startGenericScanner(modalQrCode, 'modal-upc-reader-box', 'modal-camera-select', (code) => {
-                    document.getElementById('fp-upc').value = code.trim();
-                    stopModalUPCScanner();
-                });
+                await modalQrCode.start(
+                    { facingMode: "environment" },
+                    { fps: 10, qrbox: { width: 220, height: 130 } },
+                    (code) => {
+                        document.getElementById('fp-upc').value = code.trim();
+                        stopModalUPCScanner();
+                    },
+                    (err) => {}
+                );
                 isModalScannerRunning = true;
             } catch (err) {
-                alert(err.message || err);
+                alert("Could not start camera in modal: " + err);
                 stopModalUPCScanner();
             }
         }
@@ -772,20 +698,13 @@
             if (box) box.style.display = 'none';
         }
 
-        async function onModalCameraChange() {
-            if (isModalScannerRunning) {
-                if (modalQrCode) try { await modalQrCode.stop(); } catch(e) {}
-                await startModalUPCScanner();
-            }
-        }
-
         /* --- INVENTORY TAB --- */
         function renderInventoryTable() {
             const q = (document.getElementById('inv-search')?.value || '').toLowerCase();
             const tbody = document.getElementById('inv-table-body');
             tbody.innerHTML = '';
 
-            products.filter(p => p.name.toLowerCase().includes(q) || (p.brand || '').toLowerCase().includes(q) || (p.upc || '').includes(q) || (p.sku || '').toLowerCase().includes(q)).forEach(p => {
+            products.filter(p => p.name.toLowerCase().includes(q) || (p.upc || '').includes(q) || (p.sku || '').toLowerCase().includes(q)).forEach(p => {
                 const stock = parseInt(p.stock) || 0;
                 const reorder = parseInt(p.reorderPoint) || 0;
                 let pill = `<span class="pill pill-in-stock">In Stock</span>`;
@@ -798,7 +717,6 @@
                     <tr>
                         <td><input type="checkbox" ${isQueued ? 'checked' : ''} onchange="togglePOQueue('${p.id}', this.checked)"></td>
                         <td><strong style="color:var(--primary); cursor:pointer;" onclick="openProductModal('${p.id}')">${escapeHtml(p.name)}</strong></td>
-                        <td>${escapeHtml(p.brand || 'N/A')}</td>
                         <td><code>${escapeHtml(p.upc || 'N/A')}</code></td>
                         <td>${stock} ${p.unit || ''}</td>
                         <td>${reorder}</td>
@@ -820,13 +738,12 @@
         async function openProductModal(id) {
             await stopModalUPCScanner();
 
-            const p = products.find(x => x.id === String(id)) || { id: '', upc: '', name: '', brand: '', stock: 0, physicalInventory: 0, reorderPoint: 0, parLevel: 0, unit: '', orderUnit: '', unitsPerOrder: 1, listPrice: 0, cost: 0, category: '', preferredVendor: '', website: '', sku: '', asin: '', itemNumber: '', modelNumber: '' };
+            const p = products.find(x => x.id === String(id)) || { id: '', upc: '', name: '', stock: 0, physicalInventory: 0, reorderPoint: 0, parLevel: 0, unit: '', orderUnit: '', unitsPerOrder: 1, listPrice: 0, cost: 0, category: '', preferredVendor: '', sku: '' };
             
             document.getElementById('modal-prod-title').innerText = id === -1 ? 'Add New Product' : `Edit: ${p.name}`;
             document.getElementById('fp-id').value = p.id;
             document.getElementById('fp-upc').value = p.upc || '';
             document.getElementById('fp-name').value = p.name || '';
-            document.getElementById('fp-brand').value = p.brand || '';
             document.getElementById('fp-stock').value = p.stock || 0;
             document.getElementById('fp-physical').value = p.physicalInventory || 0;
             document.getElementById('fp-reorder').value = p.reorderPoint || 0;
@@ -838,11 +755,7 @@
             document.getElementById('fp-cost').value = p.cost || 0;
             document.getElementById('fp-category').value = p.category || '';
             document.getElementById('fp-vendor').value = p.preferredVendor || '';
-            document.getElementById('fp-website').value = p.website || '';
             document.getElementById('fp-sku').value = p.sku || '';
-            document.getElementById('fp-asin').value = p.asin || '';
-            document.getElementById('fp-itemNumber').value = p.itemNumber || '';
-            document.getElementById('fp-modelNumber').value = p.modelNumber || '';
 
             document.getElementById('modal-product').classList.add('active');
         }
@@ -857,7 +770,6 @@
                 id: id || String(Date.now()),
                 upc: document.getElementById('fp-upc').value.trim(),
                 name: document.getElementById('fp-name').value.trim(),
-                brand: document.getElementById('fp-brand').value.trim(),
                 stock: stock,
                 physicalInventory: phys,
                 variance: phys - stock,
@@ -870,11 +782,7 @@
                 cost: parseFloat(document.getElementById('fp-cost').value) || 0,
                 category: document.getElementById('fp-category').value.trim(),
                 preferredVendor: document.getElementById('fp-vendor').value.trim(),
-                website: document.getElementById('fp-website').value.trim(),
-                sku: document.getElementById('fp-sku').value.trim(),
-                asin: document.getElementById('fp-asin').value.trim(),
-                itemNumber: document.getElementById('fp-itemNumber').value.trim(),
-                modelNumber: document.getElementById('fp-modelNumber').value.trim()
+                sku: document.getElementById('fp-sku').value.trim()
             };
 
             if (id) {
@@ -1356,20 +1264,14 @@
             });
         }
 
-        /* --- 21-COLUMN CSV TOOLS --- */
-        function download21ColCSV() {
-            let csv = CSV_HEADERS.map(h => `"${h}"`).join(',') + '\n';
+        /* --- 20-COLUMN CSV TOOLS --- */
+        function download20ColCSV() {
+            let csv = COLUMNS_20.join(',') + '\n';
             products.forEach(p => {
-                const row = COLUMNS_21.map(key => {
-                    let val = p[key];
-                    if (key === 'variance') val = (parseInt(p.physicalInventory) || 0) - (parseInt(p.stock) || 0);
-                    if (val === undefined || val === null) val = '';
-                    return `"${String(val).replace(/"/g, '""')}"`;
-                });
+                const row = COLUMNS_20.map(k => `"${String(p[k] || '').replace(/"/g, '""')}"`);
                 csv += row.join(',') + '\n';
             });
-
-            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const blob = new Blob([csv], { type: 'text/csv' });
             const link = document.createElement('a');
             link.href = URL.createObjectURL(blob);
             link.download = `jomarket_inventory_${new Date().toISOString().slice(0,10)}.csv`;
@@ -1378,89 +1280,45 @@
 
         function openCSVImportModal() { document.getElementById('modal-csv').classList.add('active'); }
 
-        function parseCSVLine(text) {
-            const lines = [];
-            let row = [];
-            let entry = '';
-            let inQuotes = false;
-
-            for (let i = 0; i < text.length; i++) {
-                const c = text[i];
-                const next = text[i + 1];
-
-                if (c === '"') {
-                    if (inQuotes && next === '"') { entry += '"'; i++; }
-                    else { inQuotes = !inQuotes; }
-                } else if (c === ',' && !inQuotes) {
-                    row.push(entry.trim());
-                    entry = '';
-                } else if ((c === '\r' || c === '\n') && !inQuotes) {
-                    if (c === '\r' && next === '\n') { i++; }
-                    row.push(entry.trim());
-                    if (row.some(f => f !== '')) lines.push(row);
-                    row = [];
-                    entry = '';
-                } else {
-                    entry += c;
-                }
-            }
-            if (entry !== '' || row.length > 0) {
-                row.push(entry.trim());
-                if (row.some(f => f !== '')) lines.push(row);
-            }
-            return lines;
-        }
-
         function processRawCSVImport() {
             const text = document.getElementById('raw-csv-text').value.trim();
             if (!text) return;
-
-            const lines = parseCSVLine(text);
-            if (lines.length === 0) return alert("CSV text is empty!");
-
+            const lines = text.split('\n');
             let start = 0;
-            const firstRowStr = lines[0].join(' ').toLowerCase();
-            if (firstRowStr.includes('upc') || firstRowStr.includes('product name') || firstRowStr.includes('brand')) {
-                start = 1;
-            }
+            if (lines[0].toLowerCase().includes('upc') || lines[0].toLowerCase().includes('product name')) start = 1;
 
             for (let i = start; i < lines.length; i++) {
-                const row = lines[i];
+                const row = lines[i].split(',').map(x => x.replace(/^"|"$/g, '').trim());
                 if (row.length < 2) continue;
-
-                const book = parseInt(row[3]) || 0;
-                const physical = parseInt(row[4]) || 0;
 
                 products.push({
                     id: String(Date.now() + i),
                     upc: row[0] || '',
                     name: row[1] || 'Imported Item',
-                    brand: row[2] || '',
-                    stock: book,
-                    physicalInventory: physical,
-                    variance: physical - book,
-                    reorderPoint: parseInt(row[6]) || 0,
-                    parLevel: parseInt(row[7]) || 0,
-                    unit: row[8] || '',
-                    orderUnit: row[9] || '',
-                    unitsPerOrder: parseInt(row[10]) || 1,
-                    status: row[11] || 'In Stock',
-                    listPrice: parseFloat(row[12]) || 0,
-                    cost: parseFloat(row[13]) || 0,
-                    category: row[14] || '',
-                    preferredVendor: row[15] || '',
-                    website: row[16] || '',
-                    sku: row[17] || '',
-                    asin: row[18] || '',
-                    itemNumber: row[19] || '',
-                    modelNumber: row[20] || ''
+                    stock: parseInt(row[2]) || 0,
+                    physicalInventory: parseInt(row[3]) || 0,
+                    variance: (parseInt(row[3]) || 0) - (parseInt(row[2]) || 0),
+                    reorderPoint: parseInt(row[5]) || 0,
+                    parLevel: parseInt(row[6]) || 0,
+                    unit: row[7] || '',
+                    orderUnit: row[8] || '',
+                    unitsPerOrder: parseInt(row[9]) || 1,
+                    status: row[10] || 'In Stock',
+                    listPrice: parseFloat(row[11]) || 0,
+                    cost: parseFloat(row[12]) || 0,
+                    category: row[13] || '',
+                    preferredVendor: row[14] || '',
+                    website: row[15] || '',
+                    sku: row[16] || '',
+                    asin: row[17] || '',
+                    itemNumber: row[18] || '',
+                    modelNumber: row[19] || ''
                 });
             }
-
             saveState();
             closeModal('modal-csv');
             renderInventoryTable();
-            alert("CSV Imported successfully with 21-column schema!");
+            alert("CSV Imported successfully!");
         }
 
         async function closeModal(id) { 
