@@ -514,9 +514,22 @@
         function handleCameraError(err, cameraLabel = "Camera") {
             const errStr = String(err || '');
             if (errStr.includes("NotAllowedError") || errStr.includes("Permission denied") || errStr.includes("PermissionDeniedError")) {
-                alert("📷 Camera Access Blocked!\n\nYour browser or phone has blocked camera access for this site.\n\nTo allow access:\n1. Tap the Lock / Tune icon next to the web address at the top.\n2. Tap Permissions -> Camera -> Allow.\n3. Refresh the page.");
+                alert("📷 Camera Access Blocked!\n\nCamera access is currently turned off in your phone's operating system settings.\n\n📱 iPhone (Safari):\n1. Go to iPhone Settings -> Safari -> Camera.\n2. Set permission to 'Allow'.\n\n🤖 Android (Chrome):\n1. Go to Android Settings -> Apps -> Chrome -> Permissions -> Camera.\n2. Set permission to 'Allow'.\n\nThen refresh this web page!");
             } else {
                 alert(`Could not start ${cameraLabel}: ` + (err || "Camera unavailable"));
+            }
+        }
+
+        /* --- UPFRONT INITIALIZATION FOR CAMERA PERMISSIONS --- */
+        async function initCameraPermissions() {
+            try {
+                if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                    stream.getTracks().forEach(track => track.stop());
+                }
+                await populateCameraOptions('phys-camera-select');
+            } catch (err) {
+                console.warn("Camera permission prompt error on page load:", err);
             }
         }
 
@@ -1338,9 +1351,10 @@
 
         function escapeHtml(str) { return String(str||'').replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
 
-        window.addEventListener('DOMContentLoaded', () => {
+        window.addEventListener('DOMContentLoaded', async () => {
             updateDashboard();
             renderInventoryTable();
+            await initCameraPermissions();
         });
     </script>
 </body>
