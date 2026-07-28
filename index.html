@@ -510,7 +510,17 @@
             if (tabId === 'tab-vendor-history') renderVendorHistory();
         }
 
-        /* --- SAFE CAMERA ENUMERATION (Triggers only when camera starts) --- */
+        /* --- USER-FRIENDLY CAMERA ERROR HANDLER --- */
+        function handleCameraError(err, cameraLabel = "Camera") {
+            const errStr = String(err || '');
+            if (errStr.includes("NotAllowedError") || errStr.includes("Permission denied") || errStr.includes("PermissionDeniedError")) {
+                alert("📷 Camera Access Blocked!\n\nYour browser or phone has blocked camera access for this site.\n\nTo allow access:\n1. Tap the Lock / Tune icon next to the web address at the top.\n2. Tap Permissions -> Camera -> Allow.\n3. Refresh the page.");
+            } else {
+                alert(`Could not start ${cameraLabel}: ` + (err || "Camera unavailable"));
+            }
+        }
+
+        /* --- SAFE CAMERA ENUMERATION --- */
         async function populateCameraOptions(selectId) {
             const select = document.getElementById(selectId);
             if (!select) return;
@@ -554,8 +564,8 @@
                 isPhysScannerRunning = true;
                 populateCameraOptions('phys-camera-select');
             } catch (err) {
-                alert("Could not start audit camera: " + err);
                 stopPhysScanner();
+                handleCameraError(err, "Audit Camera");
             }
         }
 
@@ -645,8 +655,8 @@
                 );
                 isSalesScannerRunning = true;
             } catch (err) {
-                alert("Could not start camera for sales selection: " + err);
                 stopSalesScanner();
+                handleCameraError(err, "Sales Scanner");
             }
         }
 
@@ -681,8 +691,8 @@
                 );
                 isModalScannerRunning = true;
             } catch (err) {
-                alert("Could not start camera in modal: " + err);
                 stopModalUPCScanner();
+                handleCameraError(err, "Product UPC Scanner");
             }
         }
 
