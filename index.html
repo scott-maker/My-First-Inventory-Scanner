@@ -398,15 +398,24 @@
         </div>
     </div>
 
-    <!-- MODAL 2: Raw CSV Text Import -->
+    <!-- MODAL 2: CSV / Text File & Text Import -->
     <div id="modal-csv" class="modal-overlay">
         <div class="modal-body">
             <div class="modal-header">
-                <h3>📥 Import CSV Data</h3>
+                <h3>📥 Import CSV or Text File</h3>
                 <button onclick="closeModal('modal-csv')" style="border:none; background:none; font-size:1.2rem; cursor:pointer;">✕</button>
             </div>
-            <p style="font-size:0.8rem; color:var(--text-muted); margin-bottom:8px;">Paste CSV text below (includes Brand Name):</p>
-            <textarea id="raw-csv-text" class="form-control" rows="8" placeholder="UPC (Bar Code),Product Name,Brand Name,Book Inventory..."></textarea>
+            
+            <div class="form-group" style="margin-bottom:12px;">
+                <label>📄 Select .csv or .txt File from Device:</label>
+                <input type="file" id="csv-file-input" accept=".csv,.txt" class="form-control" onchange="handleFileSelect(event)">
+            </div>
+
+            <div class="form-group">
+                <label>File Preview / Raw CSV Text:</label>
+                <textarea id="raw-csv-text" class="form-control" rows="6" placeholder="Select a file above or paste raw CSV text here..."></textarea>
+            </div>
+
             <div class="btn-group" style="margin-top:12px;">
                 <button class="btn btn-success" onclick="processRawCSVImport()">Import Inventory</button>
                 <button class="btn btn-secondary" onclick="closeModal('modal-csv')">Cancel</button>
@@ -870,7 +879,7 @@
                         <td><input type="checkbox" ${isQueued ? 'checked' : ''} onchange="togglePOQueue('${p.id}', this.checked)"></td>
                         <td>
                             <strong style="color:var(--primary); cursor:pointer;" onclick="openProductModal('${p.id}')">${escapeHtml(p.name)}</strong>
-                            ${p.brand ? `<br><span style="font-size:0.7rem; color:var(--text-muted);">${escapeHtml(p.brand)}</span>` : ''}
+                            ${p.brand ? `<br><span style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">🏷️ ${escapeHtml(p.brand)}</span>` : ''}
                         </td>
                         <td><code>${escapeHtml(p.upc || 'N/A')}</code></td>
                         <td>${stock} ${p.unit || ''}</td>
@@ -1446,6 +1455,17 @@
 
         function openCSVImportModal() { document.getElementById('modal-csv').classList.add('active'); }
 
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById('raw-csv-text').value = e.target.result;
+            };
+            reader.readAsText(file);
+        }
+
         function parseCSVLine(line) {
             const result = [];
             let cur = '';
@@ -1526,6 +1546,8 @@
 
         async function closeModal(id) { 
             await stopAllScanners();
+            const fileInput = document.getElementById('csv-file-input');
+            if (fileInput) fileInput.value = '';
             document.getElementById(id).classList.remove('active'); 
         }
 
