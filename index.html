@@ -133,7 +133,7 @@
                         <button class="btn btn-secondary" style="width:auto; font-size:0.75rem;" onclick="download20ColCSV()">📤 Export CSV</button>
                     </div>
                 </div>
-                <input type="text" id="inv-search" class="form-control" placeholder="🔍 Search name, UPC, SKU, Vendor..." oninput="renderInventoryTable()">
+                <input type="text" id="inv-search" class="form-control" placeholder="🔍 Search name, brand, UPC, SKU, Vendor..." oninput="renderInventoryTable()">
                 <div class="table-wrapper">
                     <table>
                         <thead>
@@ -376,6 +376,7 @@
                         </div>
                     </div>
                     <div class="form-group"><label>Product Name</label><input type="text" id="fp-name" class="form-control" required></div>
+                    <div class="form-group"><label>Brand Name</label><input type="text" id="fp-brand" class="form-control" placeholder="e.g. Acme, DeWalt"></div>
                     <div class="form-group"><label>Book Inventory (Stock)</label><input type="number" id="fp-stock" class="form-control" value="0"></div>
                     <div class="form-group"><label>Physical Inventory</label><input type="number" id="fp-physical" class="form-control" value="0"></div>
                     <div class="form-group"><label>Reorder Threshold</label><input type="number" id="fp-reorder" class="form-control" value="0"></div>
@@ -404,8 +405,8 @@
                 <h3>📥 Import CSV Data</h3>
                 <button onclick="closeModal('modal-csv')" style="border:none; background:none; font-size:1.2rem; cursor:pointer;">✕</button>
             </div>
-            <p style="font-size:0.8rem; color:var(--text-muted); margin-bottom:8px;">Paste 20-column standard CSV text below:</p>
-            <textarea id="raw-csv-text" class="form-control" rows="8" placeholder="UPC,Product Name,Book Inventory..."></textarea>
+            <p style="font-size:0.8rem; color:var(--text-muted); margin-bottom:8px;">Paste standard CSV text below:</p>
+            <textarea id="raw-csv-text" class="form-control" rows="8" placeholder="UPC,Product Name,Brand Name,Book Inventory..."></textarea>
             <div class="btn-group" style="margin-top:12px;">
                 <button class="btn btn-success" onclick="processRawCSVImport()">Import Inventory</button>
                 <button class="btn btn-secondary" onclick="closeModal('modal-csv')">Cancel</button>
@@ -425,13 +426,13 @@
     </div>
 
     <script>
-        /* --- 20-COLUMN SCHEMA KEYS --- */
-        const COLUMNS_20 = ['upc','name','stock','physicalInventory','variance','reorderPoint','parLevel','unit','orderUnit','unitsPerOrder','status','listPrice','cost','category','preferredVendor','website','sku','asin','itemNumber','modelNumber'];
+        /* --- SCHEMA KEYS WITH BRAND NAME --- */
+        const COLUMNS_20 = ['upc','name','brand','stock','physicalInventory','variance','reorderPoint','parLevel','unit','orderUnit','unitsPerOrder','status','listPrice','cost','category','preferredVendor','website','sku','asin','itemNumber','modelNumber'];
 
         /* --- STATE VARIABLES WITH LOCAL STORAGE SYNC --- */
         let products = JSON.parse(localStorage.getItem('jomarket_products')) || [
-            { id: '1', upc: '0123456789', name: 'Espresso Beans 1lb', stock: 12, physicalInventory: 12, variance: 0, reorderPoint: 5, parLevel: 20, unit: 'bag', orderUnit: 'case', unitsPerOrder: 6, status: 'In Stock', listPrice: 18.00, cost: 9.50, category: 'Beverage', preferredVendor: 'Acme Coffee Co', website: '', sku: 'AC-ESP-1', asin: '', itemNumber: 'IT-101', modelNumber: 'M-1' },
-            { id: '2', upc: '9876543210', name: 'Commercial Paper Towels', stock: 3, physicalInventory: 3, variance: 0, reorderPoint: 4, parLevel: 15, unit: 'roll', orderUnit: 'box', unitsPerOrder: 12, status: 'Low Stock', listPrice: 2.50, cost: 1.10, category: 'Supplies', preferredVendor: 'Janitorial Direct', website: '', sku: 'JD-PT-12', asin: '', itemNumber: 'IT-102', modelNumber: 'M-2' }
+            { id: '1', upc: '0123456789', name: 'Espresso Beans 1lb', brand: 'Acme Coffee', stock: 12, physicalInventory: 12, variance: 0, reorderPoint: 5, parLevel: 20, unit: 'bag', orderUnit: 'case', unitsPerOrder: 6, status: 'In Stock', listPrice: 18.00, cost: 9.50, category: 'Beverage', preferredVendor: 'Acme Coffee Co', website: '', sku: 'AC-ESP-1', asin: '', itemNumber: 'IT-101', modelNumber: 'M-1' },
+            { id: '2', upc: '9876543210', name: 'Commercial Paper Towels', brand: 'Bounty', stock: 3, physicalInventory: 3, variance: 0, reorderPoint: 4, parLevel: 15, unit: 'roll', orderUnit: 'box', unitsPerOrder: 12, status: 'Low Stock', listPrice: 2.50, cost: 1.10, category: 'Supplies', preferredVendor: 'Janitorial Direct', website: '', sku: 'JD-PT-12', asin: '', itemNumber: 'IT-102', modelNumber: 'M-2' }
         ];
 
         let vendors = JSON.parse(localStorage.getItem('jomarket_vendors')) || [
@@ -826,7 +827,12 @@
             const tbody = document.getElementById('inv-table-body');
             tbody.innerHTML = '';
 
-            products.filter(p => p.name.toLowerCase().includes(q) || (p.upc || '').includes(q) || (p.sku || '').toLowerCase().includes(q)).forEach(p => {
+            products.filter(p => 
+                p.name.toLowerCase().includes(q) || 
+                (p.brand || '').toLowerCase().includes(q) ||
+                (p.upc || '').includes(q) || 
+                (p.sku || '').toLowerCase().includes(q)
+            ).forEach(p => {
                 const stock = parseInt(p.stock) || 0;
                 const reorder = parseInt(p.reorderPoint) || 0;
                 let pill = `<span class="pill pill-in-stock">In Stock</span>`;
@@ -860,12 +866,13 @@
         async function openProductModal(id) {
             await stopAllScanners();
 
-            const p = products.find(x => x.id === String(id)) || { id: '', upc: '', name: '', stock: 0, physicalInventory: 0, reorderPoint: 0, parLevel: 0, unit: '', orderUnit: '', unitsPerOrder: 1, listPrice: 0, cost: 0, category: '', preferredVendor: '', sku: '' };
+            const p = products.find(x => x.id === String(id)) || { id: '', upc: '', name: '', brand: '', stock: 0, physicalInventory: 0, reorderPoint: 0, parLevel: 0, unit: '', orderUnit: '', unitsPerOrder: 1, listPrice: 0, cost: 0, category: '', preferredVendor: '', sku: '' };
             
             document.getElementById('modal-prod-title').innerText = id === -1 ? 'Add New Product' : `Edit: ${p.name}`;
             document.getElementById('fp-id').value = p.id;
             document.getElementById('fp-upc').value = p.upc || '';
             document.getElementById('fp-name').value = p.name || '';
+            document.getElementById('fp-brand').value = p.brand || '';
             document.getElementById('fp-stock').value = p.stock || 0;
             document.getElementById('fp-physical').value = p.physicalInventory || 0;
             document.getElementById('fp-reorder').value = p.reorderPoint || 0;
@@ -892,6 +899,7 @@
                 id: id || String(Date.now()),
                 upc: document.getElementById('fp-upc').value.trim(),
                 name: document.getElementById('fp-name').value.trim(),
+                brand: document.getElementById('fp-brand').value.trim(),
                 stock: stock,
                 physicalInventory: phys,
                 variance: phys - stock,
@@ -1386,7 +1394,7 @@
             });
         }
 
-        /* --- 20-COLUMN CSV TOOLS --- */
+        /* --- CSV TOOLS WITH BRAND SUPPORT --- */
         function download20ColCSV() {
             let csv = COLUMNS_20.join(',') + '\n';
             products.forEach(p => {
@@ -1417,24 +1425,25 @@
                     id: String(Date.now() + i),
                     upc: row[0] || '',
                     name: row[1] || 'Imported Item',
-                    stock: parseInt(row[2]) || 0,
-                    physicalInventory: parseInt(row[3]) || 0,
-                    variance: (parseInt(row[3]) || 0) - (parseInt(row[2]) || 0),
-                    reorderPoint: parseInt(row[5]) || 0,
-                    parLevel: parseInt(row[6]) || 0,
-                    unit: row[7] || '',
-                    orderUnit: row[8] || '',
-                    unitsPerOrder: parseInt(row[9]) || 1,
-                    status: row[10] || 'In Stock',
-                    listPrice: parseFloat(row[11]) || 0,
-                    cost: parseFloat(row[12]) || 0,
-                    category: row[13] || '',
-                    preferredVendor: row[14] || '',
-                    website: row[15] || '',
-                    sku: row[16] || '',
-                    asin: row[17] || '',
-                    itemNumber: row[18] || '',
-                    modelNumber: row[19] || ''
+                    brand: row[2] || '',
+                    stock: parseInt(row[3]) || 0,
+                    physicalInventory: parseInt(row[4]) || 0,
+                    variance: (parseInt(row[4]) || 0) - (parseInt(row[3]) || 0),
+                    reorderPoint: parseInt(row[6]) || 0,
+                    parLevel: parseInt(row[7]) || 0,
+                    unit: row[8] || '',
+                    orderUnit: row[9] || '',
+                    unitsPerOrder: parseInt(row[10]) || 1,
+                    status: row[11] || 'In Stock',
+                    listPrice: parseFloat(row[12]) || 0,
+                    cost: parseFloat(row[13]) || 0,
+                    category: row[14] || '',
+                    preferredVendor: row[15] || '',
+                    website: row[16] || '',
+                    sku: row[17] || '',
+                    asin: row[18] || '',
+                    itemNumber: row[19] || '',
+                    modelNumber: row[20] || ''
                 });
             }
             saveState();
