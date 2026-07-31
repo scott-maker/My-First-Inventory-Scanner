@@ -130,7 +130,7 @@
                     <div style="display:flex; gap:4px;">
                         <button class="btn btn-secondary" style="width:auto; font-size:0.75rem;" onclick="openProductModal(-1)">+ Add Item</button>
                         <button class="btn btn-secondary" style="width:auto; font-size:0.75rem;" onclick="openCSVImportModal()">📥 Import CSV</button>
-                        <button class="btn btn-secondary" style="width:auto; font-size:0.75rem;" onclick="download20ColCSV()">📤 Export CSV</button>
+                        <button class="btn btn-secondary" style="width:auto; font-size:0.75rem;" onclick="openExportModal()">📤 Export CSV</button>
                     </div>
                 </div>
                 <input type="text" id="inv-search" class="form-control" placeholder="🔍 Search name, brand, UPC, SKU, Vendor..." oninput="renderInventoryTable()">
@@ -434,6 +434,31 @@
         </div>
     </div>
 
+    <!-- MODAL 4: CSV Export Column Configurator -->
+    <div id="modal-export-cols" class="modal-overlay">
+        <div class="modal-body">
+            <div class="modal-header">
+                <h3>⚙️ Select Columns to Export</h3>
+                <button onclick="closeModal('modal-export-cols')" style="border:none; background:none; font-size:1.2rem; cursor:pointer;">✕</button>
+            </div>
+            <p style="font-size:0.8rem; color:var(--text-muted); margin-bottom:8px;">Check the columns you want included in your exported CSV file:</p>
+            
+            <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+                <button type="button" class="btn btn-secondary" style="padding: 4px 8px; font-size:0.75rem;" onclick="toggleAllExportCols(true)">Select All</button>
+                <button type="button" class="btn btn-secondary" style="padding: 4px 8px; font-size:0.75rem;" onclick="toggleAllExportCols(false)">Deselect All</button>
+            </div>
+
+            <div id="export-cols-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; max-height: 240px; overflow-y: auto; background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 12px;">
+                <!-- Dynamically populated checkboxes -->
+            </div>
+
+            <div class="btn-group">
+                <button class="btn btn-success" onclick="processCSVExportWithCols()">📥 Download Selected CSV</button>
+                <button class="btn btn-secondary" onclick="closeModal('modal-export-cols')">Cancel</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         /* --- SCHEMA MAPPING & LABELS --- */
         const SCHEMA_MAPPING = [
@@ -481,6 +506,7 @@
 
         let currentSOCart = [];
         let preferredCameraId = localStorage.getItem('jomarket_preferred_camera') || '';
+        let selectedExportCols = JSON.parse(localStorage.getItem('jomarket_export_cols')) || SCHEMA_MAPPING.map(s => s.key);
 
         /* SCANNER INSTANCES */
         let physQrCode = null;
@@ -500,6 +526,7 @@
             localStorage.setItem('jomarket_history', JSON.stringify(productHistory));
             localStorage.setItem('jomarket_vendor_history', JSON.stringify(vendorHistory));
             localStorage.setItem('jomarket_po_builder', JSON.stringify(poBuilderQueue));
+            localStorage.setItem('jomarket_export_cols', JSON.stringify(selectedExportCols));
             updateDashboard();
         }
 
@@ -1430,12 +1457,53 @@
             });
         }
 
-        /* --- QUOTE-AWARE CSV PARSER & EXPORTER --- */
-        function download20ColCSV() {
-            let csv = SCHEMA_MAPPING.map(s => `"${s.label.replace(/"/g, '""')}"`).join(',') + '\n';
+        /* --- CSV EXPORT COLUMN CONFIGURATOR MODAL --- */
+        function openExportModal() {
+            renderExportColCheckboxes();
+            document.getElementById('modal-export-cols').classList.add('active');
+        }
+
+        function renderExportColCheckboxes() {
+            const grid = document.getElementById('export-cols-grid');
+            grid.innerHTML = SCHEMA_MAPPING.map(col => {
+                const checked = selectedExportCols.includes(col.key) ? 'checked' : '';
+                return `
+                    <label style="display: flex; align-items: center; gap: 6px; font-size: 0.8rem; cursor: pointer;">
+                        <input type="checkbox" value="${col.key}" ${checked} onchange="onExportColChange('${col.key}', this.checked)">
+                        <span>${escapeHtml(col.label)}</span>
+                    </label>
+                `;
+            }).join('');
+        }
+
+        function onExportColChange(key, isChecked) {
+            if (isChecked) {
+                if (!selectedExportCols.includes(key)) selectedExportCols.push(key);
+            } else {
+                selectedExportCols = selectedExportCols.filter(k => k !== key);
+            }
+        }
+
+        function toggleAllExportCols(selectAll) {
+            if (selectAll) {
+                selectedExportCols = SCHEMA_MAPPING.map(s => s.key);
+            } else {
+                selectedExportCols = [];
+            }
+            renderExportColCheckboxes();
+        }
+
+        function processCSVExportWithCols() {
+            if (selectedExportCols.length === 0) {
+                alert("Please select at least one column to export.");
+                return;
+            }
+
+            const activeCols = SCHEMA_MAPPING.filter(s => selectedExportCols.includes(s.key));
+            let csv = activeCols.map(s => `"${s.label.replace(/"/g, '""')}"`).join(',') + '\n';
             
             products.forEach(p => {
-                const row = SCHEMA_MAPPING.map(col => {
+                const row = activeCols.map(col => {
                     let val = p[col.key];
                     if (col.key === 'variance') {
                         val = (p.physicalInventory || 0) - (p.stock || 0);
@@ -1446,13 +1514,18 @@
                 csv += row.join(',') + '\n';
             });
 
+            saveState();
+
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement('a');
             link.href = URL.createObjectURL(blob);
             link.download = `jomarket_inventory_${new Date().toISOString().slice(0,10)}.csv`;
             link.click();
+
+            closeModal('modal-export-cols');
         }
 
+        /* --- QUOTE-AWARE CSV IMPORT PARSER --- */
         function openCSVImportModal() { document.getElementById('modal-csv').classList.add('active'); }
 
         function handleFileSelect(event) {
