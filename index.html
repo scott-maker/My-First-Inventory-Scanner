@@ -929,27 +929,40 @@
             if (match) {
                 const p = match.product;
                 const conversion = parseInt(p.uomConversion) || 1;
-                const qtyToAdd = match.isBulk ? conversion : 1;
+                const defaultAdd = match.isBulk ? conversion : 1;
+                const suggestedPhys = (parseInt(p.physicalInventory) || 0) + defaultAdd;
 
-                p.physicalInventory = (parseInt(p.physicalInventory) || 0) + qtyToAdd;
-                p.variance = p.physicalInventory - p.stock;
-                saveState();
-                renderPhysicalTable();
-
-                const diff = p.variance;
-                let varText = diff === 0 ? 'Balanced' : (diff > 0 ? `+${diff}` : `${diff}`);
-                const scanTypeLabel = match.isBulk ? `📦 Full Bulk Case (+${conversion} ${p.baseUom || 'EA'})` : `🏷️ Single Item (+1 ${p.baseUom || 'EA'})`;
+                const scanTypeNote = match.isBulk 
+                    ? `(Scanned Bulk Case UPC = +${conversion} ${p.baseUom || 'EA'})` 
+                    : `(Scanned Single Base UPC = +1 ${p.baseUom || 'EA'})`;
 
                 resDiv.innerHTML = `
-                    <div style="background:var(--success-bg); border:1px solid var(--success); color:#065f46; padding:12px; border-radius:8px; font-size:0.85rem; margin-top:8px;">
-                        <strong>✅ ${scanTypeLabel} Counted:</strong> ${escapeHtml(p.name)}<br>
-                        Physical Count: <strong>${p.physicalInventory} ${p.baseUom || 'EA'}</strong> (Book Stock: ${p.stock} | Variance: <strong>${varText}</strong>)
-                        <div style="margin-top:8px; display:flex; gap:6px;">
-                            <button class="btn btn-success" style="padding:6px 12px; font-size:0.8rem; width:auto;" onclick="startPhysScanner()">📷 Scan Next Item</button>
-                            <button class="btn btn-secondary" style="padding:6px 12px; font-size:0.8rem; width:auto;" onclick="document.getElementById('phys-scan-result').innerHTML=''">Done</button>
+                    <div style="background: var(--info-bg); border: 1px solid #93c5fd; color: #1e3a8a; padding: 14px; border-radius: 8px; margin-top: 10px;">
+                        <div style="font-weight: 700; font-size: 0.95rem; margin-bottom: 6px;">🔍 Is this the correct item?</div>
+                        <div style="font-size: 0.9rem; margin-bottom: 4px;">
+                            <strong>${escapeHtml(p.name)}</strong> ${p.brand ? `<span style="font-size:0.8rem; color:var(--text-muted);">(Brand: ${escapeHtml(p.brand)})</span>` : ''}
+                        </div>
+                        <div style="font-size: 0.78rem; color: #3b82f6; margin-bottom: 10px;">
+                            Base UPC: <code>${escapeHtml(p.baseUpc || p.upc || 'N/A')}</code> | Bulk UPC: <code>${escapeHtml(p.bulkUpc || 'N/A')}</code><br>
+                            Book Stock: <strong>${p.stock} ${p.baseUom || 'EA'}</strong> | Current Physical: <strong>${p.physicalInventory || 0} ${p.baseUom || 'EA'}</strong>
+                        </div>
+
+                        <div class="form-group" style="margin-bottom: 10px;">
+                            <label style="color: #1e3a8a; font-weight: 700;">Enter Total Physical Count (${escapeHtml(p.baseUom || 'EA')}):</label>
+                            <div style="font-size: 0.75rem; color: #475569; margin-bottom: 4px;">${scanTypeNote}</div>
+                            <input type="number" id="phys-audit-qty-input" class="form-control" value="${suggestedPhys}" min="0" style="font-size: 1.1rem; font-weight: 700; background: #fff; border-color: #93c5fd;">
+                        </div>
+
+                        <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                            <button class="btn btn-success" style="flex: 1; padding: 8px 12px;" onclick="confirmPhysCount('${p.id}')">✅ Yes, Save Count</button>
+                            <button class="btn btn-secondary" style="flex: 1; padding: 8px 12px;" onclick="cancelPhysScan()">❌ Incorrect Item / Cancel</button>
                         </div>
                     </div>
                 `;
+                setTimeout(() => {
+                    const input = document.getElementById('phys-audit-qty-input');
+                    if (input) { input.focus(); input.select(); }
+                }, 100);
             } else {
                 resDiv.innerHTML = `
                     <div style="background:var(--danger-bg); border:1px solid var(--danger); color:#991b1b; padding:12px; border-radius:8px; font-size:0.85rem; margin-top:8px;">
@@ -962,6 +975,51 @@
                     </div>
                 `;
             }
+        }
+
+        function confirmPhysCount(productId) {
+            const p = products.find(x => x.id === productId);
+            if (!p) return;
+
+            const inputEl = document.getElementById('phys-audit-qty-input');
+            const newCount = parseInt(inputEl ? inputEl.value : 0);
+            
+            if (isNaN(newCount) || newCount < 0) {
+                alert("Please enter a valid physical count (0 or greater).");
+                return;
+            }
+
+            const oldPhys = p.physicalInventory || 0;
+            p.physicalInventory = newCount;
+            p.variance = p.physicalInventory - p.stock;
+
+            logProductHistory(p.id, 'Adjustment', newCount - oldPhys, `Physical Audit Scan Reconciliation (Set to ${newCount} ${p.baseUom || 'EA'})`);
+            saveState();
+            renderPhysicalTable();
+
+            const diff = p.variance;
+            let varText = diff === 0 ? 'Balanced' : (diff > 0 ? `+${diff}` : `${diff}`);
+
+            const resDiv = document.getElementById('phys-scan-result');
+            resDiv.innerHTML = `
+                <div style="background:var(--success-bg); border:1px solid var(--success); color:#065f46; padding:12px; border-radius:8px; font-size:0.85rem; margin-top:8px;">
+                    <strong>✅ Count Saved!</strong> ${escapeHtml(p.name)}<br>
+                    Updated Physical Count: <strong>${p.physicalInventory} ${p.baseUom || 'EA'}</strong> (Book Stock: ${p.stock} | Variance: <strong>${varText}</strong>)
+                    <div style="margin-top:8px; display:flex; gap:6px;">
+                        <button class="btn btn-success" style="padding:6px 12px; font-size:0.8rem; width:auto;" onclick="startPhysScanner()">📷 Scan Next Item</button>
+                        <button class="btn btn-secondary" style="padding:6px 12px; font-size:0.8rem; width:auto;" onclick="document.getElementById('phys-scan-result').innerHTML=''">Done</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function cancelPhysScan() {
+            document.getElementById('phys-scan-result').innerHTML = `
+                <div style="background:#f1f5f9; border:1px solid var(--border); padding:8px; border-radius:8px; font-size:0.8rem; margin-top:8px; color:var(--text-muted); display:flex; justify-content:space-between; align-items:center;">
+                    <span>Scan cancelled. Physical count was not changed.</span>
+                    <button class="btn btn-secondary" style="padding:4px 8px; font-size:0.75rem; width:auto;" onclick="startPhysScanner()">📷 Resume Scanner</button>
+                </div>
+            `;
         }
 
         /* --- SCANNER 2: OUTGOING SALES SHEET SCANNER --- */
