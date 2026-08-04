@@ -425,7 +425,7 @@
       <div class="flex-between" style="flex-wrap: wrap; gap: 8px; margin-bottom: 12px;">
         <input type="text" id="inventory-search" class="form-control" style="max-width: 300px;" placeholder="Search name, brand, UPC, SKU..." oninput="renderInventoryTable()">
         <div style="display: flex; gap: 8px;">
-          <button class="btn btn-primary" onclick="openProductModal() font-size: 0.8rem;">+ Add Product</button>
+          <button class="btn btn-primary" onclick="openProductModal()">+ Add Product</button>
           <button class="btn btn-secondary" onclick="openCsvModal()">📥 Import CSV</button>
           <button class="btn btn-outline" onclick="openExportColsModal()">📤 Export CSV</button>
         </div>
@@ -465,7 +465,7 @@
             <input type="date" id="so-date" class="form-control">
           </div>
           <div class="form-group">
-            <label>Salesperson Name</label>
+            <label>Order filled by:</label>
             <input type="text" id="so-salesperson" class="form-control" placeholder="e.g. John Doe">
           </div>
           <div class="form-group">
@@ -1739,7 +1739,7 @@
       const date = document.getElementById('so-date').value;
 
       if (!salesPerson || !customerEmail) {
-        alert('Salesperson Name and Customer Email are required.');
+        alert('"Order filled by" and Customer Email are required.');
         return;
       }
 
@@ -1867,7 +1867,7 @@
             <div style="text-align: right; font-size: 0.85rem;">
               <strong>Order ID:</strong> ${so.soId}<br>
               <strong>Date:</strong> ${so.date}<br>
-              <strong>Salesperson:</strong> ${escapeHtml(so.salesPerson)}
+              <strong>Order filled by:</strong> ${escapeHtml(so.salesPerson)}
             </div>
           </div>
 
