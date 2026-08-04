@@ -304,7 +304,10 @@
             </div>
 
             <div class="card">
-                <div class="card-title">📋 Physical Inventory Reconciliation Ledger</div>
+                <div class="card-title">
+                    <span>📋 Physical Inventory Reconciliation Ledger</span>
+                    <button class="btn btn-primary" style="width:auto; padding:4px 8px; font-size:0.75rem;" onclick="syncAllStockToPhysical()">🔄 Sync All Stock</button>
+                </div>
                 <div class="table-wrapper">
                     <table>
                         <thead>
@@ -1655,12 +1658,20 @@
             tbody.innerHTML = '';
             products.forEach(p => {
                 const diff = (p.physicalInventory || 0) - p.stock;
+
+                // 25 Chars limit for Product Name display in Physical Count Sheet
+                const fullName = p.name || 'Unnamed Item';
+                const truncatedName = fullName.length > 25 ? fullName.substring(0, 22) + '...' : fullName;
+
                 tbody.innerHTML += `
                     <tr>
-                        <td><strong>${escapeHtml(p.name)}</strong></td>
-                        <td>${p.stock} ${p.baseUom||'EA'}</td>
+                        <td>
+                            <strong style="color:var(--text); cursor:pointer;" title="${escapeHtml(fullName)}" onclick="openProductModal('${p.id}')">${escapeHtml(truncatedName)}</strong>
+                            ${p.brand ? `<br><span style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">🏷️ ${escapeHtml(p.brand.length > 20 ? p.brand.substring(0,17) + '...' : p.brand)}</span>` : ''}
+                        </td>
+                        <td>${p.stock} ${escapeHtml(p.baseUom||'EA')}</td>
                         <td><input type="number" class="form-control" style="width:80px;" value="${p.physicalInventory || 0}" onchange="updatePhysicalCount('${p.id}', this.value)"></td>
-                        <td><span class="pill ${diff===0?'pill-in-stock':diff<0?'pill-out-stock':'pill-low-stock'}">${diff} ${p.baseUom||'EA'}</span></td>
+                        <td><span class="pill ${diff===0?'pill-in-stock':diff<0?'pill-out-stock':'pill-low-stock'}">${diff} ${escapeHtml(p.baseUom||'EA')}</span></td>
                         <td><button class="btn btn-secondary" style="padding:2px 6px;" onclick="syncStockToPhysical('${p.id}')">Sync Stock</button></td>
                     </tr>
                 `;
@@ -1682,6 +1693,24 @@
             logProductHistory(p.id, 'Adjustment', adj, 'Physical audit sync');
             saveState();
             renderPhysicalTable();
+        }
+
+        function syncAllStockToPhysical() {
+            if (confirm("Are you sure you want to sync ALL Book Stock levels to match Physical Counts across the entire catalog?")) {
+                let count = 0;
+                products.forEach(p => {
+                    const diff = (p.physicalInventory || 0) - p.stock;
+                    if (diff !== 0) {
+                        p.stock = p.physicalInventory || 0;
+                        p.variance = 0;
+                        logProductHistory(p.id, 'Adjustment', diff, 'Bulk physical audit sync');
+                        count++;
+                    }
+                });
+                saveState();
+                renderPhysicalTable();
+                alert(`Successfully synced stock for ${count} item(s).`);
+            }
         }
 
         function logProductHistory(pid, action, change, ref) {
