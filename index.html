@@ -797,41 +797,79 @@
             }
         }
 
-        /* --- ROBUST MULTI-VARIANT BARCODE LOOKUP --- */
+        /* --- ROBUST MULTI-VARIANT BARCODE LOOKUP & NORMALIZATION --- */
         function getBarcodeVariants(rawCode) {
             const clean = String(rawCode || '').trim();
             if (!clean) return [];
             const set = new Set([clean, clean.toLowerCase()]);
             
-            if (clean.length === 13 && clean.startsWith('0')) {
-                set.add(clean.substring(1));
-            } else if (clean.length === 12) {
-                set.add('0' + clean);
+            const alphaNum = clean.replace(/[^a-zA-Z0-9]/g, '');
+            if (alphaNum) {
+                set.add(alphaNum);
+                set.add(alphaNum.toLowerCase());
             }
+
+            const noLeadingZeros = alphaNum.replace(/^0+/, '');
+            if (noLeadingZeros) {
+                set.add(noLeadingZeros);
+                set.add(noLeadingZeros.toLowerCase());
+
+                if (noLeadingZeros.length <= 12) {
+                    set.add(noLeadingZeros.padStart(12, '0'));
+                }
+                if (noLeadingZeros.length <= 13) {
+                    set.add(noLeadingZeros.padStart(13, '0'));
+                }
+            }
+
             return Array.from(set);
         }
 
-        function findProductByBarcode(code) {
-            const variants = getBarcodeVariants(code);
-            if (variants.length === 0) return null;
+        function findProductByBarcode(scannedCode) {
+            const scannedVariants = new Set(getBarcodeVariants(scannedCode));
+            if (scannedVariants.size === 0) return null;
 
             for (let p of products) {
-                const bUpc = String(p.baseUpc || p.upc || '').trim();
-                const kUpc = String(p.bulkUpc || '').trim();
-                const sku = String(p.sku || '').trim().toLowerCase();
-                const itemNo = String(p.itemNumber || p.itemNo || '').trim().toLowerCase();
+                // Check Base UPC / Legacy UPC
+                const baseCode = String(p.baseUpc || p.upc || '').trim();
+                if (baseCode) {
+                    const baseVariants = getBarcodeVariants(baseCode);
+                    if (baseVariants.some(v => scannedVariants.has(v))) {
+                        return { product: p, isBulk: false };
+                    }
+                }
 
-                for (let v of variants) {
-                    if (bUpc && (bUpc === v || bUpc.toLowerCase() === v)) return { product: p, isBulk: false };
-                    if (kUpc && (kUpc === v || kUpc.toLowerCase() === v)) return { product: p, isBulk: true };
-                    if (sku && sku === v) return { product: p, isBulk: false };
-                    if (itemNo && itemNo === v) return { product: p, isBulk: false };
+                // Check Bulk UPC
+                const bulkCode = String(p.bulkUpc || '').trim();
+                if (bulkCode) {
+                    const bulkVariants = getBarcodeVariants(bulkCode);
+                    if (bulkVariants.some(v => scannedVariants.has(v))) {
+                        return { product: p, isBulk: true };
+                    }
+                }
+
+                // Check SKU
+                const skuCode = String(p.sku || '').trim();
+                if (skuCode) {
+                    const skuVariants = getBarcodeVariants(skuCode);
+                    if (skuVariants.some(v => scannedVariants.has(v))) {
+                        return { product: p, isBulk: false };
+                    }
+                }
+
+                // Check Item Number
+                const itemNoCode = String(p.itemNumber || p.itemNo || '').trim();
+                if (itemNoCode) {
+                    const itemNoVariants = getBarcodeVariants(itemNoCode);
+                    if (itemNoVariants.some(v => scannedVariants.has(v))) {
+                        return { product: p, isBulk: false };
+                    }
                 }
             }
             return null;
         }
 
-        /* --- SCANNER 1: PHYSICAL INVENTORY AUDIT SCANNER --- */
+        /* --- SCANNER 1: PHYSICAL INVENTORY AUDIT SCANNER (SINGLE SCAN) --- */
         async function startPhysScanner() {
             await stopAllScanners();
 
@@ -881,7 +919,10 @@
             else await startPhysScanner();
         }
 
-        function onPhysBarcodeScanned(code) {
+        async function onPhysBarcodeScanned(code) {
+            // STOP SCANNER IMMEDIATELY FOR SINGLE SCAN BEHAVIOR
+            await stopAllScanners();
+
             const match = findProductByBarcode(code);
             const resDiv = document.getElementById('phys-scan-result');
 
@@ -900,16 +941,24 @@
                 const scanTypeLabel = match.isBulk ? `📦 Full Bulk Case (+${conversion} ${p.baseUom || 'EA'})` : `🏷️ Single Item (+1 ${p.baseUom || 'EA'})`;
 
                 resDiv.innerHTML = `
-                    <div style="background:var(--success-bg); border:1px solid var(--success); color:#065f46; padding:10px; border-radius:8px; font-size:0.85rem; margin-top:8px;">
+                    <div style="background:var(--success-bg); border:1px solid var(--success); color:#065f46; padding:12px; border-radius:8px; font-size:0.85rem; margin-top:8px;">
                         <strong>✅ ${scanTypeLabel} Counted:</strong> ${escapeHtml(p.name)}<br>
                         Physical Count: <strong>${p.physicalInventory} ${p.baseUom || 'EA'}</strong> (Book Stock: ${p.stock} | Variance: <strong>${varText}</strong>)
+                        <div style="margin-top:8px; display:flex; gap:6px;">
+                            <button class="btn btn-success" style="padding:6px 12px; font-size:0.8rem; width:auto;" onclick="startPhysScanner()">📷 Scan Next Item</button>
+                            <button class="btn btn-secondary" style="padding:6px 12px; font-size:0.8rem; width:auto;" onclick="document.getElementById('phys-scan-result').innerHTML=''">Done</button>
+                        </div>
                     </div>
                 `;
             } else {
                 resDiv.innerHTML = `
-                    <div style="background:var(--danger-bg); border:1px solid var(--danger); color:#991b1b; padding:10px; border-radius:8px; font-size:0.85rem; margin-top:8px;">
+                    <div style="background:var(--danger-bg); border:1px solid var(--danger); color:#991b1b; padding:12px; border-radius:8px; font-size:0.85rem; margin-top:8px;">
                         <strong>⚠️ Barcode Not Found:</strong> <code>${escapeHtml(code.trim())}</code><br>
-                        This code is not assigned to any Base or Bulk UPC. Add it in the Inventory tab first.
+                        This code is not assigned to any Base or Bulk UPC in your inventory catalog.
+                        <div style="margin-top:8px; display:flex; gap:6px;">
+                            <button class="btn btn-primary" style="padding:6px 12px; font-size:0.8rem; width:auto;" onclick="startPhysScanner()">📷 Try Scanning Again</button>
+                            <button class="btn btn-secondary" style="padding:6px 12px; font-size:0.8rem; width:auto;" onclick="openProductModal(-1)">+ Add New Item with this UPC</button>
+                        </div>
                     </div>
                 `;
             }
