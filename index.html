@@ -1376,6 +1376,7 @@
                         <td><span class="pill pill-in-stock">${so.status} (${so.emailCount})</span></td>
                         <td>
                             <button class="btn btn-secondary" style="padding:2px 6px; font-size:0.7rem;" onclick="viewGroupedReceipt('${so.soId}')">View / Print</button>
+                            <button class="btn btn-secondary" style="padding:2px 6px; font-size:0.7rem;" onclick="downloadInvoicePDF('${so.soId}')">📄 PDF</button>
                             <button class="btn btn-primary" style="padding:2px 6px; font-size:0.7rem;" onclick="emailReceipt('${so.soId}')">✉️ Email</button>
                         </td>
                     </tr>
@@ -1542,6 +1543,29 @@
             `;
         }
 
+        async function downloadInvoicePDF(soId) {
+            const so = salesOrders.find(x => x.soId === soId);
+            if (!so) return;
+
+            const tempDiv = document.createElement('div');
+            tempDiv.style.position = 'absolute';
+            tempDiv.style.left = '-9999px';
+            tempDiv.style.top = '-9999px';
+            tempDiv.innerHTML = buildReceiptHTML(so);
+            document.body.appendChild(tempDiv);
+
+            const opt = {
+                margin: 0.4,
+                filename: `Invoice_${so.soId}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2 },
+                jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+            };
+
+            await html2pdf().set(opt).from(tempDiv).save();
+            document.body.removeChild(tempDiv);
+        }
+
         async function emailReceipt(soId) {
             const so = salesOrders.find(x => x.soId === soId);
             if (!so) return;
@@ -1583,15 +1607,16 @@
                         files: [pdfFile]
                     });
                 } else {
-                    // Fallback for browsers that don't support sharing files via Web Share API:
-                    // 1. Trigger PDF download
+                    // Trigger PDF download for desktop browsers
                     const pdfUrl = URL.createObjectURL(pdfBlob);
                     const dlLink = document.createElement('a');
                     dlLink.href = pdfUrl;
                     dlLink.download = fileName;
                     dlLink.click();
 
-                    // 2. Launch mailto with full receipt pre-printed in body
+                    alert(`📄 PDF Downloaded!\n\nDue to web browser security rules, browsers cannot attach files to local email clients automatically.\n\nYour PDF (${fileName}) has been downloaded to your device. Please attach it to the email window that opens now.`);
+
+                    // Launch email app with receipt printed in full in body
                     const mailtoSubject = encodeURIComponent(subject);
                     const mailtoBody = encodeURIComponent(fullTextBody);
                     const a = document.createElement('a');
