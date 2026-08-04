@@ -1466,7 +1466,7 @@
             const supTot = sup.reduce((a,b) => a + (b.quantity * b.cost), 0);
 
             return `
-                <div style="font-family: Arial, sans-serif; padding: 20px; color: #0f172a; max-width: 700px; margin: 0 auto; background: #fff;">
+                <div style="font-family: Arial, sans-serif; padding: 20px; color: #0f172a; width: 700px; margin: 0 auto; background: #ffffff;">
                     <div style="display: flex; justify-content: space-between; border-bottom: 2px solid #2563eb; padding-bottom: 10px; margin-bottom: 15px;">
                         <div>
                             <h2 style="margin: 0; color: #2563eb;">🏬 Jomarket Manager</h2>
@@ -1547,23 +1547,34 @@
             const so = salesOrders.find(x => x.soId === soId);
             if (!so) return;
 
+            // FIX: Position fixed inside viewport behind all elements so html2canvas captures full HTML without blank pages
             const tempDiv = document.createElement('div');
-            tempDiv.style.position = 'absolute';
-            tempDiv.style.left = '-9999px';
-            tempDiv.style.top = '-9999px';
+            tempDiv.style.position = 'fixed';
+            tempDiv.style.left = '0';
+            tempDiv.style.top = '0';
+            tempDiv.style.width = '750px';
+            tempDiv.style.zIndex = '-9999';
+            tempDiv.style.backgroundColor = '#ffffff';
             tempDiv.innerHTML = buildReceiptHTML(so);
             document.body.appendChild(tempDiv);
 
+            await new Promise(r => setTimeout(r, 150));
+
             const opt = {
-                margin: 0.4,
+                margin: 0.3,
                 filename: `Invoice_${so.soId}.pdf`,
                 image: { type: 'jpeg', quality: 0.98 },
-                html2canvas: { scale: 2 },
+                html2canvas: { scale: 2, logging: false, useCORS: true, backgroundColor: '#ffffff' },
                 jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
             };
 
-            await html2pdf().set(opt).from(tempDiv).save();
-            document.body.removeChild(tempDiv);
+            try {
+                await html2pdf().set(opt).from(tempDiv).save();
+            } catch (e) {
+                alert("Error generating PDF: " + e.message);
+            } finally {
+                if (tempDiv.parentNode) document.body.removeChild(tempDiv);
+            }
         }
 
         async function emailReceipt(soId) {
@@ -1577,64 +1588,72 @@
             const fullTextBody = buildReceiptText(so);
             const subject = `Invoice Dispatch Receipt - ${so.soId}`;
 
-            // Create off-screen container for HTML2PDF rendering
+            // Generate PDF file safely
             const tempDiv = document.createElement('div');
-            tempDiv.style.position = 'absolute';
-            tempDiv.style.left = '-9999px';
-            tempDiv.style.top = '-9999px';
+            tempDiv.style.position = 'fixed';
+            tempDiv.style.left = '0';
+            tempDiv.style.top = '0';
+            tempDiv.style.width = '750px';
+            tempDiv.style.zIndex = '-9999';
+            tempDiv.style.backgroundColor = '#ffffff';
             tempDiv.innerHTML = buildReceiptHTML(so);
             document.body.appendChild(tempDiv);
 
+            await new Promise(r => setTimeout(r, 150));
+
+            let pdfFile = null;
+            let fileName = `Invoice_${so.soId}.pdf`;
+
             try {
                 const opt = {
-                    margin: 0.4,
-                    filename: `Invoice_${so.soId}.pdf`,
+                    margin: 0.3,
+                    filename: fileName,
                     image: { type: 'jpeg', quality: 0.98 },
-                    html2canvas: { scale: 2 },
+                    html2canvas: { scale: 2, logging: false, useCORS: true, backgroundColor: '#ffffff' },
                     jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
                 };
 
                 const pdfBlob = await html2pdf().set(opt).from(tempDiv).output('blob');
-                document.body.removeChild(tempDiv);
+                pdfFile = new File([pdfBlob], fileName, { type: 'application/pdf' });
+            } catch (e) {}
 
-                const fileName = `Invoice_${so.soId}.pdf`;
-                const pdfFile = new File([pdfBlob], fileName, { type: 'application/pdf' });
+            if (tempDiv.parentNode) document.body.removeChild(tempDiv);
 
-                if (navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
+            // Web Share API (Mobile HTTPS context)
+            if (pdfFile && navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
+                try {
                     await navigator.share({
                         title: `Invoice ${so.soId}`,
                         text: fullTextBody,
                         files: [pdfFile]
                     });
-                } else {
-                    // Trigger PDF download for desktop browsers
-                    const pdfUrl = URL.createObjectURL(pdfBlob);
-                    const dlLink = document.createElement('a');
-                    dlLink.href = pdfUrl;
-                    dlLink.download = fileName;
-                    dlLink.click();
-
-                    alert(`📄 PDF Downloaded!\n\nDue to web browser security rules, browsers cannot attach files to local email clients automatically.\n\nYour PDF (${fileName}) has been downloaded to your device. Please attach it to the email window that opens now.`);
-
-                    // Launch email app with receipt printed in full in body
-                    const mailtoSubject = encodeURIComponent(subject);
-                    const mailtoBody = encodeURIComponent(fullTextBody);
-                    const a = document.createElement('a');
-                    a.href = `mailto:${so.customerEmail}?subject=${mailtoSubject}&body=${mailtoBody}`;
-                    a.target = '_blank';
-                    a.click();
-                }
-            } catch (err) {
-                if (tempDiv.parentNode) document.body.removeChild(tempDiv);
-                if (err.name !== 'AbortError') {
-                    const mailtoSubject = encodeURIComponent(subject);
-                    const mailtoBody = encodeURIComponent(fullTextBody);
-                    const a = document.createElement('a');
-                    a.href = `mailto:${so.customerEmail}?subject=${mailtoSubject}&body=${mailtoBody}`;
-                    a.target = '_blank';
-                    a.click();
-                }
+                    renderSalesHistory();
+                    return;
+                } catch (e) {}
             }
+
+            // Fallback for Web/Desktop Browsers: Provide Web Gmail link, mailto, and PDF download
+            const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(so.customerEmail)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(fullTextBody)}`;
+            
+            // Trigger PDF Download
+            if (pdfFile) {
+                const pdfUrl = URL.createObjectURL(pdfFile);
+                const dlLink = document.createElement('a');
+                dlLink.href = pdfUrl;
+                dlLink.download = fileName;
+                dlLink.click();
+            }
+
+            // Prompt user with choices
+            const openGmail = confirm(`📄 PDF (${fileName}) downloaded to your device!\n\nWould you like to open GMAIL in your browser to send this invoice?`);
+            if (openGmail) {
+                window.open(gmailUrl, '_blank');
+            } else {
+                const mailtoSubject = encodeURIComponent(subject);
+                const mailtoBody = encodeURIComponent(fullTextBody);
+                window.location.href = `mailto:${so.customerEmail}?subject=${mailtoSubject}&body=${mailtoBody}`;
+            }
+
             renderSalesHistory();
         }
 
