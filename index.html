@@ -6,6 +6,8 @@
     <title>Jomarket Manager - Mobile ERP & Inventory</title>
     <!-- HTML5 QRCode Scanner Library -->
     <script src="https://unpkg.com/html5-qrcode"></script>
+    <!-- HTML2PDF Library for Client-Side PDF Generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
         :root {
             --primary: #2563eb;
@@ -160,7 +162,7 @@
         <!-- TAB 2: JOMARKET SALES ENTRY -->
         <div id="tab-sales" class="tab-content" style="display:none;">
             <div class="card">
-                <div class="card-title">🛒 Outgoing Sales Dispatch Sheet</div>
+                <div class="card-title">🛒 Jomarket Sales Sheet</div>
                 <div class="grid-2">
                     <div class="form-group"><label>Dispatch Date</label><input type="date" id="so-date" class="form-control"></div>
                     <div class="form-group"><label>Sales Representative</label><input type="text" id="so-rep" class="form-control" placeholder="Rep Name"></div>
@@ -204,7 +206,7 @@
                     </div>
                     <div class="form-group"><label>Quantity (Base UOM)</label><input type="number" id="so-qty" class="form-control" value="1" min="1"></div>
                 </div>
-                <button class="btn btn-secondary" onclick="addLineToSOQueue()">+ Add Item to Dispatch Cart</button>
+                <button class="btn btn-secondary" onclick="addLineToSOQueue()">+ Add Item to Cart</button>
 
                 <div class="table-wrapper" style="margin-top:12px;">
                     <table>
@@ -1359,7 +1361,7 @@
             switchTab('tab-sales-history');
         }
 
-        /* --- SALES HISTORY & GROUPED RECEIPTS --- */
+        /* --- SALES HISTORY & GROUPED RECEIPTS WITH PDF GENERATION --- */
         function renderSalesHistory() {
             const tbody = document.getElementById('so-history-body');
             tbody.innerHTML = '';
@@ -1414,7 +1416,133 @@
             document.getElementById('modal-po-action').classList.add('active');
         }
 
-        function emailReceipt(soId) {
+        function buildReceiptText(so) {
+            const mat = so.items.filter(i => i.classification === 'Materials for Job');
+            const sup = so.items.filter(i => i.classification === 'In-house Supplies');
+
+            const matTot = mat.reduce((a,b) => a + (b.quantity * b.cost), 0);
+            const supTot = sup.reduce((a,b) => a + (b.quantity * b.cost), 0);
+
+            let body = `========================================\n`;
+            body += `JOMARKET DISPATCH INVOICE: ${so.soId}\n`;
+            body += `========================================\n`;
+            body += `Date: ${so.date}\n`;
+            body += `Sales Representative: ${so.salesPerson}\n`;
+            body += `Target Email: ${so.customerEmail}\n`;
+            body += `Jobsite Address: ${so.customerAddress}\n\n`;
+
+            body += `--- 1. MATERIALS FOR JOB ---\n`;
+            if (mat.length > 0) {
+                mat.forEach(i => {
+                    body += `• ${i.name} x${i.quantity} ${i.unit||'EA'} @ $${i.cost.toFixed(2)} = $${(i.quantity*i.cost).toFixed(2)} [${i.costCode}]\n`;
+                });
+                body += `Subtotal Materials: $${matTot.toFixed(2)}\n\n`;
+            } else {
+                body += `(No items)\n\n`;
+            }
+
+            body += `--- 2. IN-HOUSE SUPPLIES ---\n`;
+            if (sup.length > 0) {
+                sup.forEach(i => {
+                    body += `• ${i.name} x${i.quantity} ${i.unit||'EA'} @ $${i.cost.toFixed(2)} = $${(i.quantity*i.cost).toFixed(2)} [${i.costCode}]\n`;
+                });
+                body += `Subtotal Supplies: $${supTot.toFixed(2)}\n\n`;
+            } else {
+                body += `(No items)\n\n`;
+            }
+
+            body += `========================================\n`;
+            body += `GRAND REVENUE TOTAL: $${so.totalAmount.toFixed(2)}\n`;
+            body += `========================================\n`;
+            return body;
+        }
+
+        function buildReceiptHTML(so) {
+            const mat = so.items.filter(i => i.classification === 'Materials for Job');
+            const sup = so.items.filter(i => i.classification === 'In-house Supplies');
+
+            const matTot = mat.reduce((a,b) => a + (b.quantity * b.cost), 0);
+            const supTot = sup.reduce((a,b) => a + (b.quantity * b.cost), 0);
+
+            return `
+                <div style="font-family: Arial, sans-serif; padding: 20px; color: #0f172a; max-width: 700px; margin: 0 auto; background: #fff;">
+                    <div style="display: flex; justify-content: space-between; border-bottom: 2px solid #2563eb; padding-bottom: 10px; margin-bottom: 15px;">
+                        <div>
+                            <h2 style="margin: 0; color: #2563eb;">🏬 Jomarket Manager</h2>
+                            <div style="font-size: 0.85rem; color: #64748b;">Enterprise Procurement & Sales</div>
+                        </div>
+                        <div style="text-align: right;">
+                            <h3 style="margin: 0; color: #0f172a;">INVOICE RECEIPT</h3>
+                            <div style="font-size: 0.9rem; font-weight: bold; color: #2563eb;">${so.soId}</div>
+                        </div>
+                    </div>
+
+                    <div style="font-size: 0.85rem; margin-bottom: 15px; background: #f8fafc; padding: 10px; border-radius: 6px; border: 1px solid #e2e8f0;">
+                        <div><strong>Date:</strong> ${so.date}</div>
+                        <div><strong>Sales Representative:</strong> ${escapeHtml(so.salesPerson)}</div>
+                        <div><strong>Target Email:</strong> ${escapeHtml(so.customerEmail)}</div>
+                        <div><strong>Jobsite Address:</strong> ${escapeHtml(so.customerAddress)}</div>
+                    </div>
+
+                    <h4 style="color: #2563eb; margin: 15px 0 5px 0; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px;">1. Materials for Job</h4>
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.82rem; margin-bottom: 8px;">
+                        <thead>
+                            <tr style="background: #f1f5f9;">
+                                <th style="padding: 6px; text-align: left;">Item</th>
+                                <th style="padding: 6px; text-align: left;">Cost Code</th>
+                                <th style="padding: 6px; text-align: right;">Qty</th>
+                                <th style="padding: 6px; text-align: right;">Cost</th>
+                                <th style="padding: 6px; text-align: right;">Subtotal</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${mat.length > 0 ? mat.map(i => `
+                                <tr style="border-bottom: 1px solid #e2e8f0;">
+                                    <td style="padding: 6px;">${escapeHtml(i.name)}</td>
+                                    <td style="padding: 6px;">${escapeHtml(i.costCode)}</td>
+                                    <td style="padding: 6px; text-align: right;">${i.quantity} ${i.unit||'EA'}</td>
+                                    <td style="padding: 6px; text-align: right;">$${i.cost.toFixed(2)}</td>
+                                    <td style="padding: 6px; text-align: right;">$${(i.quantity * i.cost).toFixed(2)}</td>
+                                </tr>
+                            `).join('') : `<tr><td colspan="5" style="padding: 6px; color: #64748b;">No materials recorded</td></tr>`}
+                        </tbody>
+                    </table>
+                    <div style="text-align: right; font-size: 0.85rem; font-weight: bold; margin-bottom: 15px;">Subtotal Materials: $${matTot.toFixed(2)}</div>
+
+                    <h4 style="color: #2563eb; margin: 15px 0 5px 0; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px;">2. In-house Supplies</h4>
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.82rem; margin-bottom: 8px;">
+                        <thead>
+                            <tr style="background: #f1f5f9;">
+                                <th style="padding: 6px; text-align: left;">Item</th>
+                                <th style="padding: 6px; text-align: left;">Cost Code</th>
+                                <th style="padding: 6px; text-align: right;">Qty</th>
+                                <th style="padding: 6px; text-align: right;">Cost</th>
+                                <th style="padding: 6px; text-align: right;">Subtotal</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${sup.length > 0 ? sup.map(i => `
+                                <tr style="border-bottom: 1px solid #e2e8f0;">
+                                    <td style="padding: 6px;">${escapeHtml(i.name)}</td>
+                                    <td style="padding: 6px;">${escapeHtml(i.costCode)}</td>
+                                    <td style="padding: 6px; text-align: right;">${i.quantity} ${i.unit||'EA'}</td>
+                                    <td style="padding: 6px; text-align: right;">$${i.cost.toFixed(2)}</td>
+                                    <td style="padding: 6px; text-align: right;">$${(i.quantity * i.cost).toFixed(2)}</td>
+                                </tr>
+                            `).join('') : `<tr><td colspan="5" style="padding: 6px; color: #64748b;">No supplies recorded</td></tr>`}
+                        </tbody>
+                    </table>
+                    <div style="text-align: right; font-size: 0.85rem; font-weight: bold; margin-bottom: 15px;">Subtotal Supplies: $${supTot.toFixed(2)}</div>
+
+                    <div style="margin-top: 20px; border-top: 2px solid #0f172a; padding-top: 10px; display: flex; justify-content: space-between; align-items: center;">
+                        <div style="font-size: 0.8rem; color: #64748b;">Thank you for your business!</div>
+                        <div style="font-size: 1.1rem; font-weight: bold; color: #0f172a;">GRAND REVENUE TOTAL: $${so.totalAmount.toFixed(2)}</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        async function emailReceipt(soId) {
             const so = salesOrders.find(x => x.soId === soId);
             if (!so) return;
             
@@ -1422,13 +1550,66 @@
             so.sentAt = new Date().toLocaleString();
             saveState();
 
-            const subject = encodeURIComponent(`Invoice Dispatch Receipt - ${so.soId}`);
-            const body = encodeURIComponent(`Jomarket Dispatch Invoice #${so.soId}\nTotal: $${so.totalAmount.toFixed(2)}\nTarget: ${so.customerAddress}`);
+            const fullTextBody = buildReceiptText(so);
+            const subject = `Invoice Dispatch Receipt - ${so.soId}`;
 
-            const a = document.createElement('a');
-            a.href = `mailto:${so.customerEmail}?subject=${subject}&body=${body}`;
-            a.target = '_blank';
-            a.click();
+            // Create off-screen container for HTML2PDF rendering
+            const tempDiv = document.createElement('div');
+            tempDiv.style.position = 'absolute';
+            tempDiv.style.left = '-9999px';
+            tempDiv.style.top = '-9999px';
+            tempDiv.innerHTML = buildReceiptHTML(so);
+            document.body.appendChild(tempDiv);
+
+            try {
+                const opt = {
+                    margin: 0.4,
+                    filename: `Invoice_${so.soId}.pdf`,
+                    image: { type: 'jpeg', quality: 0.98 },
+                    html2canvas: { scale: 2 },
+                    jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+                };
+
+                const pdfBlob = await html2pdf().set(opt).from(tempDiv).output('blob');
+                document.body.removeChild(tempDiv);
+
+                const fileName = `Invoice_${so.soId}.pdf`;
+                const pdfFile = new File([pdfBlob], fileName, { type: 'application/pdf' });
+
+                if (navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
+                    await navigator.share({
+                        title: `Invoice ${so.soId}`,
+                        text: fullTextBody,
+                        files: [pdfFile]
+                    });
+                } else {
+                    // Fallback for browsers that don't support sharing files via Web Share API:
+                    // 1. Trigger PDF download
+                    const pdfUrl = URL.createObjectURL(pdfBlob);
+                    const dlLink = document.createElement('a');
+                    dlLink.href = pdfUrl;
+                    dlLink.download = fileName;
+                    dlLink.click();
+
+                    // 2. Launch mailto with full receipt pre-printed in body
+                    const mailtoSubject = encodeURIComponent(subject);
+                    const mailtoBody = encodeURIComponent(fullTextBody);
+                    const a = document.createElement('a');
+                    a.href = `mailto:${so.customerEmail}?subject=${mailtoSubject}&body=${mailtoBody}`;
+                    a.target = '_blank';
+                    a.click();
+                }
+            } catch (err) {
+                if (tempDiv.parentNode) document.body.removeChild(tempDiv);
+                if (err.name !== 'AbortError') {
+                    const mailtoSubject = encodeURIComponent(subject);
+                    const mailtoBody = encodeURIComponent(fullTextBody);
+                    const a = document.createElement('a');
+                    a.href = `mailto:${so.customerEmail}?subject=${mailtoSubject}&body=${mailtoBody}`;
+                    a.target = '_blank';
+                    a.click();
+                }
+            }
             renderSalesHistory();
         }
 
@@ -1659,7 +1840,6 @@
             products.forEach(p => {
                 const diff = (p.physicalInventory || 0) - p.stock;
 
-                // 25 Chars limit for Product Name display in Physical Count Sheet
                 const fullName = p.name || 'Unnamed Item';
                 const truncatedName = fullName.length > 25 ? fullName.substring(0, 22) + '...' : fullName;
 
