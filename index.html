@@ -65,6 +65,9 @@
 
         .flex-row-gap { display: flex; gap: 6px; align-items: center; }
 
+        /* Section Dividers */
+        .form-section-title { font-size: 0.85rem; font-weight: 700; color: var(--primary); margin: 10px 0 6px 0; border-bottom: 1px solid var(--border); padding-bottom: 4px; }
+
         /* Tables */
         .table-wrapper { overflow-x: auto; border-radius: 8px; border: 1px solid var(--border); margin-top: 8px; }
         table { width: 100%; border-collapse: collapse; font-size: 0.82rem; text-align: left; background: var(--card-bg); }
@@ -133,18 +136,18 @@
                         <button class="btn btn-secondary" style="width:auto; font-size:0.75rem;" onclick="openExportModal()">📤 Export CSV</button>
                     </div>
                 </div>
-                <input type="text" id="inv-search" class="form-control" placeholder="🔍 Search name, brand, UPC, SKU, Vendor..." oninput="renderInventoryTable()">
+                <input type="text" id="inv-search" class="form-control" placeholder="🔍 Search name, brand, Base UPC, Bulk UPC, SKU..." oninput="renderInventoryTable()">
                 <div class="table-wrapper">
                     <table>
                         <thead>
                             <tr>
                                 <th>Build</th>
-                                <th>Product Name</th>
-                                <th>UPC / Barcode</th>
+                                <th>Product Details</th>
+                                <th>Base UPC / Bulk UPC</th>
                                 <th>Book Stock</th>
-                                <th>Reorder Point</th>
+                                <th>UOM Ratio</th>
                                 <th>Status</th>
-                                <th>Preferred Vendor</th>
+                                <th>Vendor</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
@@ -199,7 +202,7 @@
                             <option value="In-house Supplies">In-house Supplies</option>
                         </select>
                     </div>
-                    <div class="form-group"><label>Quantity</label><input type="number" id="so-qty" class="form-control" value="1" min="1"></div>
+                    <div class="form-group"><label>Quantity (Base UOM)</label><input type="number" id="so-qty" class="form-control" value="1" min="1"></div>
                 </div>
                 <button class="btn btn-secondary" onclick="addLineToSOQueue()">+ Add Item to Dispatch Cart</button>
 
@@ -255,7 +258,7 @@
                 <div class="table-wrapper">
                     <table>
                         <thead>
-                            <tr><th>Select</th><th>Product Name</th><th>Preferred Vendor</th><th>Current Stock</th><th>Order Unit</th></tr>
+                            <tr><th>Select</th><th>Product Name</th><th>Preferred Vendor</th><th>Current Stock</th><th>Bulk Order UOM</th></tr>
                         </thead>
                         <tbody id="po-builder-body"></tbody>
                     </table>
@@ -305,7 +308,7 @@
                 <div class="table-wrapper">
                     <table>
                         <thead>
-                            <tr><th>Product Name</th><th>System Stock</th><th>Physical Count</th><th>Variance</th><th>Action</th></tr>
+                            <tr><th>Product Name</th><th>Book Stock</th><th>Physical Count (Base UOM)</th><th>Variance</th><th>Action</th></tr>
                         </thead>
                         <tbody id="physical-table-body"></tbody>
                     </table>
@@ -345,7 +348,7 @@
 
     </div>
 
-    <!-- MODAL 1: Product Editor -->
+    <!-- MODAL 1: Product Editor (With Dual UOM & Barcode Architecture) -->
     <div id="modal-product" class="modal-overlay">
         <div class="modal-body">
             <div class="modal-header">
@@ -367,30 +370,56 @@
 
             <form id="form-product" onsubmit="saveProduct(event)">
                 <input type="hidden" id="fp-id">
+                <input type="hidden" id="fp-active-target-upc" value="base">
+
+                <div class="form-section-title">1. General Information</div>
                 <div class="grid-2">
-                    <div class="form-group">
-                        <label>UPC (Bar Code)</label>
-                        <div class="flex-row-gap">
-                            <input type="text" id="fp-upc" class="form-control">
-                            <button type="button" class="btn btn-primary" style="width:auto; white-space:nowrap; padding:6px 10px; font-size:0.8rem;" onclick="startModalUPCScanner()">📷 Scan</button>
-                        </div>
-                    </div>
-                    <div class="form-group"><label>Product Name</label><input type="text" id="fp-name" class="form-control" required></div>
+                    <div class="form-group"><label>Product Name</label><input type="text" id="fp-name" class="form-control" required placeholder="e.g. Espresso Beans 1lb"></div>
                     <div class="form-group"><label>Brand Name</label><input type="text" id="fp-brand" class="form-control" placeholder="e.g. Acme, DeWalt"></div>
-                    <div class="form-group"><label>Book Inventory (Stock)</label><input type="number" id="fp-stock" class="form-control" value="0"></div>
-                    <div class="form-group"><label>Physical Inventory</label><input type="number" id="fp-physical" class="form-control" value="0"></div>
-                    <div class="form-group"><label>Reorder Threshold</label><input type="number" id="fp-reorder" class="form-control" value="0"></div>
-                    <div class="form-group"><label>Par Level</label><input type="number" id="fp-par" class="form-control" value="0"></div>
-                    <div class="form-group"><label>Base Unit (e.g. bag, bottle)</label><input type="text" id="fp-unit" class="form-control"></div>
-                    <div class="form-group"><label>Wholesale Order Unit (case)</label><input type="text" id="fp-orderUnit" class="form-control"></div>
-                    <div class="form-group"><label>Units Per Order</label><input type="number" id="fp-unitsPerOrder" class="form-control" value="1"></div>
-                    <div class="form-group"><label>List Price ($)</label><input type="number" step="0.01" id="fp-listPrice" class="form-control" value="0.00"></div>
-                    <div class="form-group"><label>Cost on Delivery ($)</label><input type="number" step="0.01" id="fp-cost" class="form-control" value="0.00"></div>
                     <div class="form-group"><label>Category</label><input type="text" id="fp-category" class="form-control"></div>
                     <div class="form-group"><label>Preferred Vendor</label><input type="text" id="fp-vendor" class="form-control"></div>
-                    <div class="form-group"><label>SKU</label><input type="text" id="fp-sku" class="form-control"></div>
                 </div>
-                <div class="btn-group" style="margin-top:12px;">
+
+                <div class="form-section-title">2. Barcode & UOM Architecture</div>
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label>Base UPC (Individual Item Barcode)</label>
+                        <div class="flex-row-gap">
+                            <input type="text" id="fp-baseUpc" class="form-control" placeholder="Barcode on 1 item">
+                            <button type="button" class="btn btn-primary" style="width:auto; white-space:nowrap; padding:6px 10px; font-size:0.8rem;" onclick="startModalUPCScanner('base')">📷 Scan</button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Bulk / Case UPC (Carton Barcode)</label>
+                        <div class="flex-row-gap">
+                            <input type="text" id="fp-bulkUpc" class="form-control" placeholder="Barcode on whole case">
+                            <button type="button" class="btn btn-primary" style="width:auto; white-space:nowrap; padding:6px 10px; font-size:0.8rem;" onclick="startModalUPCScanner('bulk')">📷 Scan</button>
+                        </div>
+                    </div>
+                    <div class="form-group"><label>Base UOM (Stocking Unit, e.g. EA, BAG, LBS)</label><input type="text" id="fp-baseUom" class="form-control" required placeholder="EA"></div>
+                    <div class="form-group"><label>Bulk UOM (Purchasing Unit, e.g. CS, BX, PK)</label><input type="text" id="fp-bulkUom" class="form-control" placeholder="CS"></div>
+                    <div class="form-group"><label>UOM Conversion Factor (Base Units per Bulk UOM)</label><input type="number" id="fp-uomConversion" class="form-control" value="1" min="1" placeholder="e.g. 12 EA per CS"></div>
+                </div>
+
+                <div class="form-section-title">3. Stocking & Inventory Control (In Base UOM)</div>
+                <div class="grid-2">
+                    <div class="form-group"><label>Book Inventory (Stock in Base UOM)</label><input type="number" id="fp-stock" class="form-control" value="0"></div>
+                    <div class="form-group"><label>Physical Inventory (Count in Base UOM)</label><input type="number" id="fp-physical" class="form-control" value="0"></div>
+                    <div class="form-group"><label>Reorder Threshold (Base UOM)</label><input type="number" id="fp-reorder" class="form-control" value="0"></div>
+                    <div class="form-group"><label>Par Level (Base UOM)</label><input type="number" id="fp-par" class="form-control" value="0"></div>
+                </div>
+
+                <div class="form-section-title">4. Pricing & Identification</div>
+                <div class="grid-2">
+                    <div class="form-group"><label>List Price per Base UOM ($)</label><input type="number" step="0.01" id="fp-listPrice" class="form-control" value="0.00"></div>
+                    <div class="form-group"><label>Cost on Delivery per Base UOM ($)</label><input type="number" step="0.01" id="fp-cost" class="form-control" value="0.00"></div>
+                    <div class="form-group"><label>SKU</label><input type="text" id="fp-sku" class="form-control"></div>
+                    <div class="form-group"><label>ASIN (Amazon)</label><input type="text" id="fp-asin" class="form-control"></div>
+                    <div class="form-group"><label>Item Number</label><input type="text" id="fp-itemNumber" class="form-control"></div>
+                    <div class="form-group"><label>Model Number</label><input type="text" id="fp-modelNumber" class="form-control"></div>
+                </div>
+
+                <div class="btn-group" style="margin-top:16px;">
                     <button type="submit" class="btn btn-success">💾 Save Product</button>
                     <button type="button" class="btn btn-secondary" onclick="closeModal('modal-product')">Cancel</button>
                 </div>
@@ -460,28 +489,29 @@
     </div>
 
     <script>
-        /* --- SCHEMA MAPPING & LABELS --- */
+        /* --- CONVENTIONAL UOM SCHEMA MAPPING --- */
         const SCHEMA_MAPPING = [
-            { key: 'upc', label: 'UPC (Bar Code)' },
+            { key: 'baseUpc', label: 'Base UPC (Individual)' },
+            { key: 'bulkUpc', label: 'Bulk UPC (Case/Carton)' },
             { key: 'name', label: 'Product Name' },
             { key: 'brand', label: 'Brand Name' },
-            { key: 'stock', label: 'Book Inventory' },
-            { key: 'physicalInventory', label: 'Physical inventory' },
+            { key: 'baseUom', label: 'Base UOM (Stocking Unit)' },
+            { key: 'bulkUom', label: 'Bulk UOM (Wholesale Unit)' },
+            { key: 'uomConversion', label: 'UOM Conversion Factor' },
+            { key: 'stock', label: 'Book Inventory (Base UOM)' },
+            { key: 'physicalInventory', label: 'Physical Count (Base UOM)' },
             { key: 'variance', label: 'Variance' },
-            { key: 'reorderPoint', label: 'Reorder Point' },
-            { key: 'parLevel', label: 'parLevel' },
-            { key: 'unit', label: 'unit' },
-            { key: 'orderUnit', label: 'orderUnit' },
-            { key: 'unitsPerOrder', label: 'unitsPerOrder' },
-            { key: 'status', label: 'status' },
-            { key: 'listPrice', label: 'List price' },
-            { key: 'cost', label: 'Cost on Delivery' },
+            { key: 'reorderPoint', label: 'Reorder Point (Base UOM)' },
+            { key: 'parLevel', label: 'Par Level (Base UOM)' },
+            { key: 'status', label: 'Status' },
+            { key: 'listPrice', label: 'List Price per Base UOM' },
+            { key: 'cost', label: 'Cost per Base UOM' },
             { key: 'category', label: 'Category' },
-            { key: 'preferredVendor', label: 'Vendor' },
+            { key: 'preferredVendor', label: 'Preferred Vendor' },
             { key: 'website', label: 'Website' },
             { key: 'sku', label: 'SKU' },
-            { key: 'asin', label: 'ASIN (Amazon)' },
-            { key: 'itemNumber', label: 'Item number' },
+            { key: 'asin', label: 'ASIN' },
+            { key: 'itemNumber', label: 'Item Number' },
             { key: 'modelNumber', label: 'Model Number' }
         ];
 
@@ -489,8 +519,8 @@
 
         /* --- STATE VARIABLES WITH LOCAL STORAGE SYNC --- */
         let products = JSON.parse(localStorage.getItem('jomarket_products')) || [
-            { id: '1', upc: '0123456789', name: 'Espresso Beans 1lb', brand: 'Acme Coffee', stock: 12, physicalInventory: 12, variance: 0, reorderPoint: 5, parLevel: 20, unit: 'bag', orderUnit: 'case', unitsPerOrder: 6, status: 'In Stock', listPrice: 18.00, cost: 9.50, category: 'Beverage', preferredVendor: 'Acme Coffee Co', website: '', sku: 'AC-ESP-1', asin: '', itemNumber: 'IT-101', modelNumber: 'M-1' },
-            { id: '2', upc: '9876543210', name: 'Commercial Paper Towels', brand: 'Bounty', stock: 3, physicalInventory: 3, variance: 0, reorderPoint: 4, parLevel: 15, unit: 'roll', orderUnit: 'box', unitsPerOrder: 12, status: 'Low Stock', listPrice: 2.50, cost: 1.10, category: 'Supplies', preferredVendor: 'Janitorial Direct', website: '', sku: 'JD-PT-12', asin: '', itemNumber: 'IT-102', modelNumber: 'M-2' }
+            { id: '1', baseUpc: '0123456789', bulkUpc: '100123456789', name: 'Espresso Beans 1lb', brand: 'Acme Coffee', baseUom: 'BAG', bulkUom: 'CS', uomConversion: 6, stock: 12, physicalInventory: 12, variance: 0, reorderPoint: 5, parLevel: 20, status: 'In Stock', listPrice: 18.00, cost: 9.50, category: 'Beverage', preferredVendor: 'Acme Coffee Co', website: '', sku: 'AC-ESP-1', asin: '', itemNumber: 'IT-101', modelNumber: 'M-1' },
+            { id: '2', baseUpc: '9876543210', bulkUpc: '2009876543210', name: 'Commercial Paper Towels', brand: 'Bounty', baseUom: 'RL', bulkUom: 'BX', uomConversion: 12, stock: 3, physicalInventory: 3, variance: 0, reorderPoint: 4, parLevel: 15, status: 'Low Stock', listPrice: 2.50, cost: 1.10, category: 'Supplies', preferredVendor: 'Janitorial Direct', website: '', sku: 'JD-PT-12', asin: '', itemNumber: 'IT-102', modelNumber: 'M-2' }
         ];
 
         let vendors = JSON.parse(localStorage.getItem('jomarket_vendors')) || [
@@ -688,8 +718,23 @@
             } else if (isSalesScannerRunning) {
                 await startSalesScanner();
             } else if (isModalScannerRunning) {
-                await startModalUPCScanner();
+                const target = document.getElementById('fp-active-target-upc').value;
+                await startModalUPCScanner(target);
             }
+        }
+
+        /* --- BARCODE LOOKUP HELPER (Distinguishes Base UPC vs Bulk Case UPC) --- */
+        function findProductByBarcode(code) {
+            const clean = code.trim();
+            const lower = clean.toLowerCase();
+
+            for (let p of products) {
+                if ((p.baseUpc || '').trim() === clean) return { product: p, isBulk: false };
+                if ((p.bulkUpc || '').trim() === clean) return { product: p, isBulk: true };
+                if ((p.sku || '').trim().toLowerCase() === lower) return { product: p, isBulk: false };
+                if ((p.itemNumber || '').trim().toLowerCase() === lower) return { product: p, isBulk: false };
+            }
+            return null;
         }
 
         /* --- SCANNER 1: PHYSICAL INVENTORY AUDIT SCANNER --- */
@@ -743,34 +788,34 @@
         }
 
         function onPhysBarcodeScanned(code) {
-            const clean = code.trim();
-            const p = products.find(x => 
-                (x.upc || '').trim() === clean || 
-                (x.sku || '').trim().toLowerCase() === clean.toLowerCase() ||
-                (x.itemNumber || '').trim().toLowerCase() === clean.toLowerCase()
-            );
-
+            const match = findProductByBarcode(code);
             const resDiv = document.getElementById('phys-scan-result');
 
-            if (p) {
-                p.physicalInventory = (parseInt(p.physicalInventory) || 0) + 1;
+            if (match) {
+                const p = match.product;
+                const conversion = parseInt(p.uomConversion) || 1;
+                const qtyToAdd = match.isBulk ? conversion : 1;
+
+                p.physicalInventory = (parseInt(p.physicalInventory) || 0) + qtyToAdd;
                 p.variance = p.physicalInventory - p.stock;
                 saveState();
                 renderPhysicalTable();
 
                 const diff = p.variance;
                 let varText = diff === 0 ? 'Balanced' : (diff > 0 ? `+${diff}` : `${diff}`);
+                const scanTypeLabel = match.isBulk ? `📦 Full Bulk Case (+${conversion} ${p.baseUom || 'EA'})` : `🏷️ Single Item (+1 ${p.baseUom || 'EA'})`;
+
                 resDiv.innerHTML = `
                     <div style="background:var(--success-bg); border:1px solid var(--success); color:#065f46; padding:10px; border-radius:8px; font-size:0.85rem; margin-top:8px;">
-                        <strong>✅ Item Counted (+1):</strong> ${escapeHtml(p.name)}<br>
-                        Physical Count: <strong>${p.physicalInventory}</strong> (Book Stock: ${p.stock} | Variance: <strong>${varText}</strong>)
+                        <strong>✅ ${scanTypeLabel} Counted:</strong> ${escapeHtml(p.name)}<br>
+                        Physical Count: <strong>${p.physicalInventory} ${p.baseUom || 'EA'}</strong> (Book Stock: ${p.stock} | Variance: <strong>${varText}</strong>)
                     </div>
                 `;
             } else {
                 resDiv.innerHTML = `
                     <div style="background:var(--danger-bg); border:1px solid var(--danger); color:#991b1b; padding:10px; border-radius:8px; font-size:0.85rem; margin-top:8px;">
-                        <strong>⚠️ Barcode Not Found:</strong> <code>${escapeHtml(clean)}</code><br>
-                        This code is not assigned to any product. Add it in the Inventory tab first.
+                        <strong>⚠️ Barcode Not Found:</strong> <code>${escapeHtml(code.trim())}</code><br>
+                        This code is not assigned to any Base or Bulk UPC. Add it in the Inventory tab first.
                     </div>
                 `;
             }
@@ -802,20 +847,24 @@
                         config,
                         { fps: 10, qrbox: { width: 220, height: 140 } },
                         (code) => {
-                            const clean = code.trim();
-                            const p = products.find(x => 
-                                (x.upc || '').trim() === clean || 
-                                (x.sku || '').trim().toLowerCase() === clean.toLowerCase()
-                            );
-                            if (p) {
+                            const match = findProductByBarcode(code);
+                            if (match) {
+                                const p = match.product;
                                 if (p.stock <= 0) alert(`Product "${p.name}" found, but it is OUT OF STOCK!`);
                                 else {
                                     document.getElementById('so-item-select').value = p.id;
-                                    alert(`Selected: ${p.name}`);
+                                    const qtyInput = document.getElementById('so-qty');
+                                    if (match.isBulk) {
+                                        qtyInput.value = parseInt(p.uomConversion) || 1;
+                                        alert(`Selected Case/Bulk: ${p.name} (Qty auto-set to ${qtyInput.value} ${p.baseUom || 'EA'})`);
+                                    } else {
+                                        qtyInput.value = 1;
+                                        alert(`Selected Single: ${p.name}`);
+                                    }
                                 }
                                 stopAllScanners();
                             } else {
-                                alert(`No product found with barcode: ${clean}`);
+                                alert(`No product found with barcode: ${code.trim()}`);
                             }
                         },
                         (err) => {}
@@ -836,9 +885,10 @@
         }
 
         /* --- SCANNER 3: IN-MODAL ADD/EDIT ITEM UPC SCANNER --- */
-        async function startModalUPCScanner() {
+        async function startModalUPCScanner(targetField = 'base') {
             await stopAllScanners();
 
+            document.getElementById('fp-active-target-upc').value = targetField;
             const box = document.getElementById('modal-upc-reader-box');
             box.style.display = 'block';
 
@@ -861,7 +911,12 @@
                         config,
                         { fps: 10, qrbox: { width: 220, height: 130 } },
                         (code) => {
-                            document.getElementById('fp-upc').value = code.trim();
+                            const target = document.getElementById('fp-active-target-upc').value;
+                            if (target === 'bulk') {
+                                document.getElementById('fp-bulkUpc').value = code.trim();
+                            } else {
+                                document.getElementById('fp-baseUpc').value = code.trim();
+                            }
                             stopAllScanners();
                         },
                         (err) => {}
@@ -890,7 +945,8 @@
             products.filter(p => 
                 p.name.toLowerCase().includes(q) || 
                 (p.brand || '').toLowerCase().includes(q) ||
-                (p.upc || '').includes(q) || 
+                (p.baseUpc || '').includes(q) || 
+                (p.bulkUpc || '').includes(q) || 
                 (p.sku || '').toLowerCase().includes(q)
             ).forEach(p => {
                 const stock = parseInt(p.stock) || 0;
@@ -900,6 +956,7 @@
                 else if (stock <= reorder) pill = `<span class="pill pill-low-stock">Low Stock</span>`;
 
                 const isQueued = poBuilderQueue.includes(p.id);
+                const conv = parseInt(p.uomConversion) || 1;
 
                 tbody.innerHTML += `
                     <tr>
@@ -908,9 +965,12 @@
                             <strong style="color:var(--primary); cursor:pointer;" onclick="openProductModal('${p.id}')">${escapeHtml(p.name)}</strong>
                             ${p.brand ? `<br><span style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">🏷️ ${escapeHtml(p.brand)}</span>` : ''}
                         </td>
-                        <td><code>${escapeHtml(p.upc || 'N/A')}</code></td>
-                        <td>${stock} ${p.unit || ''}</td>
-                        <td>${reorder}</td>
+                        <td>
+                            <code>Base: ${escapeHtml(p.baseUpc || 'N/A')}</code><br>
+                            <code style="color:var(--text-muted);">Bulk: ${escapeHtml(p.bulkUpc || 'N/A')}</code>
+                        </td>
+                        <td>${stock} ${p.baseUom || 'EA'}</td>
+                        <td>1 ${p.bulkUom || 'CS'} = ${conv} ${p.baseUom || 'EA'}</td>
                         <td>${pill}</td>
                         <td>${escapeHtml(p.preferredVendor || 'N/A')}</td>
                         <td><button class="btn btn-danger" style="padding:2px 6px; font-size:0.7rem;" onclick="deleteProduct('${p.id}')">✕ Delete</button></td>
@@ -929,20 +989,24 @@
         async function openProductModal(id) {
             await stopAllScanners();
 
-            const p = products.find(x => x.id === String(id)) || { id: '', upc: '', name: '', brand: '', stock: 0, physicalInventory: 0, reorderPoint: 0, parLevel: 0, unit: '', orderUnit: '', unitsPerOrder: 1, listPrice: 0, cost: 0, category: '', preferredVendor: '', sku: '' };
+            const p = products.find(x => x.id === String(id)) || { 
+                id: '', baseUpc: '', bulkUpc: '', name: '', brand: '', baseUom: 'EA', bulkUom: 'CS', uomConversion: 1, 
+                stock: 0, physicalInventory: 0, reorderPoint: 0, parLevel: 0, listPrice: 0, cost: 0, category: '', preferredVendor: '', sku: '' 
+            };
             
             document.getElementById('modal-prod-title').innerText = id === -1 ? 'Add New Product' : `Edit: ${p.name}`;
             document.getElementById('fp-id').value = p.id;
-            document.getElementById('fp-upc').value = p.upc || '';
+            document.getElementById('fp-baseUpc').value = p.baseUpc || '';
+            document.getElementById('fp-bulkUpc').value = p.bulkUpc || '';
             document.getElementById('fp-name').value = p.name || '';
             document.getElementById('fp-brand').value = p.brand || '';
+            document.getElementById('fp-baseUom').value = p.baseUom || 'EA';
+            document.getElementById('fp-bulkUom').value = p.bulkUom || 'CS';
+            document.getElementById('fp-uomConversion').value = p.uomConversion || 1;
             document.getElementById('fp-stock').value = p.stock || 0;
             document.getElementById('fp-physical').value = p.physicalInventory || 0;
             document.getElementById('fp-reorder').value = p.reorderPoint || 0;
             document.getElementById('fp-par').value = p.parLevel || 0;
-            document.getElementById('fp-unit').value = p.unit || '';
-            document.getElementById('fp-orderUnit').value = p.orderUnit || '';
-            document.getElementById('fp-unitsPerOrder').value = p.unitsPerOrder || 1;
             document.getElementById('fp-listPrice').value = p.listPrice || 0;
             document.getElementById('fp-cost').value = p.cost || 0;
             document.getElementById('fp-category').value = p.category || '';
@@ -960,17 +1024,18 @@
 
             const prodObj = {
                 id: id || String(Date.now()),
-                upc: document.getElementById('fp-upc').value.trim(),
+                baseUpc: document.getElementById('fp-baseUpc').value.trim(),
+                bulkUpc: document.getElementById('fp-bulkUpc').value.trim(),
                 name: document.getElementById('fp-name').value.trim(),
                 brand: document.getElementById('fp-brand').value.trim(),
+                baseUom: document.getElementById('fp-baseUom').value.trim() || 'EA',
+                bulkUom: document.getElementById('fp-bulkUom').value.trim() || 'CS',
+                uomConversion: parseInt(document.getElementById('fp-uomConversion').value) || 1,
                 stock: stock,
                 physicalInventory: phys,
                 variance: phys - stock,
                 reorderPoint: parseInt(document.getElementById('fp-reorder').value) || 0,
                 parLevel: parseInt(document.getElementById('fp-par').value) || 0,
-                unit: document.getElementById('fp-unit').value.trim(),
-                orderUnit: document.getElementById('fp-orderUnit').value.trim(),
-                unitsPerOrder: parseInt(document.getElementById('fp-unitsPerOrder').value) || 1,
                 listPrice: parseFloat(document.getElementById('fp-listPrice').value) || 0,
                 cost: parseFloat(document.getElementById('fp-cost').value) || 0,
                 category: document.getElementById('fp-category').value.trim(),
@@ -981,7 +1046,7 @@
             if (id) {
                 const idx = products.findIndex(x => x.id === id);
                 products[idx] = prodObj;
-                logProductHistory(prodObj.id, 'Manual Edit', 0, 'Updated item properties');
+                logProductHistory(prodObj.id, 'Manual Edit', 0, 'Updated item UOM properties');
             } else {
                 products.push(prodObj);
                 logProductHistory(prodObj.id, 'Addition', prodObj.stock, 'Initial creation');
@@ -1014,7 +1079,7 @@
             const sel = document.getElementById('so-item-select');
             sel.innerHTML = '<option value="">-- Choose Product --</option>';
             products.filter(p => p.stock > 0).forEach(p => {
-                sel.innerHTML += `<option value="${p.id}">${p.name} (${p.stock} on hand)</option>`;
+                sel.innerHTML += `<option value="${p.id}">${p.name} (${p.stock} ${p.baseUom||'EA'} on hand)</option>`;
             });
             renderSOCart();
         }
@@ -1025,14 +1090,14 @@
             if (!p) return alert("Select a product!");
 
             const qty = parseInt(document.getElementById('so-qty').value) || 1;
-            if (qty > p.stock) return alert(`Warning: Only ${p.stock} available in stock!`);
+            if (qty > p.stock) return alert(`Warning: Only ${p.stock} ${p.baseUom||'EA'} available in stock!`);
 
             currentSOCart.push({
                 id: p.id,
                 name: p.name,
                 cost: p.cost,
                 stock: p.stock,
-                unit: p.unit,
+                unit: p.baseUom || 'EA',
                 quantity: qty,
                 costCode: document.getElementById('so-cost-code').value.trim() || 'CC-GEN',
                 classification: document.getElementById('so-class').value
@@ -1049,7 +1114,7 @@
                         <td>${escapeHtml(item.name)}</td>
                         <td>${item.classification}</td>
                         <td>${item.costCode}</td>
-                        <td>${item.quantity}</td>
+                        <td>${item.quantity} ${item.unit}</td>
                         <td>$${item.cost.toFixed(2)}</td>
                         <td>$${(item.quantity * item.cost).toFixed(2)}</td>
                         <td><button class="btn btn-danger" style="padding:2px 6px;" onclick="currentSOCart.splice(${idx},1); renderSOCart();">✕</button></td>
@@ -1132,11 +1197,11 @@
                 <p style="font-size:0.8rem; margin-bottom:12px;">Jobsite: ${so.customerAddress}</p>
 
                 <h5 style="color:var(--primary);">1. Materials for Job</h5>
-                <ul>${mat.map(i => `<li>${i.name} (${i.quantity} @ $${i.cost}) = $${(i.quantity*i.cost).toFixed(2)} [${i.costCode}]</li>`).join('')}</ul>
+                <ul>${mat.map(i => `<li>${i.name} (${i.quantity} ${i.unit} @ $${i.cost}) = $${(i.quantity*i.cost).toFixed(2)} [${i.costCode}]</li>`).join('')}</ul>
                 <p><strong>Subtotal Materials: $${matTot.toFixed(2)}</strong></p>
 
                 <h5 style="color:var(--primary); margin-top:8px;">2. In-house Supplies</h5>
-                <ul>${sup.map(i => `<li>${i.name} (${i.quantity} @ $${i.cost}) = $${(i.quantity*i.cost).toFixed(2)} [${i.costCode}]</li>`).join('')}</ul>
+                <ul>${sup.map(i => `<li>${i.name} (${i.quantity} ${i.unit} @ $${i.cost}) = $${(i.quantity*i.cost).toFixed(2)} [${i.costCode}]</li>`).join('')}</ul>
                 <p><strong>Subtotal Supplies: $${supTot.toFixed(2)}</strong></p>
 
                 <hr style="margin:12px 0;">
@@ -1197,8 +1262,8 @@
                             <td><input type="checkbox" class="po-build-chk" value="${p.id}" checked></td>
                             <td>${escapeHtml(p.name)}</td>
                             <td>${escapeHtml(p.preferredVendor || 'N/A')}</td>
-                            <td>${p.stock}</td>
-                            <td>${p.orderUnit || 'case'} (${p.unitsPerOrder} ea)</td>
+                            <td>${p.stock} ${p.baseUom||'EA'}</td>
+                            <td>1 ${p.bulkUom||'CS'} (${p.uomConversion||1} ${p.baseUom||'EA'})</td>
                         </tr>
                     `;
                 }
@@ -1211,7 +1276,8 @@
 
             const poItems = checked.map(pid => {
                 const p = products.find(x => x.id === pid);
-                return { id: p.id, name: p.name, orderQuantity: 1, receivedQuantity: 0, baseCost: p.cost, orderUnitQuantity: p.unitsPerOrder };
+                const conv = parseInt(p.uomConversion) || 1;
+                return { id: p.id, name: p.name, orderQuantity: 1, receivedQuantity: 0, baseCost: p.cost * conv, orderUnitQuantity: conv };
             });
 
             const po = {
@@ -1272,7 +1338,7 @@
             vendors.forEach(v => {
                 html += `<div style="background:#f1f5f9; padding:8px; margin-top:6px; border-radius:6px;"><strong>${v.name}</strong>`;
                 po.items.forEach(i => {
-                    html += `<div class="form-group" style="margin-top:4px;"><label>${i.name} Bid Price ($):</label><input type="number" step="0.01" class="bid-input form-control" data-vendor="${v.name}" data-item="${i.id}" value="${i.baseCost}"></div>`;
+                    html += `<div class="form-group" style="margin-top:4px;"><label>${i.name} Bulk Case Bid Price ($):</label><input type="number" step="0.01" class="bid-input form-control" data-vendor="${v.name}" data-item="${i.id}" value="${i.baseCost}"></div>`;
                 });
                 html += `</div>`;
             });
@@ -1347,8 +1413,8 @@
                     <div style="background:#f1f5f9; padding:8px; margin-top:6px; border-radius:6px;">
                         <strong>${i.name}</strong>
                         <div class="grid-2" style="margin-top:4px;">
-                            <div class="form-group"><label>Receive Qty:</label><input type="number" id="rec-qty-${i.id}" class="form-control" value="${i.orderQuantity}"></div>
-                            <div class="form-group"><label>Actual Unit Price ($):</label><input type="number" step="0.01" id="rec-price-${i.id}" class="form-control" value="${i.baseCost}"></div>
+                            <div class="form-group"><label>Receive Bulk Cases:</label><input type="number" id="rec-qty-${i.id}" class="form-control" value="${i.orderQuantity}"></div>
+                            <div class="form-group"><label>Actual Bulk Case Price ($):</label><input type="number" step="0.01" id="rec-price-${i.id}" class="form-control" value="${i.baseCost}"></div>
                         </div>
                     </div>
                 `;
@@ -1363,18 +1429,20 @@
         function processPOReception(poId) {
             const po = purchaseOrders.find(x => x.id === poId);
             po.items.forEach(i => {
-                const qty = parseInt(document.getElementById(`rec-qty-${i.id}`).value) || 0;
-                const actPrice = parseFloat(document.getElementById(`rec-price-${i.id}`).value) || 0;
+                const casesReceived = parseInt(document.getElementById(`rec-qty-${i.id}`).value) || 0;
+                const actCasePrice = parseFloat(document.getElementById(`rec-price-${i.id}`).value) || 0;
                 
                 const p = products.find(x => x.id === i.id);
                 if (p) {
-                    p.stock += qty;
+                    const conv = parseInt(p.uomConversion) || 1;
+                    const baseUnitsAdded = casesReceived * conv;
+                    p.stock += baseUnitsAdded;
                     p.variance = p.physicalInventory - p.stock;
-                    logProductHistory(p.id, 'Reception', qty, `PO #${po.id} received`);
+                    logProductHistory(p.id, 'Reception', baseUnitsAdded, `Received ${casesReceived} ${p.bulkUom||'CS'} (${baseUnitsAdded} ${p.baseUom||'EA'}) via PO #${po.id}`);
                 }
 
-                const savings = (i.baseCost - actPrice) * qty;
-                po.receptionHistory.push({ itemId: i.id, qty, actPrice, priceVariance: savings });
+                const savings = (i.baseCost - actCasePrice) * casesReceived;
+                po.receptionHistory.push({ itemId: i.id, casesReceived, actCasePrice, priceVariance: savings });
             });
 
             po.status = 'Received';
@@ -1393,9 +1461,9 @@
                 tbody.innerHTML += `
                     <tr>
                         <td><strong>${escapeHtml(p.name)}</strong></td>
-                        <td>${p.stock}</td>
+                        <td>${p.stock} ${p.baseUom||'EA'}</td>
                         <td><input type="number" class="form-control" style="width:80px;" value="${p.physicalInventory || 0}" onchange="updatePhysicalCount('${p.id}', this.value)"></td>
-                        <td><span class="pill ${diff===0?'pill-in-stock':diff<0?'pill-out-stock':'pill-low-stock'}">${diff}</span></td>
+                        <td><span class="pill ${diff===0?'pill-in-stock':diff<0?'pill-out-stock':'pill-low-stock'}">${diff} ${p.baseUom||'EA'}</span></td>
                         <td><button class="btn btn-secondary" style="padding:2px 6px;" onclick="syncStockToPhysical('${p.id}')">Sync Stock</button></td>
                     </tr>
                 `;
@@ -1579,34 +1647,35 @@
             let importedCount = 0;
             for (let i = start; i < lines.length; i++) {
                 const row = parseCSVLine(lines[i]);
-                if (row.length < 2) continue;
+                if (row.length < 3) continue;
 
-                const stock = parseInt(row[3]) || 0;
-                const physical = parseInt(row[4]) || 0;
+                const stock = parseInt(row[7]) || parseInt(row[3]) || 0;
+                const physical = parseInt(row[8]) || parseInt(row[4]) || 0;
 
                 products.push({
                     id: String(Date.now() + i),
-                    upc: row[0] || '',
-                    name: row[1] || 'Imported Item',
-                    brand: row[2] || '',
+                    baseUpc: row[0] || '',
+                    bulkUpc: row[1] || '',
+                    name: row[2] || 'Imported Item',
+                    brand: row[3] || '',
+                    baseUom: row[4] || 'EA',
+                    bulkUom: row[5] || 'CS',
+                    uomConversion: parseInt(row[6]) || 1,
                     stock: stock,
                     physicalInventory: physical,
                     variance: physical - stock,
-                    reorderPoint: parseInt(row[6]) || 0,
-                    parLevel: parseInt(row[7]) || 0,
-                    unit: row[8] || '',
-                    orderUnit: row[9] || '',
-                    unitsPerOrder: parseInt(row[10]) || 1,
-                    status: row[11] || 'In Stock',
-                    listPrice: parseFloat(row[12]) || 0,
-                    cost: parseFloat(row[13]) || 0,
-                    category: row[14] || '',
-                    preferredVendor: row[15] || '',
-                    website: row[16] || '',
-                    sku: row[17] || '',
-                    asin: row[18] || '',
-                    itemNumber: row[19] || '',
-                    modelNumber: row[20] || ''
+                    reorderPoint: parseInt(row[10]) || 0,
+                    parLevel: parseInt(row[11]) || 0,
+                    status: row[12] || 'In Stock',
+                    listPrice: parseFloat(row[13]) || 0,
+                    cost: parseFloat(row[14]) || 0,
+                    category: row[15] || '',
+                    preferredVendor: row[16] || '',
+                    website: row[17] || '',
+                    sku: row[18] || '',
+                    asin: row[19] || '',
+                    itemNumber: row[20] || '',
+                    modelNumber: row[21] || ''
                 });
                 importedCount++;
             }
@@ -1614,7 +1683,7 @@
             saveState();
             closeModal('modal-csv');
             renderInventoryTable();
-            alert(`Successfully imported ${importedCount} items with Brand Name!`);
+            alert(`Successfully imported ${importedCount} items with Base and Bulk UOM features!`);
         }
 
         async function closeModal(id) { 
