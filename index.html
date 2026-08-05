@@ -586,14 +586,15 @@
       <div class="flex-between" style="margin-bottom: 12px;">
         <div>
           <h2 style="font-size: 1.2rem;">Purchase Order Builder Queue</h2>
-          <p style="font-size: 0.8rem; color: var(--text-muted);">Items queued for reorder automatically (low stock) or manually flagged.</p>
+          <p style="font-size: 0.8rem; color: var(--text-muted);">Select queued items to group into a Purchase Order.</p>
         </div>
-        <button class="btn btn-success" onclick="generateDraftPoFromQueue()">📝 Create Draft Purchase Order</button>
+        <button class="btn btn-success" onclick="generateDraftPoFromQueue()">📝 Create Draft Purchase Order (Selected)</button>
       </div>
       <div class="table-container">
         <table>
           <thead>
             <tr>
+              <th style="width: 40px;"><input type="checkbox" id="po-builder-master-cb" checked title="Select/Deselect All" onclick="toggleAllPoBuilderItems(this)"></th>
               <th>Product Name</th>
               <th>Current Base Stock</th>
               <th>Reorder Point</th>
@@ -2073,12 +2074,16 @@
       const tbody = document.getElementById('po-builder-body');
       tbody.innerHTML = '';
 
+      const masterCb = document.getElementById('po-builder-master-cb');
+      if (masterCb) masterCb.checked = queueIds.length > 0;
+
       queueIds.forEach(id => {
         const p = products.find(prod => prod.id === id);
         if (!p) return;
 
         const tr = document.createElement('tr');
         tr.innerHTML = `
+          <td><input type="checkbox" class="po-builder-item-cb" data-id="${p.id}" checked></td>
           <td><strong>${escapeHtml(p.name)}</strong></td>
           <td>${p.stock} ${escapeHtml(p.baseUom)}</td>
           <td>${p.reorderPoint} ${escapeHtml(p.baseUom)}</td>
@@ -2094,6 +2099,12 @@
       });
     }
 
+    function toggleAllPoBuilderItems(masterCb) {
+      document.querySelectorAll('.po-builder-item-cb').forEach(cb => {
+        cb.checked = masterCb.checked;
+      });
+    }
+
     function removePoBuilderItem(prodId) {
       const queue = getPoBuilderQueue().filter(id => id !== prodId);
       savePoBuilderQueue(queue);
@@ -2101,16 +2112,17 @@
     }
 
     function generateDraftPoFromQueue() {
-      const queueIds = getPoBuilderQueue();
-      if (queueIds.length === 0) {
-        alert('PO Builder Queue is empty.');
+      const selectedCbs = Array.from(document.querySelectorAll('.po-builder-item-cb:checked'));
+      if (selectedCbs.length === 0) {
+        alert('Please select at least one item to include in the Purchase Order.');
         return;
       }
 
+      const selectedIds = selectedCbs.map(cb => cb.getAttribute('data-id'));
       const products = getProducts();
       const poItems = [];
 
-      queueIds.forEach(id => {
+      selectedIds.forEach(id => {
         const p = products.find(prod => prod.id === id);
         if (p) {
           const qtyInput = document.getElementById(`po-qty-${p.id}`);
@@ -2141,8 +2153,12 @@
       pos.unshift(newPO);
       savePurchaseOrders(pos);
 
-      savePoBuilderQueue([]);
-      alert(`Draft Purchase Order ${poId} generated!`);
+      // Remove only the selected items from the PO Builder queue
+      const currentQueue = getPoBuilderQueue();
+      const remainingQueue = currentQueue.filter(id => !selectedIds.includes(id));
+      savePoBuilderQueue(remainingQueue);
+
+      alert(`Draft Purchase Order ${poId} generated with ${poItems.length} selected item(s)!`);
       switchTab('active-pos');
     }
 
