@@ -334,6 +334,19 @@
             cursor: pointer;
         }
 
+        /* Voice Assistant Pulse Glow */
+        .mic-active {
+            animation: pulse 1.5s infinite;
+            background-color: #ef4444 !important;
+            color: white !important;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+
         /* Modal */
         .modal-overlay {
             position: fixed;
@@ -413,7 +426,7 @@
             <div class="form-group" style="margin-bottom: 10px;">
                 <label for="camera-select">📷 Choose Camera Sensor:</label>
                 <select id="camera-select" class="form-control" onchange="onCameraSelectChange()">
-                    <option value="">Detecting camera devices...</option>
+                    <option value="">Default Rear Camera</option>
                 </select>
             </div>
 
@@ -439,8 +452,9 @@
 
         <!-- Section 3: Actions & Sharing -->
         <div class="card">
-            <div class="card-title">⚡ Section 3: Actions & Sharing</div>
+            <div class="card-title">⚡ Section 3: Actions, Voice & Sharing</div>
             <div class="btn-group-full">
+                <button class="btn btn-warning" onclick="openVoiceModal()">🎤 Hands-Free Voice Count Assistant</button>
                 <button class="btn btn-secondary" onclick="openProductModal(-1)">+ Add Item Manually</button>
                 <button class="btn btn-secondary" onclick="openExportModal()">⚙️ Configure CSV Export Columns</button>
                 <div class="btn-group">
@@ -483,7 +497,7 @@
 
     </div>
 
-    <!-- Modal 1: 14-Field Product Editor -->
+    <!-- Modal 1: 20-Field Product Editor -->
     <div id="product-modal" class="modal-overlay">
         <div class="modal-body">
             <div class="modal-header">
@@ -535,35 +549,59 @@
                         <input type="text" id="field-reorder" class="form-control">
                     </div>
                     <div class="form-group">
-                        <label>7. List Price</label>
+                        <label>7. parLevel</label>
+                        <input type="text" id="field-parLevel" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>8. unit</label>
+                        <input type="text" id="field-unit" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>9. orderUnit</label>
+                        <input type="text" id="field-orderUnit" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>10. unitsPerOrder</label>
+                        <input type="text" id="field-unitsPerOrder" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>11. status</label>
+                        <input type="text" id="field-status" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>12. List Price</label>
                         <input type="text" id="field-listPrice" class="form-control">
                     </div>
                     <div class="form-group">
-                        <label>8. Cost on Delivery</label>
+                        <label>13. Cost on Delivery</label>
                         <input type="text" id="field-cost" class="form-control">
                     </div>
                     <div class="form-group">
-                        <label>9. Category</label>
+                        <label>14. Category</label>
                         <input type="text" id="field-category" class="form-control">
                     </div>
                     <div class="form-group">
-                        <label>10. Vendor</label>
+                        <label>15. Vendor</label>
                         <input type="text" id="field-vendor" class="form-control">
                     </div>
                     <div class="form-group">
-                        <label>11. SKU</label>
+                        <label>16. Website</label>
+                        <input type="text" id="field-website" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>17. SKU</label>
                         <input type="text" id="field-sku" class="form-control">
                     </div>
                     <div class="form-group">
-                        <label>12. ASIN (Amazon)</label>
+                        <label>18. ASIN (Amazon)</label>
                         <input type="text" id="field-asin" class="form-control">
                     </div>
                     <div class="form-group">
-                        <label>13. Item Number</label>
+                        <label>19. Item Number</label>
                         <input type="text" id="field-itemNo" class="form-control">
                     </div>
                     <div class="form-group">
-                        <label>14. Model Number</label>
+                        <label>20. Model Number</label>
                         <input type="text" id="field-modelNo" class="form-control">
                     </div>
                 </div>
@@ -603,6 +641,58 @@
         </div>
     </div>
 
+    <!-- Modal 3: Voice Recognition Assistant -->
+    <div id="voice-modal" class="modal-overlay">
+        <div class="modal-body" style="text-align: center;">
+            <div class="modal-header">
+                <h2>🎤 Voice Count Assistant</h2>
+                <button style="background:none; border:none; font-size:1.2rem; cursor:pointer;" onclick="closeVoiceModal()">✕</button>
+            </div>
+
+            <div style="margin: 16px 0;">
+                <div id="voice-step-badge" style="display: inline-block; padding: 4px 12px; border-radius: 12px; background: var(--info-bg); color: #1e40af; font-weight: 700; font-size: 0.85rem; margin-bottom: 10px;">
+                    Step 1: Say Product Name
+                </div>
+                <div id="voice-status-prompt" style="font-size: 1.1rem; font-weight: 700; color: var(--text); min-height: 48px;">
+                    Tap 'Start Listening' and say the product name.
+                </div>
+            </div>
+
+            <div style="background: #f1f5f9; padding: 12px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 16px; min-height: 80px; text-align: left;">
+                <label style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted);">HEARD SPEECH TRANSCRIPT:</label>
+                <div id="voice-transcript" style="font-size: 0.95rem; font-style: italic; color: #334155; margin-top: 4px; word-break: break-word;">
+                    "..."
+                </div>
+            </div>
+
+            <!-- Active Target Product Box -->
+            <div id="voice-matched-product-box" style="display:none; background: #d1fae5; border: 1px solid #6ee7b7; padding: 10px; border-radius: 8px; margin-bottom: 16px; text-align: left;">
+                <div style="font-size: 0.75rem; font-weight: 700; color: #065f46;">TARGET PRODUCT:</div>
+                <div id="voice-matched-name" style="font-size: 0.95rem; font-weight: 700; color: #064e3b; margin-top: 2px;">-</div>
+                <div id="voice-matched-qty" style="font-size: 0.8rem; color: #047857;">Current Physical Count: 0</div>
+                <div id="voice-pending-count-display" style="display:none; font-size: 0.85rem; font-weight:700; color: #1e40af; margin-top: 4px; padding-top:4px; border-top:1px dashed #6ee7b7;">
+                    Spoken Count to Save: 0
+                </div>
+            </div>
+
+            <!-- Confirmation Action Buttons -->
+            <div id="voice-confirm-group" style="display:none; margin-bottom: 12px;">
+                <div class="btn-group">
+                    <button type="button" class="btn btn-success" onclick="confirmVoiceSave()">✅ Confirm & Save (Say "YES")</button>
+                    <button type="button" class="btn btn-danger" onclick="cancelVoiceSave()">❌ Cancel (Say "NO")</button>
+                </div>
+            </div>
+
+            <div class="btn-group-full">
+                <button id="voice-mic-btn" class="btn btn-warning" onclick="toggleVoiceRecognition()">
+                    🎤 Start Listening
+                </button>
+                <button class="btn btn-secondary" onclick="resetVoiceAssistantFlow()">🔄 Reset / Next Product</button>
+                <button class="btn btn-secondary" onclick="closeVoiceModal()">Close Assistant</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         /* Global Application State */
         let inventory = [];
@@ -611,7 +701,14 @@
         let isScannerRunning = false;
         let isModalScannerRunning = false;
 
-        // 14 Standard Fields schema mapping
+        // Voice Recognition State
+        let speechRecognizer = null;
+        let isVoiceListening = false;
+        let voiceStep = 1; // 1 = Product Name, 2 = Physical Count, 3 = Confirm
+        let voiceMatchedIndex = -1;
+        let voicePendingCount = -1;
+
+        // 20 Standard Fields schema mapping
         const ALL_COLUMNS = [
             { id: 'upc', label: 'UPC (Bar Code)' },
             { id: 'name', label: 'Product Name' },
@@ -619,10 +716,16 @@
             { id: 'physical', label: 'Physical inventory' },
             { id: 'variance', label: 'Variance' },
             { id: 'reorder', label: 'Reorder Point' },
+            { id: 'parLevel', label: 'parLevel' },
+            { id: 'unit', label: 'unit' },
+            { id: 'orderUnit', label: 'orderUnit' },
+            { id: 'unitsPerOrder', label: 'unitsPerOrder' },
+            { id: 'status', label: 'status' },
             { id: 'listPrice', label: 'List price' },
             { id: 'cost', label: 'Cost on Delivery' },
             { id: 'category', label: 'Category' },
             { id: 'vendor', label: 'Vendor' },
+            { id: 'website', label: 'Website' },
             { id: 'sku', label: 'SKU' },
             { id: 'asin', label: 'ASIN (Amazon)' },
             { id: 'itemNo', label: 'Item number' },
@@ -630,8 +733,6 @@
         ];
 
         const FIELDS = ALL_COLUMNS.map(c => c.id);
-
-        // Track selected columns for export (default: all checked)
         let selectedExportColumns = ALL_COLUMNS.map(c => c.id);
 
         /* --- LocalStorage Persistence & Banner --- */
@@ -644,19 +745,11 @@
         function loadFromLocalStorage() {
             const stored = localStorage.getItem('shop_inventory_data');
             if (stored) {
-                try {
-                    inventory = JSON.parse(stored);
-                } catch (e) {
-                    inventory = [];
-                }
+                try { inventory = JSON.parse(stored); } catch (e) { inventory = []; }
             }
             const storedCols = localStorage.getItem('shop_inventory_export_cols');
             if (storedCols) {
-                try {
-                    selectedExportColumns = JSON.parse(storedCols);
-                } catch (e) {
-                    selectedExportColumns = ALL_COLUMNS.map(c => c.id);
-                }
+                try { selectedExportColumns = JSON.parse(storedCols); } catch (e) { selectedExportColumns = ALL_COLUMNS.map(c => c.id); }
             }
             updateMemoryBanner();
             renderTable();
@@ -676,7 +769,7 @@
             }
         }
 
-        /* --- Section 1: CSV Loader Parsing --- */
+        /* --- CSV Loader --- */
         function handleCSVImport(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -691,7 +784,6 @@
                     return;
                 }
 
-                // Check for Header row
                 let startIdx = 0;
                 const firstRowJoin = rows[0].join(' ').toLowerCase();
                 if (firstRowJoin.includes('upc') || firstRowJoin.includes('product name') || firstRowJoin.includes('book')) {
@@ -713,14 +805,20 @@
                         physical: physical,
                         variance: physical - book,
                         reorder: row[5] || '',
-                        listPrice: row[6] || '',
-                        cost: row[7] || '',
-                        category: row[8] || '',
-                        vendor: row[9] || '',
-                        sku: row[10] || '',
-                        asin: row[11] || '',
-                        itemNo: row[12] || '',
-                        modelNo: row[13] || '',
+                        parLevel: row[6] || '',
+                        unit: row[7] || '',
+                        orderUnit: row[8] || '',
+                        unitsPerOrder: row[9] || '',
+                        status: row[10] || '',
+                        listPrice: row[11] || '',
+                        cost: row[12] || '',
+                        category: row[13] || '',
+                        vendor: row[14] || '',
+                        website: row[15] || '',
+                        sku: row[16] || '',
+                        asin: row[17] || '',
+                        itemNo: row[18] || '',
+                        modelNo: row[19] || '',
                         lastScannedAt: null
                     });
                 }
@@ -729,12 +827,11 @@
                 saveToLocalStorage();
                 renderTable();
                 alert(`Successfully imported ${imported.length} items from CSV.`);
-                event.target.value = ''; // Reset file input
+                event.target.value = '';
             };
             reader.readAsText(file);
         }
 
-        // Robust CSV Line Parser (handles quotes & commas)
         function parseCSVText(text) {
             const lines = [];
             let row = [];
@@ -746,12 +843,8 @@
                 const next = text[i + 1];
 
                 if (c === '"') {
-                    if (inQuotes && next === '"') {
-                        entry += '"';
-                        i++;
-                    } else {
-                        inQuotes = !inQuotes;
-                    }
+                    if (inQuotes && next === '"') { entry += '"'; i++; } 
+                    else { inQuotes = !inQuotes; }
                 } else if (c === ',' && !inQuotes) {
                     row.push(entry.trim());
                     entry = '';
@@ -761,9 +854,7 @@
                     if (row.some(f => f !== '')) lines.push(row);
                     row = [];
                     entry = '';
-                } else {
-                    entry += c;
-                }
+                } else { entry += c; }
             }
             if (entry !== '' || row.length > 0) {
                 row.push(entry.trim());
@@ -772,101 +863,95 @@
             return lines;
         }
 
-        /* --- Section 2: Camera Enumeration & Scanner Logic --- */
-        function loadAvailableCameras() {
+        /* --- Camera Logic --- */
+        async function loadAvailableCameras() {
             const select = document.getElementById('camera-select');
-            
-            Html5Qrcode.getCameras().then(devices => {
+            try {
+                if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                    stream.getTracks().forEach(track => track.stop());
+                }
+                const devices = await Html5Qrcode.getCameras();
                 select.innerHTML = '';
                 if (devices && devices.length > 0) {
                     let defaultSelected = false;
-
                     devices.forEach((device, index) => {
                         const option = document.createElement('option');
                         option.value = device.id;
                         option.text = device.label || `Camera ${index + 1}`;
-                        
-                        // Smart auto-select: preferred rear/back camera
                         const labelLower = (device.label || '').toLowerCase();
-                        if (!defaultSelected && (
-                            labelLower.includes('back') || 
-                            labelLower.includes('rear') || 
-                            labelLower.includes('environment') || 
-                            labelLower.includes('0') ||
-                            labelLower.includes('main')
-                        )) {
+                        if (!defaultSelected && (labelLower.includes('back') || labelLower.includes('rear') || labelLower.includes('environment') || labelLower.includes('0') || labelLower.includes('main'))) {
                             option.selected = true;
                             defaultSelected = true;
                         }
-
                         select.appendChild(option);
                     });
-
-                    // Fallback to first camera if no rear keyword matched
-                    if (!defaultSelected && select.options.length > 0) {
-                        select.options[0].selected = true;
-                    }
-                } else {
-                    select.innerHTML = '<option value="">No cameras detected</option>';
-                }
-            }).catch(err => {
-                select.innerHTML = '<option value="">Camera access permission needed</option>';
-            });
+                    if (!defaultSelected && select.options.length > 0) select.options[0].selected = true;
+                } else { select.innerHTML = '<option value="">Default Rear Camera</option>'; }
+            } catch (err) { select.innerHTML = '<option value="">Default Rear Camera</option>'; }
         }
 
         async function onCameraSelectChange() {
-            if (isScannerRunning) {
-                await stopCamera();
-                await startCamera();
-            }
+            if (isScannerRunning) { await stopCamera(); await startCamera(); }
         }
 
         async function startCamera() {
-            if (!html5QrCode) {
-                html5QrCode = new Html5Qrcode("reader");
+            if (!html5QrCode) html5QrCode = new Html5Qrcode("reader");
+            const state = html5QrCode.getState();
+            if (state === Html5QrcodeScannerState.SCANNING || state === Html5QrcodeScannerState.PAUSED) {
+                try { await html5QrCode.stop(); } catch(e) {}
             }
 
             const select = document.getElementById('camera-select');
             const selectedCameraId = select ? select.value : null;
 
-            let cameraConfig = { facingMode: "environment" };
-            if (selectedCameraId && selectedCameraId !== "") {
-                cameraConfig = selectedCameraId;
-            }
-            
-            try {
-                await html5QrCode.start(
-                    cameraConfig,
-                    { fps: 10, qrbox: { width: 250, height: 150 } },
-                    onScanSuccess,
-                    onScanError
-                );
-                isScannerRunning = true;
-                document.getElementById('start-cam-btn').style.display = 'none';
-                document.getElementById('stop-cam-btn').style.display = 'inline-flex';
-            } catch (err) {
-                alert("Could not access camera: " + err);
-            }
-        }
+            let configsToTry = [];
+            if (selectedCameraId && selectedCameraId !== "") configsToTry.push(selectedCameraId);
+            configsToTry.push({ facingMode: "environment" });
+            configsToTry.push({ facingMode: "user" });
 
-        async function stopCamera() {
-            if (html5QrCode && isScannerRunning) {
-                await html5QrCode.stop();
-                isScannerRunning = false;
+            let started = false;
+            let lastErr = null;
+
+            for (let config of configsToTry) {
+                try {
+                    await html5QrCode.start(config, { fps: 10, qrbox: { width: 250, height: 150 } }, onScanSuccess, onScanError);
+                    started = true;
+                    isScannerRunning = true;
+                    document.getElementById('start-cam-btn').style.display = 'none';
+                    document.getElementById('stop-cam-btn').style.display = 'inline-flex';
+                    break;
+                } catch (err) { lastErr = err; }
+            }
+
+            if (!started) {
+                alert("Could not start camera.\n\nPlease check permissions.\nError: " + (lastErr || "Camera unavailable"));
                 document.getElementById('start-cam-btn').style.display = 'inline-flex';
                 document.getElementById('stop-cam-btn').style.display = 'none';
             }
         }
 
+        async function stopCamera() {
+            if (html5QrCode) {
+                const state = html5QrCode.getState();
+                if (state === Html5QrcodeScannerState.SCANNING || state === Html5QrcodeScannerState.PAUSED) {
+                    try { await html5QrCode.stop(); } catch(e) {}
+                }
+            }
+            isScannerRunning = false;
+            document.getElementById('start-cam-btn').style.display = 'inline-flex';
+            document.getElementById('stop-cam-btn').style.display = 'none';
+        }
+
         function pauseCameraScanner() {
             if (html5QrCode && html5QrCode.getState() === Html5QrcodeScannerState.SCANNING) {
-                html5QrCode.pause(true);
+                try { html5QrCode.pause(true); } catch(e) {}
             }
         }
 
         function resumeCameraScanner() {
             if (html5QrCode && html5QrCode.getState() === Html5QrcodeScannerState.PAUSED) {
-                html5QrCode.resume();
+                try { html5QrCode.resume(); } catch(e) {}
             }
         }
 
@@ -875,63 +960,53 @@
             processScannedCode(decodedText.trim());
         }
 
-        function onScanError(error) {
-            // Silence routine scanning frame errors
-        }
+        function onScanError(error) {}
 
-        /* --- In-Modal Camera Scanner Logic --- */
+        /* --- In-Modal Camera Scanner --- */
         async function startModalCameraScanner() {
             const wrapper = document.getElementById('modal-scanner-wrapper');
             wrapper.style.display = 'block';
+            if (!modalHtml5QrCode) modalHtml5QrCode = new Html5Qrcode("modal-reader");
 
-            if (!modalHtml5QrCode) {
-                modalHtml5QrCode = new Html5Qrcode("modal-reader");
-            }
-
-            // Temporarily pause main camera to release video hardware resource
-            if (html5QrCode && isScannerRunning) {
-                try {
-                    pauseCameraScanner();
-                } catch (e) {}
-            }
+            if (html5QrCode && isScannerRunning) pauseCameraScanner();
 
             const select = document.getElementById('camera-select');
             const selectedCameraId = select ? select.value : null;
 
-            let cameraConfig = { facingMode: "environment" };
-            if (selectedCameraId && selectedCameraId !== "") {
-                cameraConfig = selectedCameraId;
+            let configsToTry = [];
+            if (selectedCameraId && selectedCameraId !== "") configsToTry.push(selectedCameraId);
+            configsToTry.push({ facingMode: "environment" });
+            configsToTry.push({ facingMode: "user" });
+
+            let started = false;
+            for (let config of configsToTry) {
+                try {
+                    await modalHtml5QrCode.start(config, { fps: 10, qrbox: { width: 220, height: 130 } }, onModalScanSuccess, (err) => {});
+                    started = true;
+                    isModalScannerRunning = true;
+                    break;
+                } catch(e) {}
             }
 
-            try {
-                await modalHtml5QrCode.start(
-                    cameraConfig,
-                    { fps: 10, qrbox: { width: 220, height: 130 } },
-                    onModalScanSuccess,
-                    (err) => {}
-                );
-                isModalScannerRunning = true;
-            } catch (err) {
-                alert("Could not access camera for modal scan: " + err);
+            if (!started) {
+                alert("Could not access camera for modal scan. Check permissions.");
                 wrapper.style.display = 'none';
             }
         }
 
         async function stopModalCameraScanner() {
-            if (modalHtml5QrCode && isModalScannerRunning) {
-                try {
-                    await modalHtml5QrCode.stop();
-                } catch(e) {}
+            if (modalHtml5QrCode) {
+                const state = modalHtml5QrCode.getState();
+                if (state === Html5QrcodeScannerState.SCANNING || state === Html5QrcodeScannerState.PAUSED) {
+                    try { await modalHtml5QrCode.stop(); } catch(e) {}
+                }
                 isModalScannerRunning = false;
             }
             const wrapper = document.getElementById('modal-scanner-wrapper');
             if (wrapper) wrapper.style.display = 'none';
 
-            // Resume main scanner if it was running
-            if (html5QrCode && isScannerRunning) {
-                try {
-                    resumeCameraScanner();
-                } catch(e) {}
+            if (isScannerRunning && html5QrCode && html5QrCode.getState() === Html5QrcodeScannerState.PAUSED) {
+                resumeCameraScanner();
             }
         }
 
@@ -945,19 +1020,263 @@
             stopModalCameraScanner();
         }
 
-        /* Barcode Normalizer (handles leading zeros in UPC-A / EAN-13) */
+        /* --- Voice Recognition Assistant System with Explicit Confirmation --- */
+        function openVoiceModal() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) {
+                alert("Speech Recognition API is not supported in this browser.\n\nPlease use Chrome, Edge, or Safari 14.5+ on mobile.");
+                return;
+            }
+            if (isScannerRunning) pauseCameraScanner();
+
+            initSpeechRecognizer();
+            resetVoiceAssistantFlow();
+            document.getElementById('voice-modal').classList.add('active');
+        }
+
+        function closeVoiceModal() {
+            stopVoiceRecognition();
+            document.getElementById('voice-modal').classList.remove('active');
+            if (isScannerRunning) resumeCameraScanner();
+        }
+
+        function initSpeechRecognizer() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) return;
+
+            speechRecognizer = new SpeechRecognition();
+            speechRecognizer.continuous = true;
+            speechRecognizer.interimResults = true;
+            speechRecognizer.lang = 'en-US';
+
+            speechRecognizer.onstart = function() {
+                isVoiceListening = true;
+                const btn = document.getElementById('voice-mic-btn');
+                if (btn) {
+                    btn.classList.add('mic-active');
+                    btn.innerText = '🎙️ Listening... Tap to Stop';
+                }
+            };
+
+            speechRecognizer.onend = function() {
+                isVoiceListening = false;
+                const btn = document.getElementById('voice-mic-btn');
+                if (btn) {
+                    btn.classList.remove('mic-active');
+                    btn.innerText = '🎤 Start Listening';
+                }
+            };
+
+            speechRecognizer.onerror = function(event) {
+                console.warn('Speech recognition error:', event.error);
+                if (event.error === 'not-allowed') {
+                    alert('Microphone access was denied. Please grant microphone permissions.');
+                    stopVoiceRecognition();
+                }
+            };
+
+            speechRecognizer.onresult = function(event) {
+                let interimTranscript = '';
+                let finalTranscript = '';
+
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    if (event.results[i].isFinal) {
+                        finalTranscript += event.results[i][0].transcript;
+                    } else {
+                        interimTranscript += event.results[i][0].transcript;
+                    }
+                }
+
+                const currentText = finalTranscript || interimTranscript;
+                if (currentText) {
+                    document.getElementById('voice-transcript').innerText = `"${currentText}"`;
+                }
+
+                if (finalTranscript) {
+                    handleSpokenVoiceInput(finalTranscript.trim());
+                }
+            };
+        }
+
+        function toggleVoiceRecognition() {
+            if (isVoiceListening) {
+                stopVoiceRecognition();
+            } else {
+                if (!speechRecognizer) initSpeechRecognizer();
+                try { speechRecognizer.start(); } catch(e) { console.warn(e); }
+            }
+        }
+
+        function stopVoiceRecognition() {
+            if (speechRecognizer && isVoiceListening) {
+                try { speechRecognizer.stop(); } catch(e) {}
+            }
+            isVoiceListening = false;
+            const btn = document.getElementById('voice-mic-btn');
+            if (btn) {
+                btn.classList.remove('mic-active');
+                btn.innerText = '🎤 Start Listening';
+            }
+        }
+
+        function resetVoiceAssistantFlow() {
+            voiceStep = 1;
+            voiceMatchedIndex = -1;
+            voicePendingCount = -1;
+            document.getElementById('voice-step-badge').innerText = 'Step 1: Say Product Name';
+            document.getElementById('voice-status-prompt').innerText = "Say or repeat the Product Name...";
+            document.getElementById('voice-transcript').innerText = '"..."';
+            document.getElementById('voice-matched-product-box').style.display = 'none';
+            document.getElementById('voice-pending-count-display').style.display = 'none';
+            document.getElementById('voice-confirm-group').style.display = 'none';
+        }
+
+        function handleSpokenVoiceInput(spokenText) {
+            if (!spokenText) return;
+
+            if (voiceStep === 1) {
+                // STEP 1: Process Spoken Product Name
+                const matches = findTopLocalMatchesForTitles([spokenText]);
+                if (matches.length > 0) {
+                    voiceMatchedIndex = matches[0].index;
+                    const matchedItem = inventory[voiceMatchedIndex];
+
+                    document.getElementById('voice-matched-name').innerText = matchedItem.name;
+                    document.getElementById('voice-matched-qty').innerText = `Current Physical Count: ${matchedItem.physical}`;
+                    document.getElementById('voice-matched-product-box').style.display = 'block';
+
+                    voiceStep = 2; // Advance to Step 2: Physical Count
+                    document.getElementById('voice-step-badge').innerText = 'Step 2: Say Physical Count';
+                    const promptText = `Matched "${matchedItem.name}". Now say the physical count!`;
+                    document.getElementById('voice-status-prompt').innerText = promptText;
+                    speakTTS(`Found ${matchedItem.name}. Please say the physical count.`);
+                } else {
+                    document.getElementById('voice-status-prompt').innerText = `No match for "${spokenText}". Please repeat the product name...`;
+                    speakTTS("Product not found. Please repeat the name.");
+                }
+            } else if (voiceStep === 2) {
+                // STEP 2: Process Spoken Physical Count
+                const parsedNum = parseSpokenNumber(spokenText);
+                if (parsedNum !== null && parsedNum >= 0 && voiceMatchedIndex >= 0) {
+                    voicePendingCount = parsedNum;
+                    const matchedItem = inventory[voiceMatchedIndex];
+
+                    document.getElementById('voice-pending-count-display').innerText = `Spoken Count to Save: ${voicePendingCount}`;
+                    document.getElementById('voice-pending-count-display').style.display = 'block';
+
+                    voiceStep = 3; // Advance to Step 3: Explicit Confirmation Step
+                    document.getElementById('voice-step-badge').innerText = 'Step 3: Confirm Details';
+                    document.getElementById('voice-confirm-group').style.display = 'block';
+
+                    const promptText = `Confirm: Set ${matchedItem.name} count to ${voicePendingCount}? Say YES or NO.`;
+                    document.getElementById('voice-status-prompt').innerText = promptText;
+                    speakTTS(`Confirm setting ${matchedItem.name} count to ${voicePendingCount}. Say YES to confirm, or NO to cancel.`);
+                } else {
+                    document.getElementById('voice-status-prompt').innerText = `Could not recognize number in "${spokenText}". Please repeat the count...`;
+                    speakTTS("Please repeat the number count.");
+                }
+            } else if (voiceStep === 3) {
+                // STEP 3: Process Voice Confirmation (Yes/No)
+                const cleanText = spokenText.toLowerCase().trim();
+                const isYes = ['yes', 'yeah', 'yep', 'correct', 'confirm', 'sure', 'ok', 'okay', 'save', 'right'].some(w => cleanText.includes(w));
+                const isNo = ['no', 'nope', 'cancel', 'wrong', 'incorrect', 'retry', 'stop'].some(w => cleanText.includes(w));
+
+                if (isYes) {
+                    confirmVoiceSave();
+                } else if (isNo) {
+                    cancelVoiceSave();
+                } else {
+                    speakTTS("Please say YES to confirm, or NO to cancel.");
+                }
+            }
+        }
+
+        function confirmVoiceSave() {
+            if (voiceMatchedIndex >= 0 && voicePendingCount >= 0) {
+                const item = inventory[voiceMatchedIndex];
+                item.physical = voicePendingCount;
+                item.variance = item.physical - item.book;
+                item.lastScannedAt = Date.now();
+
+                saveToLocalStorage();
+                renderTable();
+
+                const msg = `Confirmed ${item.name} set to ${voicePendingCount}. Ready for next item!`;
+                document.getElementById('voice-status-prompt').innerText = `✅ ${msg}`;
+                speakTTS(`Saved ${item.name} count as ${voicePendingCount}. Say next product name.`);
+
+                setTimeout(() => {
+                    resetVoiceAssistantFlow();
+                }, 2000);
+            }
+        }
+
+        function cancelVoiceSave() {
+            document.getElementById('voice-status-prompt').innerText = "Cancelled. Say product name to try again...";
+            speakTTS("Cancelled. Please say the product name.");
+            resetVoiceAssistantFlow();
+        }
+
+        function parseSpokenNumber(text) {
+            if (!text) return null;
+            let clean = text.toLowerCase().trim();
+
+            const digitMatch = clean.match(/\d+/);
+            if (digitMatch) return parseInt(digitMatch[0], 10);
+
+            const wordMap = {
+                'zero': 0, 'one': 1, 'won': 1, 'two': 2, 'to': 2, 'too': 2, 'three': 3,
+                'four': 4, 'for': 4, 'five': 5, 'six': 6, 'seven': 7, 'eight': 8, 'ate': 8,
+                'nine': 9, 'ten': 10, 'eleven': 11, 'twelve': 12, 'thirteen': 13,
+                'fourteen': 14, 'fifteen': 15, 'sixteen': 16, 'seventeen': 17,
+                'eighteen': 18, 'nineteen': 19, 'twenty': 20, 'thirty': 30,
+                'forty': 40, 'fifty': 50, 'sixty': 60, 'seventy': 70, 'eighty': 80,
+                'ninety': 90, 'hundred': 100
+            };
+
+            if (wordMap[clean] !== undefined) return wordMap[clean];
+
+            const words = clean.split(/\s+/);
+            let total = 0;
+            let found = false;
+
+            words.forEach(w => {
+                if (wordMap[w] !== undefined) {
+                    total += wordMap[w];
+                    found = true;
+                } else if (!isNaN(parseInt(w, 10))) {
+                    total += parseInt(w, 10);
+                    found = true;
+                }
+            });
+
+            return found ? total : null;
+        }
+
+        function speakTTS(text) {
+            if ('speechSynthesis' in window) {
+                try {
+                    window.speechSynthesis.cancel();
+                    const utterance = new SpeechSynthesisUtterance(text);
+                    utterance.rate = 1.0;
+                    window.speechSynthesis.speak(utterance);
+                } catch(e) {}
+            }
+        }
+
+        /* Barcode Normalizer */
         function getBarcodeVariants(rawCode) {
             const clean = rawCode.trim();
             const set = new Set([clean]);
             if (clean.length === 13 && clean.startsWith('0')) {
-                set.add(clean.substring(1)); // Convert 13-digit EAN-13 to 12-digit UPC-A
+                set.add(clean.substring(1));
             } else if (clean.length === 12) {
-                set.add('0' + clean); // Convert 12-digit UPC-A to 13-digit EAN-13
+                set.add('0' + clean);
             }
             return Array.from(set);
         }
 
-        /* Time-Ago Formatter for Recent Scan Alerts */
+        /* Time-Ago Formatter */
         function formatTimeAgo(timestamp) {
             if (!timestamp) return 'recently';
             const diffMs = Date.now() - timestamp;
@@ -975,7 +1294,6 @@
             const container = document.getElementById('scan-result-container');
             const codeVariants = getBarcodeVariants(code);
             
-            // Match against UPC, SKU, Item number, Model Number using normalized variants
             const matchIndex = inventory.findIndex(item => {
                 const upc = (item.upc || '').trim();
                 const sku = (item.sku || '').trim();
@@ -991,7 +1309,6 @@
                 const isScannedWithinWeek = item.lastScannedAt && (now - item.lastScannedAt < ONE_WEEK_MS);
 
                 if (isScannedWithinWeek) {
-                    // ⚠️ RECENT DUPLICATE SCAN WARNING (< 7 DAYS)
                     const timeAgoText = formatTimeAgo(item.lastScannedAt);
                     container.innerHTML = `
                         <div class="result-box recent-duplicate">
@@ -1014,7 +1331,6 @@
                         </div>
                     `;
                 } else {
-                    // MATCHED KNOWN ITEM (Standard Blue Box)
                     const nextPhysical = item.physical + 1;
                     container.innerHTML = `
                         <div class="result-box matched">
@@ -1032,22 +1348,28 @@
                     `;
                 }
             } else {
-                // UNMATCHED UNKNOWN ITEM (Yellow Box with Live Search & Hardware Quick Links)
+                const localCandidates = findTopLocalMatchesForTitles([code]);
+
                 container.innerHTML = `
                     <div class="result-box unmatched">
                         <div><strong>⚠️ Barcode Not Found:</strong> <code>${escapeHtml(code)}</code></div>
                         <div style="font-size:0.85rem;">Choose a resolution option below:</div>
                         
                         <div class="btn-group-full">
-                            <button id="api-lookup-btn" class="btn btn-primary" onclick="lookupOnlineApi('${code}')">🔍 Automated Online Lookup (Multi-API)</button>
+                            <button id="api-lookup-btn" class="btn btn-primary" onclick="lookupOnlineApi('${code}')">🔍 Automated Online Lookup & Smart Match</button>
                             
-                            <!-- Search Candidates Container (Populated via CORS fetch if found) -->
+                            <div id="smart-inventory-matches-box" style="${localCandidates.length > 0 ? 'display:block;' : 'display:none;'} background:#eff6ff; padding:10px; border-radius:8px; border:1px solid #bfdbfe;">
+                                <label style="font-size:0.78rem; font-weight:700; color:#1e40af;">🎯 Closest Matches in Your Saved Inventory:</label>
+                                <div id="smart-matches-list" style="margin-top:6px; display:flex; flex-direction:column; gap:6px;">
+                                    ${renderLocalMatchesHTML(code, localCandidates)}
+                                </div>
+                            </div>
+
                             <div id="online-candidates-box" style="display:none; background:white; padding:10px; border-radius:8px; border:1px solid #fcd34d;">
                                 <label style="font-size:0.75rem; font-weight:700; color:#78350f;">💡 Product Candidates Found Online:</label>
                                 <div id="candidates-list" style="margin-top:6px; display:flex; flex-direction:column; gap:4px;"></div>
                             </div>
 
-                            <!-- Hardware Quick Search Links -->
                             <div>
                                 <label style="font-size:0.75rem; font-weight:600; color:#78350f;">🌐 Quick Search Hardware Retailers:</label>
                                 <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:4px; margin-top:2px;">
@@ -1077,7 +1399,19 @@
             }
         }
 
-        /* Add Extra Stock (Custom Quantity) and Update Timestamp */
+        function renderLocalMatchesHTML(code, localMatches) {
+            if (!localMatches || localMatches.length === 0) return '';
+            return localMatches.map(m => `
+                <div style="display:flex; justify-content:space-between; align-items:center; background:white; padding:8px; border-radius:6px; border:1px solid #bfdbfe;">
+                    <div>
+                        <strong style="font-size:0.85rem; color:#0f172a;">${escapeHtml(m.item.name)}</strong>
+                        <div style="font-size:0.75rem; color:#64748b;">SKU: ${escapeHtml(m.item.sku || 'N/A')} | Current Count: ${m.item.physical}</div>
+                    </div>
+                    <button class="btn btn-success" style="width:auto; padding:6px 10px; font-size:0.8rem; white-space:nowrap;" onclick="linkBarcodeToMasterIndex('${code}', ${m.index})">🔗 Assign & Edit</button>
+                </div>
+            `).join('');
+        }
+
         function addExtraStockAndSave(index) {
             const extraInput = document.getElementById('extra-stock-qty-input');
             const qtyToAdd = parseInt(extraInput ? extraInput.value : 1) || 0;
@@ -1096,7 +1430,6 @@
             dismissScanResult();
         }
 
-        /* --- Live Search & Link Barcode to Existing Product --- */
         function filterLinkProducts(code, query) {
             const container = document.getElementById('link-search-results');
             if (!container) return;
@@ -1139,16 +1472,13 @@
             if (index < 0 || index >= inventory.length) return;
             const item = inventory[index];
             
-            // Clear the yellow scan result box
             dismissScanResult(false);
 
-            // Open the 14-field modal populated with product data, new UPC, and Physical Count set to Current + 1
             openProductModal(index, {
                 upc: code,
                 physical: (item.physical || 0) + 1
             });
 
-            // Focus directly on Physical Inventory input field
             setTimeout(() => {
                 const physInput = document.getElementById('field-physical');
                 if (physInput) {
@@ -1168,9 +1498,9 @@
             dismissScanResult();
         }
 
-        function createNewWithBarcode(code, name = '') {
+        function createNewWithBarcode(code, name = '', category = '') {
             dismissScanResult(false);
-            openProductModal(-1, { upc: code, name: name, physical: 1, book: 0 });
+            openProductModal(-1, { upc: code, name: name, category: category, physical: 1, book: 0 });
         }
 
         function dismissScanResult(resume = true) {
@@ -1178,93 +1508,168 @@
             if (resume) resumeCameraScanner();
         }
 
-        /* --- Multi-Database & CORS Search Proxy Lookup --- */
+        function findTopLocalMatchesForTitles(onlineTitles) {
+            if (!inventory || inventory.length === 0 || !onlineTitles || onlineTitles.length === 0) return [];
+
+            const stopWords = new Set(['and','or','the','a','an','in','on','at','to','for','with','by','of','off','out','com','inc','corp','co','llc','pack','pcs','piece','set','oz','inch','mm','x','ft']);
+
+            const tokenize = str => (str || '')
+                .toLowerCase()
+                .replace(/[^a-z0-9\s]/g, ' ')
+                .split(/\s+/)
+                .filter(w => w.length > 1 && !stopWords.has(w));
+
+            const onlineTokens = new Set();
+            onlineTitles.forEach(title => {
+                tokenize(title).forEach(t => onlineTokens.add(t));
+            });
+
+            if (onlineTokens.size === 0) return [];
+
+            const scored = inventory.map((item, index) => {
+                const itemText = `${item.name || ''} ${item.category || ''} ${item.sku || ''} ${item.vendor || ''} ${item.modelNo || ''} ${item.itemNo || ''}`;
+                const itemTokens = tokenize(itemText);
+                if (itemTokens.length === 0) return { item, index, score: 0, matchCount: 0 };
+
+                let matchCount = 0;
+                itemTokens.forEach(token => {
+                    if (onlineTokens.has(token)) matchCount++;
+                });
+
+                let substringBonus = 0;
+                onlineTitles.forEach(t => {
+                    const cleanT = t.toLowerCase();
+                    const cleanName = (item.name || '').toLowerCase();
+                    if (cleanName && cleanName.length > 3 && (cleanT.includes(cleanName) || cleanName.includes(cleanT))) {
+                        substringBonus += 3;
+                    }
+                });
+
+                const score = (matchCount / Math.max(1, itemTokens.length)) + substringBonus;
+                return { item, index, score, matchCount };
+            });
+
+            return scored
+                .filter(x => x.matchCount > 0 || x.score > 0.5)
+                .sort((a, b) => b.score - a.score)
+                .slice(0, 3);
+        }
+
         async function lookupOnlineApi(code) {
             const btn = document.getElementById('api-lookup-btn');
-            if (btn) btn.innerText = "⏳ Searching hardware & retail databases...";
+            if (btn) btn.innerText = "⏳ Searching retail databases & local inventory...";
 
             const codeVariants = getBarcodeVariants(code);
-            let foundMatch = false;
+            let foundTitles = [];
+            let directProductMatch = null;
 
             try {
                 for (let vCode of codeVariants) {
-                    if (foundMatch) break;
+                    if (directProductMatch) break;
 
-                    // 1. Try UPC Item DB
                     try {
                         const upcRes = await fetch(`https://api.upcitemdb.com/prod/trial/lookup?upc=${encodeURIComponent(vCode)}`);
                         if (upcRes.ok) {
                             const upcData = await upcRes.json();
                             if (upcData.items && upcData.items.length > 0) {
                                 const item = upcData.items[0];
-                                const prodName = item.title || "Discovered Hardware Item";
-                                alert(`Found in Retail Goods Database:\n${prodName}`);
-                                dismissScanResult(false);
-                                openProductModal(-1, { upc: code, name: prodName, category: item.category || item.brand || "", physical: 1, book: 0 });
-                                foundMatch = true;
+                                directProductMatch = { title: item.title, category: item.category || item.brand || '' };
+                                foundTitles.push(item.title);
                                 break;
                             }
                         }
                     } catch (e) {}
 
-                    // 2. Try Open Products Facts
-                    try {
-                        const opfRes = await fetch(`https://world.openproductsfacts.org/api/v2/product/${encodeURIComponent(vCode)}.json`);
-                        if (opfRes.ok) {
-                            const opfData = await opfRes.json();
-                            if (opfData.status === 1 && opfData.product) {
-                                const prod = opfData.product;
-                                const prodName = prod.product_name || prod.product_name_en || "Discovered Product";
-                                alert(`Found in Open Products Database:\n${prodName}`);
-                                dismissScanResult(false);
-                                openProductModal(-1, { upc: code, name: prodName, physical: 1, book: 0 });
-                                foundMatch = true;
-                                break;
+                    if (!directProductMatch) {
+                        try {
+                            const opfRes = await fetch(`https://world.openproductsfacts.org/api/v2/product/${encodeURIComponent(vCode)}.json`);
+                            if (opfRes.ok) {
+                                const opfData = await opfRes.json();
+                                if (opfData.status === 1 && opfData.product) {
+                                    const prodName = opfData.product.product_name || opfData.product.product_name_en;
+                                    if (prodName) {
+                                        directProductMatch = { title: prodName, category: opfData.product.categories ? opfData.product.categories.split(',')[0] : '' };
+                                        foundTitles.push(prodName);
+                                        break;
+                                    }
+                                }
                             }
-                        }
-                    } catch (e) {}
+                        } catch (e) {}
+                    }
                 }
 
-                // If no exact API hit, perform DuckDuckGo Open Search via CORS proxy to build a candidate title list
-                if (!foundMatch) {
-                    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent('https://html.duckduckgo.com/html/?q=' + encodeURIComponent(code))}`;
-                    const ddgRes = await fetch(proxyUrl);
-                    
-                    if (ddgRes.ok) {
-                        const ddgData = await ddgRes.json();
-                        const parser = new DOMParser();
-                        const doc = parser.parseFromString(ddgData.contents, 'text/html');
-                        const links = Array.from(doc.querySelectorAll('.result__title a')).slice(0, 4);
+                if (foundTitles.length === 0) {
+                    const queryUrl = 'https://html.duckduckgo.com/html/?q=' + encodeURIComponent(code);
+                    const proxies = [
+                        `https://api.allorigins.win/get?url=${encodeURIComponent(queryUrl)}`,
+                        `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(queryUrl)}`
+                    ];
 
-                        if (links.length > 0) {
-                            const candidateBox = document.getElementById('online-candidates-box');
-                            const candidateList = document.getElementById('candidates-list');
-                            
-                            if (candidateBox && candidateList) {
-                                candidateList.innerHTML = links.map(link => {
-                                    const titleText = link.textContent.trim().replace(/\|.*$/,'').replace(/- Home Depot.*$/i,'').replace(/- Lowe's.*$/i,'').trim();
-                                    return `
-                                        <button class="btn btn-secondary" style="text-align:left; justify-content:space-between; font-size:0.8rem; padding:6px 10px;" 
-                                                onclick="createNewWithBarcode('${code}', '${escapeHtml(titleText)}')">
-                                            <span>📄 ${escapeHtml(titleText)}</span>
-                                            <span style="color:var(--primary); font-weight:700;">Use ➔</span>
-                                        </button>
-                                    `;
-                                }).join('');
-                                candidateBox.style.display = 'block';
-                                alert("Extracted potential product candidates from online web search! Check the list in the yellow box.");
-                                return;
+                    for (let pUrl of proxies) {
+                        if (foundTitles.length > 0) break;
+                        try {
+                            const res = await fetch(pUrl);
+                            if (res.ok) {
+                                let htmlText = '';
+                                if (pUrl.includes('allorigins')) {
+                                    const data = await res.json();
+                                    htmlText = data.contents || '';
+                                } else { htmlText = await res.text(); }
+
+                                if (htmlText) {
+                                    const parser = new DOMParser();
+                                    const doc = parser.parseFromString(htmlText, 'text/html');
+                                    const links = Array.from(doc.querySelectorAll('.result__title a')).slice(0, 4);
+
+                                    links.forEach(l => {
+                                        const txt = l.textContent.trim().replace(/\|.*$/,'').replace(/- Home Depot.*$/i,'').replace(/- Lowe's.*$/i,'').trim();
+                                        if (txt && txt.length > 5 && !foundTitles.includes(txt)) {
+                                            foundTitles.push(txt);
+                                        }
+                                    });
+                                }
                             }
-                        }
+                        } catch(e) {}
                     }
+                }
 
-                    alert("No automatic match found.\n\nUse the quick-search buttons for Home Depot, Lowe's, or Amazon below to view the item name and add it.");
+                const localMatches = findTopLocalMatchesForTitles(foundTitles);
+                const smartBox = document.getElementById('smart-inventory-matches-box');
+                const smartList = document.getElementById('smart-matches-list');
+
+                if (localMatches.length > 0 && smartBox && smartList) {
+                    smartList.innerHTML = renderLocalMatchesHTML(code, localMatches);
+                    smartBox.style.display = 'block';
+                }
+
+                const candidateBox = document.getElementById('online-candidates-box');
+                const candidateList = document.getElementById('candidates-list');
+
+                if (foundTitles.length > 0 && candidateBox && candidateList) {
+                    candidateList.innerHTML = foundTitles.slice(0, 4).map(titleText => `
+                        <button class="btn btn-secondary" style="text-align:left; justify-content:space-between; font-size:0.8rem; padding:6px 10px;" 
+                                onclick="createNewWithBarcode('${code}', '${escapeHtml(titleText)}', '${escapeHtml(directProductMatch ? directProductMatch.category : '')}')">
+                            <span>⚡ Auto-Fill & Create: <strong>${escapeHtml(titleText)}</strong></span>
+                            <span style="color:var(--primary); font-weight:700;">Use ➔</span>
+                        </button>
+                    `).join('');
+                    candidateBox.style.display = 'block';
+                }
+
+                if (directProductMatch) {
+                    alert(`Direct Match Found Online:\n"${directProductMatch.title}"\n\nClick "Auto-Fill & Create" in the yellow box below.`);
+                } else if (localMatches.length > 0) {
+                    alert(`Found ${localMatches.length} candidate match(es) in your saved inventory! Check the blue section below.`);
+                } else if (foundTitles.length > 0) {
+                    alert("Product candidates found online! Check the candidates list below.");
+                } else {
+                    alert("No automatic match found online.\n\nUse the quick-search buttons for Home Depot, Lowe's, or Amazon below.");
                 }
 
             } catch (err) {
-                alert("Search complete. Use the Home Depot, Lowe's, or Amazon buttons below to locate the item name.");
+                alert("Search completed. Use the quick-search retailer buttons below if no matches appeared.");
             } finally {
-                if (btn) btn.innerText = "🔍 Automated Online Lookup (Multi-API)";
+                if (btn) btn.innerText = "🔍 Automated Online Lookup & Smart Match";
             }
         }
 
@@ -1326,7 +1731,7 @@
             closeExportModal();
         }
 
-        /* --- Dynamic CSV Generation based on selected columns --- */
+        /* --- Dynamic CSV Generation --- */
         function generateCSVString() {
             if (selectedExportColumns.length === 0) {
                 alert("No columns selected for export! Please configure export columns first.");
@@ -1334,7 +1739,6 @@
                 return null;
             }
 
-            // Filter active column definitions in exact order
             const activeCols = ALL_COLUMNS.filter(col => selectedExportColumns.includes(col.id));
 
             let csv = activeCols.map(c => `"${c.label}"`).join(',') + '\n';
@@ -1401,7 +1805,7 @@
             window.location.href = `mailto:?subject=${subject}&body=${body}`;
         }
 
-        /* --- Section 4: Table Rendering with Live Search Filtering --- */
+        /* --- Table Rendering --- */
         function renderTable() {
             const tbody = document.getElementById('inventory-table-body');
             tbody.innerHTML = '';
@@ -1414,7 +1818,6 @@
                 return;
             }
 
-            // Filter inventory by live search query
             const filteredInventory = inventory.filter(item => {
                 if (!searchQuery) return true;
                 return (item.name && item.name.toLowerCase().includes(searchQuery)) ||
@@ -1423,7 +1826,6 @@
                        (item.category && item.category.toLowerCase().includes(searchQuery));
             });
 
-            // Update badge count based on search results
             const countBadge = document.getElementById('item-count-badge');
             if (searchQuery) {
                 countBadge.innerText = `${filteredInventory.length} of ${inventory.length} items`;
@@ -1437,7 +1839,7 @@
             }
 
             filteredInventory.forEach((item) => {
-                const masterIndex = inventory.indexOf(item); // Master index in global inventory array
+                const masterIndex = inventory.indexOf(item);
                 const variance = item.physical - item.book;
                 let pillClass = 'pill-zero';
                 let varDisplay = `${variance}`;
@@ -1486,8 +1888,8 @@
         }
 
         /* --- Modal Editor Logic --- */
-        function openProductModal(index = -1, overrideData = null) {
-            stopModalCameraScanner();
+        async function openProductModal(index = -1, overrideData = null) {
+            await stopModalCameraScanner();
 
             document.getElementById('modal-edit-index').value = index;
             const title = index === -1 ? 'Add New Product' : (overrideData && overrideData.upc ? 'Assign UPC & Set Count' : 'Edit Product');
@@ -1495,8 +1897,9 @@
 
             let data = {
                 upc: '', name: '', book: 0, physical: 0, variance: 0,
-                reorder: '', listPrice: '', cost: '', category: '',
-                vendor: '', sku: '', asin: '', itemNo: '', modelNo: ''
+                reorder: '', parLevel: '', unit: '', orderUnit: '', unitsPerOrder: '', status: '',
+                listPrice: '', cost: '', category: '', vendor: '', website: '',
+                sku: '', asin: '', itemNo: '', modelNo: ''
             };
 
             if (index >= 0 && inventory[index]) {
@@ -1546,10 +1949,16 @@
                 physical: physical,
                 variance: physical - book,
                 reorder: document.getElementById('field-reorder').value.trim(),
+                parLevel: document.getElementById('field-parLevel').value.trim(),
+                unit: document.getElementById('field-unit').value.trim(),
+                orderUnit: document.getElementById('field-orderUnit').value.trim(),
+                unitsPerOrder: document.getElementById('field-unitsPerOrder').value.trim(),
+                status: document.getElementById('field-status').value.trim(),
                 listPrice: document.getElementById('field-listPrice').value.trim(),
                 cost: document.getElementById('field-cost').value.trim(),
                 category: document.getElementById('field-category').value.trim(),
                 vendor: document.getElementById('field-vendor').value.trim(),
+                website: document.getElementById('field-website').value.trim(),
                 sku: document.getElementById('field-sku').value.trim(),
                 asin: document.getElementById('field-asin').value.trim(),
                 itemNo: document.getElementById('field-itemNo').value.trim(),
@@ -1580,9 +1989,9 @@
         }
 
         /* App Initialization */
-        window.addEventListener('DOMContentLoaded', () => {
+        window.addEventListener('DOMContentLoaded', async () => {
             loadFromLocalStorage();
-            loadAvailableCameras();
+            await loadAvailableCameras();
         });
     </script>
 </body>
