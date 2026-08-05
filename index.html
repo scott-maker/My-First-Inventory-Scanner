@@ -468,9 +468,15 @@
             <label>Order filled by:</label>
             <input type="text" id="so-salesperson" class="form-control" placeholder="e.g. John Doe">
           </div>
+        </div>
+        <div class="form-row">
           <div class="form-group">
-            <label>Customer Email</label>
-            <input type="email" id="so-email" class="form-control" value="Receiptstest@jomaconstruction.com">
+            <label>Email Receipt to:</label>
+            <input type="email" id="so-email" class="form-control" value="Receipts@jomaconstruction.com">
+          </div>
+          <div class="form-group">
+            <label>CC Email:</label>
+            <input type="email" id="so-cc-email" class="form-control" placeholder="e.g. manager@jomaconstruction.com">
           </div>
         </div>
         <div class="form-group">
@@ -1735,11 +1741,12 @@
 
       const salesPerson = document.getElementById('so-salesperson').value.trim();
       const customerEmail = document.getElementById('so-email').value.trim();
+      const ccEmail = document.getElementById('so-cc-email').value.trim();
       const customerAddress = document.getElementById('so-address').value.trim();
       const date = document.getElementById('so-date').value;
 
       if (!salesPerson || !customerEmail) {
-        alert('"Order filled by" and Customer Email are required.');
+        alert('"Order filled by" and "Email Receipt to" are required.');
         return;
       }
 
@@ -1776,6 +1783,7 @@
         date,
         salesPerson,
         customerEmail,
+        ccEmail,
         customerAddress,
         items: [...activeCart],
         totalAmount: grandTotal,
@@ -1872,7 +1880,8 @@
           </div>
 
           <div style="margin-bottom: 15px; font-size: 0.85rem; background: #f1f5f9; padding: 10px; border-radius: 6px;">
-            <strong>Customer Email:</strong> ${escapeHtml(so.customerEmail)}<br>
+            <strong>Email Receipt to:</strong> ${escapeHtml(so.customerEmail)}<br>
+            ${so.ccEmail ? `<strong>CC Email:</strong> ${escapeHtml(so.ccEmail)}<br>` : ''}
             <strong>Job Name/Address:</strong> ${escapeHtml(so.customerAddress || 'N/A')}
           </div>
 
@@ -1959,16 +1968,21 @@
         console.warn('Native share failed or unhandled:', e);
       }
 
-      // Fallback download & mailto prompt
+      // Fallback download & mailto / Gmail compose prompt
       downloadInvoicePDF(soId);
       const subject = encodeURIComponent(`Sales Order Receipt ${so.soId}`);
       const body = encodeURIComponent(`Hello,\n\nPlease find attached receipt for Sales Order ${so.soId}.\nTotal Amount: $${so.totalAmount.toFixed(2)}\nDate: ${so.date}\n\nThank you.`);
-      const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(so.customerEmail)}&su=${subject}&body=${body}`;
+      
+      const ccParamGmail = so.ccEmail ? `&cc=${encodeURIComponent(so.ccEmail)}` : '';
+      const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(so.customerEmail)}${ccParamGmail}&su=${subject}&body=${body}`;
+
+      const ccParamMailto = so.ccEmail ? `?cc=${encodeURIComponent(so.ccEmail)}&` : '?';
+      const mailtoUrl = `mailto:${so.customerEmail}${ccParamMailto}subject=${subject}&body=${body}`;
 
       if (confirm("PDF downloaded! Click OK to open Gmail compose window, or Cancel to open standard mail client.")) {
         window.open(gmailUrl, '_blank');
       } else {
-        window.location.href = `mailto:${so.customerEmail}?subject=${subject}&body=${body}`;
+        window.location.href = mailtoUrl;
       }
 
       so.emailCount = (so.emailCount || 0) + 1;
