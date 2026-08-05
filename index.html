@@ -1020,13 +1020,25 @@
             stopModalCameraScanner();
         }
 
-        /* --- Voice Recognition Assistant System with Explicit Confirmation --- */
-        function openVoiceModal() {
+        /* --- Voice Recognition Assistant System with Microphone Prompt & Explicit Confirmation --- */
+        async function openVoiceModal() {
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             if (!SpeechRecognition) {
                 alert("Speech Recognition API is not supported in this browser.\n\nPlease use Chrome, Edge, or Safari 14.5+ on mobile.");
                 return;
             }
+
+            // Prompt explicitly for Microphone permission just like camera
+            try {
+                if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                    const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    audioStream.getTracks().forEach(track => track.stop()); // Immediately release test stream
+                }
+            } catch (err) {
+                alert("Microphone permission is required for the Voice Assistant: " + (err.message || err));
+                return;
+            }
+
             if (isScannerRunning) pauseCameraScanner();
 
             initSpeechRecognizer();
