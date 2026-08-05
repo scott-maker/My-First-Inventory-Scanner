@@ -1,2773 +1,1635 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Jomarket Manager - Mobile ERP & Inventory</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Jomarket Manager - Mobile ERP & Inventory</title>
+    <!-- HTML5 QRCode Scanner Library -->
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text: #0f172a;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --success: #10b981;
+            --success-bg: #d1fae5;
+            --danger: #ef4444;
+            --danger-bg: #fee2e2;
+            --warning: #f59e0b;
+            --warning-bg: #fef3c7;
+            --info-bg: #dbeafe;
+            --radius: 10px;
+        }
 
-  <!-- External CDN Dependencies -->
-  <script src="https://unpkg.com/html5-qrcode"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        body { background-color: var(--bg); color: var(--text); padding-bottom: 50px; -webkit-tap-highlight-color: transparent; }
 
-  <style>
-    :root {
-      --primary: #2563eb;
-      --primary-dark: #1d4ed8;
-      --bg-main: #f8fafc;
-      --bg-card: #ffffff;
-      --text-dark: #0f172a;
-      --text-muted: #64748b;
-      --border-color: #cbd5e1;
-      --accent-green: #10b981;
-      --accent-orange: #f59e0b;
-      --accent-red: #ef4444;
-      --accent-purple: #8b5cf6;
-    }
+        /* Header & Navigation */
+        header { background: var(--card-bg); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 4px rgba(0,0,0,0.04); }
+        .header-content { max-width: 1000px; margin: 0 auto; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; }
+        h1 { font-size: 1.1rem; font-weight: 700; color: var(--text); display: flex; align-items: center; gap: 6px; }
+        
+        .top-nav { display: flex; overflow-x: auto; background: var(--card-bg); border-bottom: 1px solid var(--border); padding: 4px 8px; gap: 4px; scrollbar-width: none; }
+        .top-nav::-webkit-scrollbar { display: none; }
+        .nav-tab { flex: 0 0 auto; padding: 8px 12px; font-size: 0.8rem; font-weight: 600; border: none; background: transparent; color: var(--text-muted); border-radius: 6px; cursor: pointer; white-space: nowrap; display: flex; align-items: center; gap: 4px; }
+        .nav-tab.active { background: var(--info-bg); color: var(--primary); }
+        .badge { background: var(--primary); color: white; border-radius: 10px; padding: 2px 6px; font-size: 0.7rem; font-weight: bold; }
 
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    }
+        .container { max-width: 1000px; margin: 0 auto; padding: 12px; }
 
-    body {
-      background-color: var(--bg-main);
-      color: var(--text-dark);
-      padding-bottom: 30px;
-    }
+        /* Dashboard Summary Grid */
+        .dash-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 12px; }
+        .dash-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px; text-align: center; }
+        .dash-val { font-size: 1.2rem; font-weight: 700; color: var(--text); }
+        .dash-lbl { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; }
 
-    /* Sticky Top App Header */
-    .app-header {
-      position: sticky;
-      top: 0;
-      z-index: 100;
-      background-color: #0f172a;
-      color: #ffffff;
-      padding: 12px 16px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    }
+        /* General Card & Controls */
+        .card { background: var(--card-bg); border-radius: var(--radius); padding: 16px; margin-top: 10px; border: 1px solid var(--border); box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .card-title { font-size: 0.95rem; font-weight: 600; margin-bottom: 12px; color: var(--text); display: flex; justify-content: space-between; align-items: center; }
 
-    .app-title {
-      font-size: 1.1rem;
-      font-weight: 700;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
+        .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 12px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; border: none; cursor: pointer; text-decoration: none; width: 100%; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-secondary { background: #f1f5f9; color: var(--text); border: 1px solid var(--border); }
+        .btn-success { background: var(--success); color: white; }
+        .btn-warning { background: var(--warning); color: white; }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-group { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 
-    .header-actions {
-      display: flex;
-      gap: 8px;
-    }
+        .form-group { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; }
+        .form-group label { font-size: 0.8rem; font-weight: 600; color: var(--text-muted); }
+        .form-control { padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.9rem; width: 100%; background: var(--card-bg); }
 
-    /* Horizontal Nav Bar (Scrollable without visible scrollbar) */
-    .top-nav {
-      display: flex;
-      background: #1e293b;
-      overflow-x: auto;
-      white-space: nowrap;
-      -ms-overflow-style: none;
-      scrollbar-width: none;
-      position: sticky;
-      top: 49px;
-      z-index: 99;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
-    }
+        .flex-row-gap { display: flex; gap: 6px; align-items: center; }
 
-    .top-nav::-webkit-scrollbar {
-      display: none;
-    }
+        /* Tables */
+        .table-wrapper { overflow-x: auto; border-radius: 8px; border: 1px solid var(--border); margin-top: 8px; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.82rem; text-align: left; background: var(--card-bg); }
+        th, td { padding: 8px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+        th { background: #f8fafc; color: var(--text-muted); font-weight: 600; }
 
-    .nav-tab {
-      padding: 12px 16px;
-      color: #94a3b8;
-      font-size: 0.85rem;
-      font-weight: 600;
-      border: none;
-      background: transparent;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      border-bottom: 3px solid transparent;
-      transition: all 0.2s;
-    }
+        /* Badges & Pills */
+        .pill { display: inline-block; padding: 2px 6px; border-radius: 10px; font-weight: 700; font-size: 0.7rem; }
+        .pill-in-stock { background: var(--success-bg); color: var(--success); }
+        .pill-low-stock { background: var(--warning-bg); color: #b45309; }
+        .pill-out-stock { background: var(--danger-bg); color: var(--danger); }
 
-    .nav-tab.active {
-      color: #ffffff;
-      border-bottom-color: var(--primary);
-      background: #334155;
-    }
+        /* Modals */
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 12px; opacity: 0; pointer-events: none; transition: opacity 0.2s ease; }
+        .modal-overlay.active { opacity: 1; pointer-events: auto; }
+        .modal-body { background: var(--card-bg); border-radius: 12px; max-width: 650px; width: 100%; max-height: 90vh; overflow-y: auto; padding: 16px; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
 
-    .nav-badge {
-      background: var(--accent-red);
-      color: white;
-      font-size: 0.7rem;
-      padding: 2px 6px;
-      border-radius: 10px;
-      font-weight: bold;
-    }
+        .scanner-box { width: 100%; border-radius: 8px; overflow: hidden; background: #000; min-height: 180px; margin-bottom: 10px; display: none; padding: 8px; }
 
-    /* Main Layout Containers */
-    .container {
-      padding: 16px;
-      max-width: 1400px;
-      margin: 0 auto;
-    }
-
-    .tab-content {
-      display: none;
-    }
-
-    .tab-content.active {
-      display: block;
-    }
-
-    /* Dashboard Summary Cards */
-    .dashboard-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-      gap: 12px;
-      margin-bottom: 16px;
-    }
-
-    .card {
-      background: var(--bg-card);
-      border: 1px solid var(--border-color);
-      border-radius: 8px;
-      padding: 14px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-    }
-
-    .card-title {
-      font-size: 0.75rem;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      font-weight: 700;
-      margin-bottom: 4px;
-    }
-
-    .card-value {
-      font-size: 1.4rem;
-      font-weight: 800;
-    }
-
-    /* Buttons & Form Controls */
-    .btn {
-      padding: 8px 14px;
-      border-radius: 6px;
-      border: none;
-      font-weight: 600;
-      font-size: 0.85rem;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      transition: opacity 0.2s, background 0.2s;
-    }
-
-    .btn-sm {
-      padding: 4px 8px;
-      font-size: 0.75rem;
-    }
-
-    .btn-primary { background: var(--primary); color: white; }
-    .btn-primary:hover { background: var(--primary-dark); }
-    .btn-success { background: var(--accent-green); color: white; }
-    .btn-warning { background: var(--accent-orange); color: white; }
-    .btn-danger { background: var(--accent-red); color: white; }
-    .btn-secondary { background: #64748b; color: white; }
-    .btn-outline { background: transparent; border: 1px solid var(--border-color); color: var(--text-dark); }
-
-    .form-group {
-      margin-bottom: 12px;
-    }
-
-    .form-group label {
-      display: block;
-      font-size: 0.8rem;
-      font-weight: 600;
-      margin-bottom: 4px;
-      color: var(--text-dark);
-    }
-
-    .form-control {
-      width: 100%;
-      padding: 8px 10px;
-      border: 1px solid var(--border-color);
-      border-radius: 6px;
-      font-size: 0.9rem;
-      background-color: #ffffff;
-    }
-
-    .form-control:focus {
-      outline: 2px solid var(--primary);
-    }
-
-    .form-row {
-      display: flex;
-      gap: 12px;
-    }
-
-    .form-row .form-group {
-      flex: 1;
-    }
-
-    /* Tables & Lists */
-    .table-container {
-      background: var(--bg-card);
-      border: 1px solid var(--border-color);
-      border-radius: 8px;
-      overflow-x: auto;
-      margin-top: 12px;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      text-align: left;
-      font-size: 0.85rem;
-    }
-
-    th {
-      background: #f1f5f9;
-      padding: 10px;
-      font-weight: 700;
-      color: var(--text-dark);
-      border-bottom: 1px solid var(--border-color);
-      white-space: nowrap;
-    }
-
-    td {
-      padding: 10px;
-      border-bottom: 1px solid var(--border-color);
-      vertical-align: middle;
-    }
-
-    tr:last-child td {
-      border-bottom: none;
-    }
-
-    /* Badges & Status Pills */
-    .badge {
-      display: inline-block;
-      padding: 3px 8px;
-      border-radius: 12px;
-      font-size: 0.7rem;
-      font-weight: 700;
-      text-transform: uppercase;
-    }
-
-    .badge-in-stock { background: #d1fae5; color: #065f46; }
-    .badge-low-stock { background: #fef3c7; color: #92400e; }
-    .badge-out-of-stock { background: #fee2e2; color: #991b1b; }
-    .badge-info { background: #dbeafe; color: #1e40af; }
-
-    /* Modals */
-    .modal-overlay {
-      position: fixed;
-      inset: 0;
-      background: rgba(15, 23, 42, 0.6);
-      display: none;
-      align-items: center;
-      justify-content: center;
-      z-index: 1000;
-      padding: 16px;
-    }
-
-    .modal-overlay.active {
-      display: flex;
-    }
-
-    .modal {
-      background: var(--bg-card);
-      border-radius: 10px;
-      width: 100%;
-      max-width: 650px;
-      max-height: 90vh;
-      overflow-y: auto;
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
-    }
-
-    .modal-header {
-      padding: 14px 16px;
-      border-bottom: 1px solid var(--border-color);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .modal-title {
-      font-weight: 700;
-      font-size: 1.05rem;
-    }
-
-    .modal-body {
-      padding: 16px;
-    }
-
-    .modal-footer {
-      padding: 12px 16px;
-      border-top: 1px solid var(--border-color);
-      display: flex;
-      justify-content: flex-end;
-      gap: 8px;
-      background: #f8fafc;
-    }
-
-    /* Hardware Scanner Video Container */
-    .scanner-viewfinder {
-      width: 100%;
-      max-width: 450px;
-      margin: 10px auto;
-      border: 2px dashed var(--primary);
-      border-radius: 8px;
-      overflow: hidden;
-      display: none;
-      background: #000;
-    }
-
-    /* Utility Helpers */
-    .text-truncate {
-      max-width: 180px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      display: inline-block;
-    }
-
-    .flex-between {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .grid-2 {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-    }
-
-    @media (max-width: 640px) {
-      .grid-2 {
-        grid-template-columns: 1fr;
-      }
-      .form-row {
-        flex-direction: column;
-        gap: 0;
-      }
-    }
-  </style>
+        @media (max-width: 600px) {
+            .dash-grid { grid-template-columns: repeat(2, 1fr); }
+            .grid-2 { display: flex; flex-direction: column; gap: 8px; }
+        }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    </style>
 </head>
 <body>
 
-  <!-- Sticky Top App Header -->
-  <header class="app-header">
-    <div class="app-title">
-      📦 <span>Jomarket Manager</span>
+    <header>
+        <div class="header-content">
+            <h1>🏬 Jomarket Manager</h1>
+            <button class="btn btn-secondary" style="width: auto; padding: 4px 8px; font-size: 0.75rem;" onclick="resetDefaultData()">Reset Demo Data</button>
+        </div>
+        <nav class="top-nav">
+            <button class="nav-tab active" onclick="switchTab('tab-inventory', this)">📦 Inventory</button>
+            <button class="nav-tab" onclick="switchTab('tab-sales', this)">🛒 Sales Entry</button>
+            <button class="nav-tab" onclick="switchTab('tab-sales-history', this)">📜 Sales History</button>
+            <button class="nav-tab" onclick="switchTab('tab-vendors', this)">🏢 Vendors</button>
+            <button class="nav-tab" onclick="switchTab('tab-po-builder', this)">➕ PO Builder <span id="badge-po-builder" class="badge">0</span></button>
+            <button class="nav-tab" onclick="switchTab('tab-po-active', this)">📄 Active POs <span id="badge-po-active" class="badge">0</span></button>
+            <button class="nav-tab" onclick="switchTab('tab-physical', this)">📋 Physical Count</button>
+            <button class="nav-tab" onclick="switchTab('tab-product-history', this)">📜 Product Log</button>
+            <button class="nav-tab" onclick="switchTab('tab-vendor-history', this)">🤝 Vendor Log</button>
+        </nav>
+    </header>
+
+    <div class="container">
+
+        <!-- Top Metric Cards -->
+        <div class="dash-grid">
+            <div class="dash-card"><div class="dash-val" id="dash-tot-prod">0</div><div class="dash-lbl">Total Products</div></div>
+            <div class="dash-card"><div class="dash-val" id="dash-low-stock" style="color:var(--warning)">0</div><div class="dash-lbl">Low Stock</div></div>
+            <div class="dash-card"><div class="dash-val" id="dash-out-stock" style="color:var(--danger)">0</div><div class="dash-lbl">Out of Stock</div></div>
+            <div class="dash-card"><div class="dash-val" id="dash-savings" style="color:var(--success)">$0.00</div><div class="dash-lbl">Total Savings</div></div>
+        </div>
+
+        <!-- TAB 1: INVENTORY CATALOG -->
+        <div id="tab-inventory" class="tab-content">
+            <div class="card">
+                <div class="card-title">
+                    <span>📦 Inventory Master Catalog</span>
+                    <div style="display:flex; gap:4px;">
+                        <button class="btn btn-secondary" style="width:auto; font-size:0.75rem;" onclick="openProductModal(-1)">+ Add Item</button>
+                        <button class="btn btn-secondary" style="width:auto; font-size:0.75rem;" onclick="openCSVImportModal()">📥 Import CSV</button>
+                        <button class="btn btn-secondary" style="width:auto; font-size:0.75rem;" onclick="openExportModal()">📤 Export CSV</button>
+                    </div>
+                </div>
+                <input type="text" id="inv-search" class="form-control" placeholder="🔍 Search name, brand, UPC, SKU, Vendor..." oninput="renderInventoryTable()">
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Build</th>
+                                <th>Product Name</th>
+                                <th>UPC / Barcode</th>
+                                <th>Book Stock</th>
+                                <th>Reorder Point</th>
+                                <th>Status</th>
+                                <th>Preferred Vendor</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="inv-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 2: JOMARKET SALES ENTRY -->
+        <div id="tab-sales" class="tab-content" style="display:none;">
+            <div class="card">
+                <div class="card-title">🛒 Outgoing Sales Dispatch Sheet</div>
+                <div class="grid-2">
+                    <div class="form-group"><label>Dispatch Date</label><input type="date" id="so-date" class="form-control"></div>
+                    <div class="form-group"><label>Sales Representative</label><input type="text" id="so-rep" class="form-control" placeholder="Rep Name"></div>
+                </div>
+                <div class="form-group"><label>Target Accounting Email</label><input type="email" id="so-email" class="form-control" value="Receiptstest@jomaconstruction.com"></div>
+                <div class="form-group"><label>Customer / Jobsite Address</label><textarea id="so-address" class="form-control" rows="2" placeholder="Enter Jobsite Address"></textarea></div>
+
+                <hr style="margin:12px 0; border:none; border-top:1px solid var(--border);">
+
+                <div class="card-title" style="font-size:0.85rem;">Add Item to Sales Order</div>
+                
+                <!-- Sales Scanner Box -->
+                <div id="sales-reader-box" class="scanner-box">
+                    <div class="form-group" style="margin-bottom:6px;">
+                        <label style="color:#fff; font-size:0.75rem;">📷 Choose Camera Lens:</label>
+                        <select id="sales-camera-select" class="form-control" onchange="onCameraSelectChange(this.value)">
+                            <option value="">Default Rear Camera</option>
+                        </select>
+                    </div>
+                    <div id="sales-reader" style="width:100%; min-height:180px;"></div>
+                    <button type="button" class="btn btn-danger" style="margin-top:6px; font-size:0.75rem; padding:4px;" onclick="stopAllScanners()">⏹ Close Scanner</button>
+                </div>
+
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label>Select Product</label>
+                        <div class="flex-row-gap">
+                            <select id="so-item-select" class="form-control"></select>
+                            <button type="button" class="btn btn-primary" style="width:auto; white-space:nowrap; padding:6px 10px; font-size:0.8rem;" onclick="startSalesScanner()">📷 Scan</button>
+                        </div>
+                    </div>
+                    <div class="form-group"><label>Cost Code</label><input type="text" id="so-cost-code" class="form-control" placeholder="e.g. CC-401"></div>
+                </div>
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label>Classification</label>
+                        <select id="so-class" class="form-control">
+                            <option value="Materials for Job">Materials for Job</option>
+                            <option value="In-house Supplies">In-house Supplies</option>
+                        </select>
+                    </div>
+                    <div class="form-group"><label>Quantity</label><input type="number" id="so-qty" class="form-control" value="1" min="1"></div>
+                </div>
+                <button class="btn btn-secondary" onclick="addLineToSOQueue()">+ Add Item to Dispatch Cart</button>
+
+                <div class="table-wrapper" style="margin-top:12px;">
+                    <table>
+                        <thead>
+                            <tr><th>Item</th><th>Class</th><th>Cost Code</th><th>Qty</th><th>Cost</th><th>Subtotal</th><th>Action</th></tr>
+                        </thead>
+                        <tbody id="so-cart-body"></tbody>
+                    </table>
+                </div>
+
+                <button class="btn btn-success" style="margin-top:12px;" onclick="submitSalesOrder()">⚡ Submit Order & Subtract Stock</button>
+            </div>
+        </div>
+
+        <!-- TAB 3: SALES HISTORY -->
+        <div id="tab-sales-history" class="tab-content" style="display:none;">
+            <div class="card">
+                <div class="card-title">📜 Sales Order History Ledger</div>
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr><th>Invoice ID</th><th>Date</th><th>Rep</th><th>Target Email</th><th>Total</th><th>Status</th><th>Actions</th></tr>
+                        </thead>
+                        <tbody id="so-history-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 4: VENDORS -->
+        <div id="tab-vendors" class="tab-content" style="display:none;">
+            <div class="card">
+                <div class="card-title">
+                    <span>🏢 Vendor Directory</span>
+                    <button class="btn btn-secondary" style="width:auto; font-size:0.75rem;" onclick="addVendorPrompt()">+ Add Vendor</button>
+                </div>
+                <div class="table-wrapper">
+                    <table>
+                        <thead><tr><th>Vendor Name</th><th>Email</th><th>Phone</th><th>Actions</th></tr></thead>
+                        <tbody id="vendor-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 5: PO BUILDER QUEUE -->
+        <div id="tab-po-builder" class="tab-content" style="display:none;">
+            <div class="card">
+                <div class="card-title">➕ Purchase Order Queue Builder</div>
+                <p style="font-size:0.8rem; color:var(--text-muted); margin-bottom:10px;">Items drop here automatically when stock drops below reorder point or when manually queued.</p>
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr><th>Select</th><th>Product Name</th><th>Preferred Vendor</th><th>Current Stock</th><th>Order Unit</th></tr>
+                        </thead>
+                        <tbody id="po-builder-body"></tbody>
+                    </table>
+                </div>
+                <button class="btn btn-primary" style="margin-top:12px;" onclick="createPOFromBuilder()">🚀 Create Draft PO with Selected Items</button>
+            </div>
+        </div>
+
+        <!-- TAB 6: ACTIVE PURCHASE ORDERS -->
+        <div id="tab-po-active" class="tab-content" style="display:none;">
+            <div class="card">
+                <div class="card-title">📄 Purchase Order Lifecycle Management</div>
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr><th>PO ID</th><th>Created</th><th>Status</th><th>Winning Vendor</th><th>Items</th><th>Actions</th></tr>
+                        </thead>
+                        <tbody id="po-active-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 7: PHYSICAL COUNT & AUDIT RECONCILIATION -->
+        <div id="tab-physical" class="tab-content" style="display:none;">
+            <div class="card">
+                <div class="card-title">
+                    <span>📷 Scan Barcode for Physical Reconciliation</span>
+                    <button id="btn-phys-toggle" class="btn btn-primary" style="width:auto; padding:4px 8px; font-size:0.75rem;" onclick="togglePhysScanner()">Start Audit Scanner</button>
+                </div>
+
+                <!-- Audit Scanner Box -->
+                <div id="phys-reader-box" class="scanner-box">
+                    <div class="form-group" style="margin-bottom:6px;">
+                        <label style="color:#fff; font-size:0.75rem;">📷 Choose Camera Lens:</label>
+                        <select id="phys-camera-select" class="form-control" onchange="onCameraSelectChange(this.value)">
+                            <option value="">Default Rear Camera</option>
+                        </select>
+                    </div>
+                    <div id="phys-reader" style="width:100%; min-height:180px;"></div>
+                </div>
+                <div id="phys-scan-result"></div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">📋 Physical Inventory Reconciliation Ledger</div>
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr><th>Product Name</th><th>System Stock</th><th>Physical Count</th><th>Variance</th><th>Action</th></tr>
+                        </thead>
+                        <tbody id="physical-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 8: PRODUCT HISTORY LOG -->
+        <div id="tab-product-history" class="tab-content" style="display:none;">
+            <div class="card">
+                <div class="card-title">📜 Product Audit Trail</div>
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr><th>Timestamp</th><th>Product</th><th>Action Type</th><th>Qty Change</th><th>Ref / Notes</th></tr>
+                        </thead>
+                        <tbody id="prod-history-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 9: VENDOR HISTORY LOG -->
+        <div id="tab-vendor-history" class="tab-content" style="display:none;">
+            <div class="card">
+                <div class="card-title">🤝 Vendor Interaction Audit Trail</div>
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr><th>Timestamp</th><th>Vendor Name</th><th>Action Type</th><th>Details</th><th>Value ($)</th></tr>
+                        </thead>
+                        <tbody id="vendor-history-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
     </div>
-    <div class="header-actions">
-      <button class="btn btn-sm btn-warning" onclick="resetDemoData()">Reset Demo</button>
-      <button class="btn btn-sm btn-danger" onclick="eraseAllData()">Erase All</button>
+
+    <!-- MODAL 1: Product Editor -->
+    <div id="modal-product" class="modal-overlay">
+        <div class="modal-body">
+            <div class="modal-header">
+                <h3 id="modal-prod-title">Product Details</h3>
+                <button onclick="closeModal('modal-product')" style="border:none; background:none; font-size:1.2rem; cursor:pointer;">✕</button>
+            </div>
+
+            <!-- Modal UPC Scanner Box -->
+            <div id="modal-upc-reader-box" class="scanner-box">
+                <div class="form-group" style="margin-bottom:6px;">
+                    <label style="color:#fff; font-size:0.75rem;">📷 Choose Camera Lens:</label>
+                    <select id="modal-camera-select" class="form-control" onchange="onCameraSelectChange(this.value)">
+                        <option value="">Default Rear Camera</option>
+                    </select>
+                </div>
+                <div id="modal-upc-reader" style="width:100%; min-height:180px;"></div>
+                <button type="button" class="btn btn-danger" style="margin-top:6px; font-size:0.75rem; padding:4px;" onclick="stopAllScanners()">⏹ Stop Camera Scan</button>
+            </div>
+
+            <form id="form-product" onsubmit="saveProduct(event)">
+                <input type="hidden" id="fp-id">
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label>UPC (Bar Code)</label>
+                        <div class="flex-row-gap">
+                            <input type="text" id="fp-upc" class="form-control">
+                            <button type="button" class="btn btn-primary" style="width:auto; white-space:nowrap; padding:6px 10px; font-size:0.8rem;" onclick="startModalUPCScanner()">📷 Scan</button>
+                        </div>
+                    </div>
+                    <div class="form-group"><label>Product Name</label><input type="text" id="fp-name" class="form-control" required></div>
+                    <div class="form-group"><label>Brand Name</label><input type="text" id="fp-brand" class="form-control" placeholder="e.g. Acme, DeWalt"></div>
+                    <div class="form-group"><label>Book Inventory (Stock)</label><input type="number" id="fp-stock" class="form-control" value="0"></div>
+                    <div class="form-group"><label>Physical Inventory</label><input type="number" id="fp-physical" class="form-control" value="0"></div>
+                    <div class="form-group"><label>Reorder Threshold</label><input type="number" id="fp-reorder" class="form-control" value="0"></div>
+                    <div class="form-group"><label>Par Level</label><input type="number" id="fp-par" class="form-control" value="0"></div>
+                    <div class="form-group"><label>Base Unit (e.g. bag, bottle)</label><input type="text" id="fp-unit" class="form-control"></div>
+                    <div class="form-group"><label>Wholesale Order Unit (case)</label><input type="text" id="fp-orderUnit" class="form-control"></div>
+                    <div class="form-group"><label>Units Per Order</label><input type="number" id="fp-unitsPerOrder" class="form-control" value="1"></div>
+                    <div class="form-group"><label>List Price ($)</label><input type="number" step="0.01" id="fp-listPrice" class="form-control" value="0.00"></div>
+                    <div class="form-group"><label>Cost on Delivery ($)</label><input type="number" step="0.01" id="fp-cost" class="form-control" value="0.00"></div>
+                    <div class="form-group"><label>Category</label><input type="text" id="fp-category" class="form-control"></div>
+                    <div class="form-group"><label>Preferred Vendor</label><input type="text" id="fp-vendor" class="form-control"></div>
+                    <div class="form-group"><label>SKU</label><input type="text" id="fp-sku" class="form-control"></div>
+                </div>
+                <div class="btn-group" style="margin-top:12px;">
+                    <button type="submit" class="btn btn-success">💾 Save Product</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('modal-product')">Cancel</button>
+                </div>
+            </form>
+        </div>
     </div>
-  </header>
 
-  <!-- Horizontal Scrollable Navigation Tabs -->
-  <nav class="top-nav">
-    <button class="nav-tab active" onclick="switchTab('inventory')">📦 Inventory</button>
-    <button class="nav-tab" onclick="switchTab('sales-entry')">🛒 Sales Entry</button>
-    <button class="nav-tab" onclick="switchTab('sales-history')">📜 Sales History</button>
-    <button class="nav-tab" onclick="switchTab('vendors')">🏢 Vendors</button>
-    <button class="nav-tab" onclick="switchTab('po-builder')">➕ PO Builder <span id="badge-po-builder" class="nav-badge">0</span></button>
-    <button class="nav-tab" onclick="switchTab('active-pos')">📄 Active POs <span id="badge-active-pos" class="nav-badge">0</span></button>
-    <button class="nav-tab" onclick="switchTab('physical-count')">📋 Physical Count</button>
-    <button class="nav-tab" onclick="switchTab('product-log')">📜 Product Log</button>
-    <button class="nav-tab" onclick="switchTab('vendor-log')">🤝 Vendor Log</button>
-  </nav>
+    <!-- MODAL 2: CSV / Text File & Text Import -->
+    <div id="modal-csv" class="modal-overlay">
+        <div class="modal-body">
+            <div class="modal-header">
+                <h3>📥 Import CSV or Text File</h3>
+                <button onclick="closeModal('modal-csv')" style="border:none; background:none; font-size:1.2rem; cursor:pointer;">✕</button>
+            </div>
+            
+            <div class="form-group" style="margin-bottom:12px;">
+                <label>📄 Select .csv or .txt File from Device:</label>
+                <input type="file" id="csv-file-input" accept=".csv,.txt" class="form-control" onchange="handleFileSelect(event)">
+            </div>
 
-  <!-- Shared Camera Selection Bar -->
-  <div class="container" style="padding-bottom: 0;">
-    <div style="background: #e2e8f0; padding: 6px 12px; border-radius: 6px; display: flex; align-items: center; gap: 8px; font-size: 0.8rem;">
-      <label for="camera-select-global"><strong>📷 Active Camera Lens:</strong></label>
-      <select id="camera-select-global" class="camera-select form-control" style="max-width: 300px; padding: 4px;" onchange="savePreferredCamera(this.value)">
-        <option value="">Default Environment Lens</option>
-      </select>
+            <div class="form-group">
+                <label>File Preview / Raw CSV Text:</label>
+                <textarea id="raw-csv-text" class="form-control" rows="6" placeholder="Select a file above or paste raw CSV text here..."></textarea>
+            </div>
+
+            <div class="btn-group" style="margin-top:12px;">
+                <button class="btn btn-success" onclick="processRawCSVImport()">Import Inventory</button>
+                <button class="btn btn-secondary" onclick="closeModal('modal-csv')">Cancel</button>
+            </div>
+        </div>
     </div>
-  </div>
 
-  <main class="container">
-
-    <!-- TAB 1: INVENTORY MASTER CATALOG -->
-    <section id="tab-inventory" class="tab-content active">
-      <div class="dashboard-grid">
-        <div class="card">
-          <div class="card-title">Total Products</div>
-          <div class="card-value" id="stat-total-products">0</div>
+    <!-- MODAL 3: Bidding & PO Comparison Modal -->
+    <div id="modal-po-action" class="modal-overlay">
+        <div class="modal-body">
+            <div class="modal-header">
+                <h3 id="modal-po-title">PO Management</h3>
+                <button onclick="closeModal('modal-po-action')" style="border:none; background:none; font-size:1.2rem; cursor:pointer;">✕</button>
+            </div>
+            <div id="modal-po-content"></div>
         </div>
-        <div class="card">
-          <div class="card-title">Low Stock Items</div>
-          <div class="card-value" style="color: var(--accent-orange)" id="stat-low-stock">0</div>
-        </div>
-        <div class="card">
-          <div class="card-title">Out of Stock</div>
-          <div class="card-value" style="color: var(--accent-red)" id="stat-out-of-stock">0</div>
-        </div>
-        <div class="card">
-          <div class="card-title">Procurement Savings</div>
-          <div class="card-value" style="color: var(--accent-green)" id="stat-total-savings">$0.00</div>
-        </div>
-      </div>
-
-      <div class="flex-between" style="flex-wrap: wrap; gap: 8px; margin-bottom: 12px;">
-        <input type="text" id="inventory-search" class="form-control" style="max-width: 300px;" placeholder="Search name, brand, UPC, SKU..." oninput="renderInventoryTable()">
-        <div style="display: flex; gap: 8px;">
-          <button class="btn btn-primary" onclick="openProductModal()">+ Add Product</button>
-          <button class="btn btn-secondary" onclick="openCsvModal()">📥 Import CSV</button>
-          <button class="btn btn-outline" onclick="openExportColsModal()">📤 Export CSV</button>
-        </div>
-      </div>
-
-      <div class="table-container">
-        <table>
-          <thead>
-            <tr>
-              <th><input type="checkbox" title="Select All for PO Builder" onclick="toggleAllPoBuilder(this)"></th>
-              <th>Name</th>
-              <th>Category</th>
-              <th>Base UPC</th>
-              <th>Bulk UPC</th>
-              <th>Stock (Base)</th>
-              <th>Phys. Count</th>
-              <th>Variance</th>
-              <th>Cost / Unit</th>
-              <th>Status</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody id="inventory-table-body">
-            <!-- Dynamic Injection -->
-          </tbody>
-        </table>
-      </div>
-    </section>
-
-    <!-- TAB 2: SALES ENTRY -->
-    <section id="tab-sales-entry" class="tab-content">
-      <div class="card" style="margin-bottom: 16px;">
-        <div class="card-title" style="font-size: 1rem; margin-bottom: 12px;">New Sales Order Dispatch</div>
-        <div class="form-row">
-          <div class="form-group">
-            <label>Dispatch Date</label>
-            <input type="date" id="so-date" class="form-control">
-          </div>
-          <div class="form-group">
-            <label>Order filled by:</label>
-            <input type="text" id="so-salesperson" class="form-control" placeholder="e.g. John Doe">
-          </div>
-        </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label>Email Receipt to:</label>
-            <input type="email" id="so-email" class="form-control" value="receipts@jomaconstruction.com">
-          </div>
-          <div class="form-group">
-            <label>CC Email:</label>
-            <input type="email" id="so-cc-email" class="form-control" placeholder="e.g. manager@jomaconstruction.com">
-          </div>
-        </div>
-        <div class="form-group">
-          <label>Job Name/Address</label>
-          <input type="text" id="so-address" class="form-control" placeholder="123 Jobsite Way, Building B">
-        </div>
-      </div>
-
-      <div class="card" style="margin-bottom: 16px;">
-        <div class="flex-between" style="margin-bottom: 8px;">
-          <strong>Scan & Add Items to Sales Cart</strong>
-          <button class="btn btn-sm btn-primary" onclick="toggleSalesScanner()">📷 Toggle Barcode Scanner</button>
-        </div>
-        <div id="sales-scanner-container" class="scanner-viewfinder"></div>
-
-        <div class="form-row" style="margin-top: 12px;">
-          <div class="form-group" style="flex: 2;">
-            <label>Manual Barcode / Product Select</label>
-            <select id="sales-product-select" class="form-control">
-              <!-- Dynamically Populated -->
-            </select>
-          </div>
-          <div class="form-group" style="flex: 1; align-self: flex-end;">
-            <button class="btn btn-success" style="width: 100%;" onclick="addSelectedProductToCart()">+ Add Item</button>
-          </div>
-        </div>
-      </div>
-
-      <div class="table-container">
-        <table>
-          <thead>
-            <tr>
-              <th>Item Name</th>
-              <th>UOM</th>
-              <th>Classification</th>
-              <th>Cost Code</th>
-              <th>Quantity</th>
-              <th>Unit Price ($)</th>
-              <th>Line Total</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody id="sales-cart-body">
-            <!-- Dynamic Injection -->
-          </tbody>
-        </table>
-      </div>
-
-      <div class="flex-between" style="margin-top: 16px; background: white; padding: 16px; border-radius: 8px; border: 1px solid var(--border-color);">
-        <div>
-          <span style="font-size: 1.1rem; font-weight: bold;">Grand Total: </span>
-          <span id="sales-cart-total" style="font-size: 1.3rem; font-weight: bold; color: var(--primary);">$0.00</span>
-        </div>
-        <button class="btn btn-success" style="font-size: 1rem; padding: 10px 20px;" onclick="submitSalesOrder()">🚀 Submit & Process Sales Order</button>
-      </div>
-    </section>
-
-    <!-- TAB 3: SALES HISTORY & RECEIPT / PDF -->
-    <section id="tab-sales-history" class="tab-content">
-      <h2 style="font-size: 1.2rem; margin-bottom: 12px;">Historical Sales Receipts</h2>
-      <div class="table-container">
-        <table>
-          <thead>
-            <tr>
-              <th>SO Number</th>
-              <th>Date</th>
-              <th>Job Name/Address</th>
-              <th>Items Count</th>
-              <th>Total Amount</th>
-              <th>Emails Sent</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody id="sales-history-body">
-            <!-- Dynamic Injection -->
-          </tbody>
-        </table>
-      </div>
-    </section>
-
-    <!-- TAB 4: VENDORS -->
-    <section id="tab-vendors" class="tab-content">
-      <div class="flex-between" style="margin-bottom: 12px;">
-        <h2 style="font-size: 1.2rem;">Vendor Directory</h2>
-        <button class="btn btn-primary" onclick="openVendorModal()">+ Add New Vendor</button>
-      </div>
-      <div class="table-container">
-        <table>
-          <thead>
-            <tr>
-              <th>Vendor ID</th>
-              <th>Company Name</th>
-              <th>Email</th>
-              <th>Phone</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody id="vendors-table-body">
-            <!-- Dynamic Injection -->
-          </tbody>
-        </table>
-      </div>
-    </section>
-
-    <!-- TAB 5: PO BUILDER -->
-    <section id="tab-po-builder" class="tab-content">
-      <div class="flex-between" style="margin-bottom: 12px;">
-        <div>
-          <h2 style="font-size: 1.2rem;">Purchase Order Builder Queue</h2>
-          <p style="font-size: 0.8rem; color: var(--text-muted);">Select queued items to group into a Purchase Order.</p>
-        </div>
-        <button class="btn btn-success" onclick="generateDraftPoFromQueue()">📝 Create Draft Purchase Order (Selected)</button>
-      </div>
-      <div class="table-container">
-        <table>
-          <thead>
-            <tr>
-              <th style="width: 40px;"><input type="checkbox" id="po-builder-master-cb" checked title="Select/Deselect All" onclick="toggleAllPoBuilderItems(this)"></th>
-              <th>Product Name</th>
-              <th>Current Base Stock</th>
-              <th>Reorder Point</th>
-              <th>Bulk Packaging (UOM)</th>
-              <th>Suggested Bulk Order Qty</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody id="po-builder-body">
-            <!-- Dynamic Injection -->
-          </tbody>
-        </table>
-      </div>
-    </section>
-
-    <!-- TAB 6: ACTIVE POS -->
-    <section id="tab-active-pos" class="tab-content">
-      <h2 style="font-size: 1.2rem; margin-bottom: 12px;">Purchase Orders Lifecycle</h2>
-      <div class="table-container">
-        <table>
-          <thead>
-            <tr>
-              <th>PO Number</th>
-              <th>Created Date</th>
-              <th>Status</th>
-              <th>Winning Vendor</th>
-              <th>Items Count</th>
-              <th>Actions / Bidding Lifecycle</th>
-            </tr>
-          </thead>
-          <tbody id="active-pos-body">
-            <!-- Dynamic Injection -->
-          </tbody>
-        </table>
-      </div>
-    </section>
-
-    <!-- TAB 7: PHYSICAL COUNT & AUDIT RECONCILIATION -->
-    <section id="tab-physical-count" class="tab-content">
-      <div class="card" style="margin-bottom: 16px;">
-        <div class="flex-between">
-          <div>
-            <h2 style="font-size: 1.1rem;">Single-Scan Physical Inventory Audit</h2>
-            <p style="font-size: 0.8rem; color: var(--text-muted);">Scan any item barcode to instantly perform count reconciliation.</p>
-          </div>
-          <button class="btn btn-primary" onclick="togglePhysScanner()">📷 Toggle Single-Scan Camera</button>
-        </div>
-        <div id="phys-scanner-container" class="scanner-viewfinder"></div>
-      </div>
-
-      <div class="flex-between" style="margin-bottom: 12px;">
-        <h3 style="font-size: 1rem;">Stock vs. Physical Audit Reconciliation</h3>
-        <button class="btn btn-warning" onclick="syncAllStockToPhysical()">🔄 Global Sync Stock to Physical Count</button>
-      </div>
-
-      <div class="table-container">
-        <table>
-          <thead>
-            <tr>
-              <th>Product Name</th>
-              <th>Base UPC</th>
-              <th>Book Stock</th>
-              <th>Physical Count</th>
-              <th>Variance</th>
-              <th>Status</th>
-              <th>Audit Action</th>
-            </tr>
-          </thead>
-          <tbody id="physical-audit-body">
-            <!-- Dynamic Injection -->
-          </tbody>
-        </table>
-      </div>
-    </section>
-
-    <!-- TAB 8: PRODUCT HISTORY LOG -->
-    <section id="tab-product-log" class="tab-content">
-      <div class="flex-between" style="margin-bottom: 12px;">
-        <h2 style="font-size: 1.2rem;">Product Audit Trail</h2>
-        <button class="btn btn-sm btn-danger" onclick="clearProductHistory()">Clear Log</button>
-      </div>
-      <div class="table-container">
-        <table>
-          <thead>
-            <tr>
-              <th>Timestamp</th>
-              <th>Product Name</th>
-              <th>Action Type</th>
-              <th>Qty Change</th>
-              <th>Reference Notes</th>
-            </tr>
-          </thead>
-          <tbody id="product-log-body">
-            <!-- Dynamic Injection -->
-          </tbody>
-        </table>
-      </div>
-    </section>
-
-    <!-- TAB 9: VENDOR HISTORY LOG -->
-    <section id="tab-vendor-log" class="tab-content">
-      <div class="flex-between" style="margin-bottom: 12px;">
-        <h2 style="font-size: 1.2rem;">Vendor Interaction Log</h2>
-        <button class="btn btn-sm btn-danger" onclick="clearVendorHistory()">Clear Log</button>
-      </div>
-      <div class="table-container">
-        <table>
-          <thead>
-            <tr>
-              <th>Timestamp</th>
-              <th>Vendor Name</th>
-              <th>Action Type</th>
-              <th>Details</th>
-              <th>Value ($)</th>
-            </tr>
-          </thead>
-          <tbody id="vendor-log-body">
-            <!-- Dynamic Injection -->
-          </tbody>
-        </table>
-      </div>
-    </section>
-
-  </main>
-
-  <!-- MODAL 1: PRODUCT ADD / EDIT -->
-  <div id="modal-product" class="modal-overlay">
-    <div class="modal">
-      <div class="modal-header">
-        <h3 class="modal-title" id="modal-product-title">Add New Product</h3>
-        <button class="btn btn-sm btn-outline" onclick="closeModal('modal-product')">✖</button>
-      </div>
-      <div class="modal-body">
-        <form id="form-product">
-          <input type="hidden" id="prod-id">
-          
-          <div class="form-row">
-            <div class="form-group">
-              <label>Product Name *</label>
-              <input type="text" id="prod-name" class="form-control" required>
-            </div>
-            <div class="form-group">
-              <label>Brand</label>
-              <input type="text" id="prod-brand" class="form-control">
-            </div>
-          </div>
-
-          <div class="form-row">
-            <div class="form-group">
-              <label>Base Item Barcode (UPC)</label>
-              <input type="text" id="prod-base-upc" class="form-control">
-            </div>
-            <div class="form-group">
-              <label>Bulk Case Barcode (UPC)</label>
-              <input type="text" id="prod-bulk-upc" class="form-control">
-            </div>
-          </div>
-
-          <div class="form-row">
-            <div class="form-group">
-              <label>Base UOM (e.g. EA, RL)</label>
-              <input type="text" id="prod-base-uom" class="form-control" value="EA" required>
-            </div>
-            <div class="form-group">
-              <label>Bulk UOM (e.g. CS, BOX)</label>
-              <input type="text" id="prod-bulk-uom" class="form-control" value="CS" required>
-            </div>
-            <div class="form-group">
-              <label>Units per Bulk UOM</label>
-              <input type="number" id="prod-uom-conversion" class="form-control" value="1" min="1" required>
-            </div>
-          </div>
-
-          <div class="form-row">
-            <div class="form-group">
-              <label>Current Base Stock</label>
-              <input type="number" id="prod-stock" class="form-control" value="0" required>
-            </div>
-            <div class="form-group">
-              <label>Physical Inventory</label>
-              <input type="number" id="prod-physical" class="form-control" value="0" required>
-            </div>
-          </div>
-
-          <div class="form-row">
-            <div class="form-group">
-              <label>Reorder Point (Base UOM)</label>
-              <input type="number" id="prod-reorder" class="form-control" value="5" required>
-            </div>
-            <div class="form-group">
-              <label>Par Level (Base UOM)</label>
-              <input type="number" id="prod-par" class="form-control" value="20" required>
-            </div>
-          </div>
-
-          <div class="form-row">
-            <div class="form-group">
-              <label>Base Cost Price ($)</label>
-              <input type="number" step="0.01" id="prod-cost" class="form-control" value="0.00" required>
-            </div>
-            <div class="form-group">
-              <label>Base List Price ($)</label>
-              <input type="number" step="0.01" id="prod-price" class="form-control" value="0.00" required>
-            </div>
-          </div>
-
-          <div class="form-row">
-            <div class="form-group">
-              <label>Category</label>
-              <input type="text" id="prod-category" class="form-control" value="General">
-            </div>
-            <div class="form-group">
-              <label>Preferred Vendor</label>
-              <select id="prod-preferred-vendor" class="form-control">
-                <!-- Dynamically Populated -->
-              </select>
-            </div>
-          </div>
-
-          <div class="form-row">
-            <div class="form-group">
-              <label>SKU</label>
-              <input type="text" id="prod-sku" class="form-control">
-            </div>
-            <div class="form-group">
-              <label>Item Number</label>
-              <input type="text" id="prod-item-number" class="form-control">
-            </div>
-          </div>
-        </form>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" onclick="closeModal('modal-product')">Cancel</button>
-        <button class="btn btn-primary" onclick="saveProduct()">Save Product Record</button>
-      </div>
     </div>
-  </div>
 
-  <!-- MODAL 2: VENDOR ADD / EDIT -->
-  <div id="modal-vendor" class="modal-overlay">
-    <div class="modal" style="max-width: 450px;">
-      <div class="modal-header">
-        <h3 class="modal-title" id="modal-vendor-title">Add New Vendor</h3>
-        <button class="btn btn-sm btn-outline" onclick="closeModal('modal-vendor')">✖</button>
-      </div>
-      <div class="modal-body">
-        <form id="form-vendor">
-          <input type="hidden" id="vendor-id">
-          <div class="form-group">
-            <label>Vendor / Company Name *</label>
-            <input type="text" id="vendor-name" class="form-control" required>
-          </div>
-          <div class="form-group">
-            <label>Email Address</label>
-            <input type="email" id="vendor-email" class="form-control">
-          </div>
-          <div class="form-group">
-            <label>Phone Number</label>
-            <input type="text" id="vendor-phone" class="form-control">
-          </div>
-        </form>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" onclick="closeModal('modal-vendor')">Cancel</button>
-        <button class="btn btn-primary" onclick="saveVendor()">Save Vendor</button>
-      </div>
-    </div>
-  </div>
+    <!-- MODAL 4: CSV Export Column Configurator -->
+    <div id="modal-export-cols" class="modal-overlay">
+        <div class="modal-body">
+            <div class="modal-header">
+                <h3>⚙️ Select Columns to Export</h3>
+                <button onclick="closeModal('modal-export-cols')" style="border:none; background:none; font-size:1.2rem; cursor:pointer;">✕</button>
+            </div>
+            <p style="font-size:0.8rem; color:var(--text-muted); margin-bottom:8px;">Check the columns you want included in your exported CSV file:</p>
+            
+            <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+                <button type="button" class="btn btn-secondary" style="padding: 4px 8px; font-size:0.75rem;" onclick="toggleAllExportCols(true)">Select All</button>
+                <button type="button" class="btn btn-secondary" style="padding: 4px 8px; font-size:0.75rem;" onclick="toggleAllExportCols(false)">Deselect All</button>
+            </div>
 
-  <!-- MODAL 3: CSV IMPORT -->
-  <div id="modal-csv" class="modal-overlay">
-    <div class="modal">
-      <div class="modal-header">
-        <h3 class="modal-title">Import Products from CSV</h3>
-        <button class="btn btn-sm btn-outline" onclick="closeModal('modal-csv')">✖</button>
-      </div>
-      <div class="modal-body">
-        <div class="form-group">
-          <label>Select CSV File</label>
-          <input type="file" id="csv-file-input" accept=".csv,.txt" class="form-control" onchange="previewCsvFile(event)">
+            <div id="export-cols-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; max-height: 240px; overflow-y: auto; background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 12px;">
+                <!-- Dynamically populated checkboxes -->
+            </div>
+
+            <div class="btn-group">
+                <button class="btn btn-success" onclick="processCSVExportWithCols()">📥 Download Selected CSV</button>
+                <button class="btn btn-secondary" onclick="closeModal('modal-export-cols')">Cancel</button>
+            </div>
         </div>
-        <div class="form-group">
-          <label>Raw CSV Content Preview / Manual Paste</label>
-          <textarea id="csv-raw-text" class="form-control" rows="8" placeholder="Paste CSV text here or upload file..."></textarea>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" onclick="closeModal('modal-csv')">Cancel</button>
-        <button class="btn btn-success" onclick="processCsvImport()">Execute Import</button>
-      </div>
     </div>
-  </div>
 
-  <!-- MODAL 4: EXPORT COLUMNS CONFIGURATOR -->
-  <div id="modal-export-cols" class="modal-overlay">
-    <div class="modal" style="max-width: 500px;">
-      <div class="modal-header">
-        <h3 class="modal-title">Select Export CSV Columns</h3>
-        <button class="btn btn-sm btn-outline" onclick="closeModal('modal-export-cols')">✖</button>
-      </div>
-      <div class="modal-body">
-        <div style="margin-bottom: 10px; display: flex; gap: 8px;">
-          <button class="btn btn-sm btn-secondary" onclick="toggleExportAllCols(true)">Select All</button>
-          <button class="btn btn-sm btn-outline" onclick="toggleExportAllCols(false)">Deselect All</button>
-        </div>
-        <div id="export-cols-checklist" class="grid-2" style="max-height: 300px; overflow-y: auto;">
-          <!-- Dynamically Injected Checkboxes -->
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" onclick="closeModal('modal-export-cols')">Cancel</button>
-        <button class="btn btn-primary" onclick="executeCsvExport()">Download CSV</button>
-      </div>
-    </div>
-  </div>
+    <script>
+        /* --- SCHEMA MAPPING & LABELS --- */
+        const SCHEMA_MAPPING = [
+            { key: 'upc', label: 'UPC (Bar Code)' },
+            { key: 'name', label: 'Product Name' },
+            { key: 'brand', label: 'Brand Name' },
+            { key: 'stock', label: 'Book Inventory' },
+            { key: 'physicalInventory', label: 'Physical inventory' },
+            { key: 'variance', label: 'Variance' },
+            { key: 'reorderPoint', label: 'Reorder Point' },
+            { key: 'parLevel', label: 'parLevel' },
+            { key: 'unit', label: 'unit' },
+            { key: 'orderUnit', label: 'orderUnit' },
+            { key: 'unitsPerOrder', label: 'unitsPerOrder' },
+            { key: 'status', label: 'status' },
+            { key: 'listPrice', label: 'List price' },
+            { key: 'cost', label: 'Cost on Delivery' },
+            { key: 'category', label: 'Category' },
+            { key: 'preferredVendor', label: 'Vendor' },
+            { key: 'website', label: 'Website' },
+            { key: 'sku', label: 'SKU' },
+            { key: 'asin', label: 'ASIN (Amazon)' },
+            { key: 'itemNumber', label: 'Item number' },
+            { key: 'modelNumber', label: 'Model Number' }
+        ];
 
-  <!-- MODAL 5: PO DYNAMIC ACTION (Bidding / Awarding / Receiving) -->
-  <div id="modal-po-action" class="modal-overlay">
-    <div class="modal" style="max-width: 700px;">
-      <div class="modal-header">
-        <h3 class="modal-title" id="po-action-title">PO Action</h3>
-        <button class="btn btn-sm btn-outline" onclick="closeModal('modal-po-action')">✖</button>
-      </div>
-      <div class="modal-body" id="po-action-body">
-        <!-- Dynamic Content -->
-      </div>
-      <div class="modal-footer" id="po-action-footer">
-        <button class="btn btn-secondary" onclick="closeModal('modal-po-action')">Close</button>
-      </div>
-    </div>
-  </div>
+        const COLUMNS_20 = SCHEMA_MAPPING.map(s => s.key);
 
-  <!-- MODAL 6: PHYSICAL COUNT SINGLE AUDIT CONFIRM -->
-  <div id="modal-phys-confirm" class="modal-overlay">
-    <div class="modal" style="max-width: 450px;">
-      <div class="modal-header">
-        <h3 class="modal-title">Reconcile Physical Count</h3>
-        <button class="btn btn-sm btn-outline" onclick="closeModal('modal-phys-confirm')">✖</button>
-      </div>
-      <div class="modal-body">
-        <input type="hidden" id="phys-audit-prod-id">
-        <p><strong id="phys-audit-prod-name">Product Name</strong></p>
-        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;">Book Stock: <span id="phys-audit-book-stock">0</span></p>
-        
-        <div class="form-group">
-          <label>Actual Physical Count</label>
-          <input type="number" id="phys-audit-new-count" class="form-control" value="0">
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" onclick="closeModal('modal-phys-confirm')">Cancel</button>
-        <button class="btn btn-primary" onclick="savePhysicalAuditRecord()">Confirm Count</button>
-      </div>
-    </div>
-  </div>
+        /* --- STATE VARIABLES WITH LOCAL STORAGE SYNC --- */
+        let products = JSON.parse(localStorage.getItem('jomarket_products')) || [
+            { id: '1', upc: '0123456789', name: 'Espresso Beans 1lb', brand: 'Acme Coffee', stock: 12, physicalInventory: 12, variance: 0, reorderPoint: 5, parLevel: 20, unit: 'bag', orderUnit: 'case', unitsPerOrder: 6, status: 'In Stock', listPrice: 18.00, cost: 9.50, category: 'Beverage', preferredVendor: 'Acme Coffee Co', website: '', sku: 'AC-ESP-1', asin: '', itemNumber: 'IT-101', modelNumber: 'M-1' },
+            { id: '2', upc: '9876543210', name: 'Commercial Paper Towels', brand: 'Bounty', stock: 3, physicalInventory: 3, variance: 0, reorderPoint: 4, parLevel: 15, unit: 'roll', orderUnit: 'box', unitsPerOrder: 12, status: 'Low Stock', listPrice: 2.50, cost: 1.10, category: 'Supplies', preferredVendor: 'Janitorial Direct', website: '', sku: 'JD-PT-12', asin: '', itemNumber: 'IT-102', modelNumber: 'M-2' }
+        ];
 
-  <!-- JAVASCRIPT ARCHITECTURE & CORE MECHANICS -->
-  <script>
-    /* ==========================================================================
-       1. DATA SCHEMAS & LOCAL STORAGE CONSTANTS
-       ========================================================================== */
-    const STORAGE_KEYS = {
-      INITIALIZED: 'jomarket_has_initialized',
-      PRODUCTS: 'jomarket_products',
-      VENDORS: 'jomarket_vendors',
-      SALES_ORDERS: 'jomarket_sales_orders',
-      PURCHASE_ORDERS: 'jomarket_purchase_orders',
-      HISTORY: 'jomarket_history',
-      VENDOR_HISTORY: 'jomarket_vendor_history',
-      PO_BUILDER: 'jomarket_po_builder',
-      PREFERRED_CAMERA: 'jomarket_preferred_camera',
-      EXPORT_COLS: 'jomarket_export_cols'
-    };
+        let vendors = JSON.parse(localStorage.getItem('jomarket_vendors')) || [
+            { id: 'v1', name: 'Acme Coffee Co', email: 'orders@acmecoffee.com', phone: '555-0192' },
+            { id: 'v2', name: 'Janitorial Direct', email: 'sales@jandirect.com', phone: '555-0144' }
+        ];
 
-    const SCHEMA_MAPPING = {
-      baseUpc: "Base UPC",
-      bulkUpc: "Bulk UPC",
-      name: "Product Name",
-      brand: "Brand",
-      baseUom: "Base UOM",
-      bulkUom: "Bulk UOM",
-      uomConversion: "UOM Conversion Factor",
-      stock: "Base Stock",
-      physicalInventory: "Physical Inventory",
-      variance: "Stock Variance",
-      reorderPoint: "Reorder Point",
-      parLevel: "Par Level",
-      status: "Stock Status",
-      listPrice: "List Price",
-      cost: "Unit Cost",
-      category: "Category",
-      preferredVendor: "Preferred Vendor ID",
-      website: "Website",
-      sku: "SKU",
-      asin: "ASIN",
-      itemNumber: "Item Number",
-      modelNumber: "Model Number"
-    };
+        let salesOrders = JSON.parse(localStorage.getItem('jomarket_sales_orders')) || [];
+        let purchaseOrders = JSON.parse(localStorage.getItem('jomarket_purchase_orders')) || [];
+        let productHistory = JSON.parse(localStorage.getItem('jomarket_history')) || [];
+        let vendorHistory = JSON.parse(localStorage.getItem('jomarket_vendor_history')) || [];
+        let poBuilderQueue = JSON.parse(localStorage.getItem('jomarket_po_builder')) || [];
 
-    // State Variables
-    let activeCart = [];
-    let activeScanners = {};
+        let currentSOCart = [];
+        let preferredCameraId = localStorage.getItem('jomarket_preferred_camera') || '';
+        let selectedExportCols = JSON.parse(localStorage.getItem('jomarket_export_cols')) || SCHEMA_MAPPING.map(s => s.key);
 
-    /* ==========================================================================
-       2. DATA MIGRATION & REHYDRATION LAYER
-       ========================================================================== */
-    function migrateProductData(p) {
-      if (!p) return null;
-      const baseUpc = p.baseUpc || p.upc || '';
-      const bulkUpc = p.bulkUpc || '';
-      const upc = baseUpc;
-      const baseUom = p.baseUom || p.unit || 'EA';
-      const bulkUom = p.bulkUom || p.orderUnit || 'CS';
-      const uomConversion = Number(p.uomConversion || p.unitsPerOrder || 1);
-      const stock = Number(p.stock || 0);
-      const physicalInventory = Number(p.physicalInventory !== undefined ? p.physicalInventory : stock);
-      const variance = physicalInventory - stock;
-      const reorderPoint = Number(p.reorderPoint || 0);
-      const parLevel = Number(p.parLevel || 0);
+        /* SCANNER INSTANCES */
+        let physQrCode = null;
+        let isPhysScannerRunning = false;
 
-      let status = 'In Stock';
-      if (stock <= 0) status = 'Out of Stock';
-      else if (stock <= reorderPoint) status = 'Low Stock';
+        let salesQrCode = null;
+        let isSalesScannerRunning = false;
 
-      return {
-        id: p.id || String(Date.now() + Math.random()),
-        baseUpc,
-        bulkUpc,
-        upc,
-        name: p.name || 'Unnamed Product',
-        brand: p.brand || '',
-        baseUom,
-        bulkUom,
-        uomConversion,
-        stock,
-        physicalInventory,
-        variance,
-        reorderPoint,
-        parLevel,
-        status,
-        listPrice: Number(p.listPrice || 0),
-        cost: Number(p.cost || 0),
-        category: p.category || 'General',
-        preferredVendor: p.preferredVendor || '',
-        website: p.website || '',
-        sku: p.sku || '',
-        asin: p.asin || '',
-        itemNumber: p.itemNumber || '',
-        modelNumber: p.modelNumber || ''
-      };
-    }
+        let modalQrCode = null;
+        let isModalScannerRunning = false;
 
-    function getProducts() {
-      const raw = localStorage.getItem(STORAGE_KEYS.PRODUCTS);
-      if (!raw) return [];
-      try {
-        const arr = JSON.parse(raw);
-        return arr.map(migrateProductData);
-      } catch (e) {
-        return [];
-      }
-    }
-
-    function saveProducts(products) {
-      const cleaned = products.map(migrateProductData);
-      localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(cleaned));
-      updateGlobalBadgesAndStats();
-    }
-
-    function getVendors() {
-      return JSON.parse(localStorage.getItem(STORAGE_KEYS.VENDORS) || '[]');
-    }
-
-    function saveVendors(vendors) {
-      localStorage.setItem(STORAGE_KEYS.VENDORS, JSON.stringify(vendors));
-    }
-
-    function getSalesOrders() {
-      return JSON.parse(localStorage.getItem(STORAGE_KEYS.SALES_ORDERS) || '[]');
-    }
-
-    function saveSalesOrders(orders) {
-      localStorage.setItem(STORAGE_KEYS.SALES_ORDERS, JSON.stringify(orders));
-    }
-
-    function getPurchaseOrders() {
-      return JSON.parse(localStorage.getItem(STORAGE_KEYS.PURCHASE_ORDERS) || '[]');
-    }
-
-    function savePurchaseOrders(pos) {
-      localStorage.setItem(STORAGE_KEYS.PURCHASE_ORDERS, JSON.stringify(pos));
-      updateGlobalBadgesAndStats();
-    }
-
-    function getPoBuilderQueue() {
-      return JSON.parse(localStorage.getItem(STORAGE_KEYS.PO_BUILDER) || '[]');
-    }
-
-    function savePoBuilderQueue(queue) {
-      localStorage.setItem(STORAGE_KEYS.PO_BUILDER, JSON.stringify(Array.from(new Set(queue))));
-      updateGlobalBadgesAndStats();
-    }
-
-    function getProductHistory() {
-      return JSON.parse(localStorage.getItem(STORAGE_KEYS.HISTORY) || '[]');
-    }
-
-    function logProductHistory(productId, productName, actionType, qtyChange, refNotes) {
-      const history = getProductHistory();
-      history.unshift({
-        timestamp: new Date().toLocaleString(),
-        productId,
-        productName,
-        actionType,
-        qtyChange,
-        refNotes
-      });
-      localStorage.setItem(STORAGE_KEYS.HISTORY, JSON.stringify(history));
-    }
-
-    function getVendorHistory() {
-      return JSON.parse(localStorage.getItem(STORAGE_KEYS.VENDOR_HISTORY) || '[]');
-    }
-
-    function logVendorHistory(vendorName, actionType, details, value) {
-      const history = getVendorHistory();
-      history.unshift({
-        timestamp: new Date().toLocaleString(),
-        vendorName,
-        actionType,
-        details,
-        value
-      });
-      localStorage.setItem(STORAGE_KEYS.VENDOR_HISTORY, JSON.stringify(history));
-    }
-
-    /* ==========================================================================
-       3. SEED INITIALIZATION & APP BOOTSTRAP
-       ========================================================================== */
-    function initSeedData() {
-      if (localStorage.getItem(STORAGE_KEYS.INITIALIZED) === 'true') return;
-
-      const seedVendors = [
-        { id: "vendor-1", name: "Industrial Supply Co.", email: "orders@indsupply.com", phone: "555-0192" },
-        { id: "vendor-2", name: "Apex Tool Wholesalers", email: "sales@apextools.com", phone: "555-0188" }
-      ];
-
-      const seedProducts = [
-        {
-          id: "prod-101",
-          baseUpc: "012345678901",
-          bulkUpc: "10012345678908",
-          upc: "012345678901",
-          name: "DeWalt 20V Max Cordless Drill Kit",
-          brand: "DeWalt",
-          baseUom: "EA",
-          bulkUom: "CS",
-          uomConversion: 5,
-          stock: 12,
-          physicalInventory: 12,
-          variance: 0,
-          reorderPoint: 5,
-          parLevel: 20,
-          status: "In Stock",
-          listPrice: 159.99,
-          cost: 95.00,
-          category: "Power Tools",
-          preferredVendor: "vendor-1",
-          website: "https://dewalt.com",
-          sku: "DW-20V-KIT",
-          asin: "B00012345",
-          itemNumber: "ITM-9901",
-          modelNumber: "DCD771C2"
-        },
-        {
-          id: "prod-102",
-          baseUpc: "098765432109",
-          bulkUpc: "20098765432106",
-          upc: "098765432109",
-          name: "Milwaukee Fastback Utility Knife",
-          brand: "Milwaukee",
-          baseUom: "EA",
-          bulkUom: "BOX",
-          uomConversion: 12,
-          stock: 3,
-          physicalInventory: 3,
-          variance: 0,
-          reorderPoint: 10,
-          parLevel: 30,
-          status: "Low Stock",
-          listPrice: 14.99,
-          cost: 7.50,
-          category: "Hand Tools",
-          preferredVendor: "vendor-2",
-          website: "https://milwaukeetool.com",
-          sku: "MW-FB-KNIFE",
-          asin: "B00067890",
-          itemNumber: "ITM-4421",
-          modelNumber: "48-22-1901"
-        },
-        {
-          id: "prod-103",
-          baseUpc: "045678912345",
-          bulkUpc: "30045678912342",
-          upc: "045678912345",
-          name: "3M Commercial Grade Masking Tape 2\"",
-          brand: "3M",
-          baseUom: "RL",
-          bulkUom: "CS",
-          uomConversion: 24,
-          stock: 0,
-          physicalInventory: 0,
-          variance: 0,
-          reorderPoint: 10,
-          parLevel: 50,
-          status: "Out of Stock",
-          listPrice: 4.99,
-          cost: 2.10,
-          category: "Supplies",
-          preferredVendor: "vendor-1",
-          website: "https://3m.com",
-          sku: "3M-TAPE-2IN",
-          asin: "B00033333",
-          itemNumber: "ITM-3302",
-          modelNumber: "MT-200"
+        function saveState() {
+            localStorage.setItem('jomarket_products', JSON.stringify(products));
+            localStorage.setItem('jomarket_vendors', JSON.stringify(vendors));
+            localStorage.setItem('jomarket_sales_orders', JSON.stringify(salesOrders));
+            localStorage.setItem('jomarket_purchase_orders', JSON.stringify(purchaseOrders));
+            localStorage.setItem('jomarket_history', JSON.stringify(productHistory));
+            localStorage.setItem('jomarket_vendor_history', JSON.stringify(vendorHistory));
+            localStorage.setItem('jomarket_po_builder', JSON.stringify(poBuilderQueue));
+            localStorage.setItem('jomarket_export_cols', JSON.stringify(selectedExportCols));
+            updateDashboard();
         }
-      ];
 
-      saveVendors(seedVendors);
-      saveProducts(seedProducts);
-      savePoBuilderQueue(["prod-102", "prod-103"]);
-      localStorage.setItem(STORAGE_KEYS.INITIALIZED, 'true');
-    }
-
-    function resetDemoData() {
-      if (confirm("Reset application data back to initial seed state?")) {
-        localStorage.clear();
-        initSeedData();
-        location.reload();
-      }
-    }
-
-    function eraseAllData() {
-      if (confirm("DANGER: Wipe all local data? This cannot be undone.")) {
-        localStorage.clear();
-        location.reload();
-      }
-    }
-
-    /* ==========================================================================
-       4. BARCODE NORMALIZATION & LOOKUP ENGINE
-       ========================================================================== */
-    function getBarcodeVariants(raw) {
-      if (!raw) return [];
-      const str = String(raw).trim();
-      const lower = str.toLowerCase();
-      const alphaNum = lower.replace(/[^a-z0-9]/g, '');
-      const noLeadingZeros = lower.replace(/^0+/, '');
-      
-      const variants = new Set([str, lower, alphaNum, noLeadingZeros]);
-
-      const digitsOnly = str.replace(/\D/g, '');
-      if (digitsOnly) {
-        if (digitsOnly.length <= 12) variants.add(digitsOnly.padStart(12, '0'));
-        if (digitsOnly.length <= 13) variants.add(digitsOnly.padStart(13, '0'));
-      }
-
-      return Array.from(variants);
-    }
-
-    function findProductByBarcode(scannedCode) {
-      const products = getProducts();
-      const variants = getBarcodeVariants(scannedCode);
-
-      for (const variant of variants) {
-        if (!variant) continue;
-        
-        // Match baseUpc / upc
-        let match = products.find(p => getBarcodeVariants(p.baseUpc).includes(variant) || getBarcodeVariants(p.upc).includes(variant));
-        if (match) return { product: match, isBulk: false };
-
-        // Match bulkUpc
-        match = products.find(p => getBarcodeVariants(p.bulkUpc).includes(variant));
-        if (match) return { product: match, isBulk: true };
-
-        // Match SKU
-        match = products.find(p => p.sku && getBarcodeVariants(p.sku).includes(variant));
-        if (match) return { product: match, isBulk: false };
-
-        // Match Item Number
-        match = products.find(p => p.itemNumber && getBarcodeVariants(p.itemNumber).includes(variant));
-        if (match) return { product: match, isBulk: false };
-      }
-      return null;
-    }
-
-    /* ==========================================================================
-       5. MULTI-CAMERA HARDWARE SWITCHER & TEARDOWN
-       ========================================================================== */
-    async function populateCameraSelectors() {
-      try {
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        const videoDevices = devices.filter(d => d.kind === 'videoinput');
-        const selectors = document.querySelectorAll('.camera-select');
-        const savedCam = localStorage.getItem(STORAGE_KEYS.PREFERRED_CAMERA);
-
-        selectors.forEach(select => {
-          select.innerHTML = '<option value="">Default Environment Lens</option>';
-          videoDevices.forEach((device, index) => {
-            const opt = document.createElement('option');
-            opt.value = device.deviceId;
-            opt.textContent = device.label || `Camera ${index + 1}`;
-            if (savedCam && device.deviceId === savedCam) opt.selected = true;
-            select.appendChild(opt);
-          });
-        });
-      } catch (e) {
-        console.warn('Camera enumeration unavailable or rejected:', e);
-      }
-    }
-
-    function savePreferredCamera(deviceId) {
-      localStorage.setItem(STORAGE_KEYS.PREFERRED_CAMERA, deviceId);
-      document.querySelectorAll('.camera-select').forEach(sel => sel.value = deviceId);
-    }
-
-    async function stopAllScanners() {
-      for (const id in activeScanners) {
-        if (activeScanners[id]) {
-          try {
-            const state = activeScanners[id].getState();
-            if (state === Html5QrcodeScannerState.SCANNING || state === Html5QrcodeScannerState.PAUSED) {
-              await activeScanners[id].stop();
+        function resetDefaultData() {
+            if (confirm("Reset all Local Storage data back to defaults?")) {
+                localStorage.clear();
+                location.reload();
             }
-            activeScanners[id].clear();
-          } catch (err) {
-            console.error('Teardown error for scanner ID:', id, err);
-          }
-        }
-      }
-      activeScanners = {};
-      document.querySelectorAll('.scanner-viewfinder').forEach(el => el.style.display = 'none');
-    }
-
-    async function startScannerInstance(containerId, onScanSuccess) {
-      await stopAllScanners();
-      const container = document.getElementById(containerId);
-      if (!container) return;
-      container.style.display = 'block';
-
-      const html5QrCode = new Html5Qrcode(containerId);
-      activeScanners[containerId] = html5QrCode;
-
-      const selectedCam = localStorage.getItem(STORAGE_KEYS.PREFERRED_CAMERA);
-      const config = { fps: 10, qrbox: { width: 250, height: 150 } };
-      const cameraConfig = selectedCam ? { deviceId: { exact: selectedCam } } : { facingMode: "environment" };
-
-      try {
-        await html5QrCode.start(
-          cameraConfig,
-          config,
-          (decodedText) => {
-            onScanSuccess(decodedText);
-          },
-          (errorMessage) => { /* ignore minor read frame glitches */ }
-        );
-      } catch (err) {
-        alert('Hardware Camera Error: System access blocked or missing SSL context.\n' + err);
-        container.style.display = 'none';
-      }
-    }
-
-    /* ==========================================================================
-       6. UI NAVIGATION & MODAL MANAGEMENT
-       ========================================================================== */
-    function switchTab(tabId) {
-      stopAllScanners();
-      document.querySelectorAll('.nav-tab').forEach(b => b.classList.remove('active'));
-      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-
-      const targetBtn = document.querySelector(`.nav-tab[onclick="switchTab('${tabId}')"]`);
-      const targetContent = document.getElementById(`tab-${tabId}`);
-
-      if (targetBtn) targetBtn.classList.add('active');
-      if (targetContent) targetContent.classList.add('active');
-
-      // Refresh corresponding tab views
-      if (tabId === 'inventory') renderInventoryTable();
-      if (tabId === 'sales-entry') renderSalesEntryTab();
-      if (tabId === 'sales-history') renderSalesHistoryTable();
-      if (tabId === 'vendors') renderVendorsTable();
-      if (tabId === 'po-builder') renderPoBuilderTable();
-      if (tabId === 'active-pos') renderActivePosTable();
-      if (tabId === 'physical-count') renderPhysicalAuditTable();
-      if (tabId === 'product-log') renderProductLogTable();
-      if (tabId === 'vendor-log') renderVendorLogTable();
-    }
-
-    function openModal(modalId) {
-      document.getElementById(modalId)?.classList.add('active');
-    }
-
-    function closeModal(modalId) {
-      stopAllScanners();
-      document.getElementById(modalId)?.classList.remove('active');
-    }
-
-    function escapeHtml(str) {
-      if (str === null || str === undefined) return '';
-      return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
-    }
-
-    function truncateName(name, max = 25) {
-      if (!name) return '';
-      return name.length > max ? name.substring(0, max) + '...' : name;
-    }
-
-    function updateGlobalBadgesAndStats() {
-      const queue = getPoBuilderQueue();
-      const pos = getPurchaseOrders().filter(p => p.status !== 'Received');
-      
-      document.getElementById('badge-po-builder').textContent = queue.length;
-      document.getElementById('badge-active-pos').textContent = pos.length;
-    }
-
-    /* ==========================================================================
-       7. TAB 1: INVENTORY MASTER CATALOG LOGIC
-       ========================================================================== */
-    function renderInventoryTable() {
-      const products = getProducts();
-      const searchQuery = document.getElementById('inventory-search').value.toLowerCase();
-      const tbody = document.getElementById('inventory-table-body');
-      tbody.innerHTML = '';
-
-      let lowStockCount = 0;
-      let outStockCount = 0;
-
-      // Calculate Total Procurement Savings
-      const pos = getPurchaseOrders();
-      let totalSavings = 0;
-      pos.forEach(po => {
-        if (po.receptionHistory) {
-          po.receptionHistory.forEach(r => totalSavings += (r.priceVariance || 0));
-        }
-      });
-
-      const filtered = products.filter(p => {
-        if (p.stock <= 0) outStockCount++;
-        else if (p.stock <= p.reorderPoint) lowStockCount++;
-
-        return p.name.toLowerCase().includes(searchQuery) ||
-               p.brand.toLowerCase().includes(searchQuery) ||
-               p.baseUpc.toLowerCase().includes(searchQuery) ||
-               p.bulkUpc.toLowerCase().includes(searchQuery) ||
-               p.sku.toLowerCase().includes(searchQuery);
-      });
-
-      document.getElementById('stat-total-products').textContent = products.length;
-      document.getElementById('stat-low-stock').textContent = lowStockCount;
-      document.getElementById('stat-out-of-stock').textContent = outStockCount;
-      document.getElementById('stat-total-savings').textContent = `$${totalSavings.toFixed(2)}`;
-
-      const queue = getPoBuilderQueue();
-
-      filtered.forEach(p => {
-        let badgeClass = 'badge-in-stock';
-        if (p.status === 'Low Stock') badgeClass = 'badge-low-stock';
-        if (p.status === 'Out of Stock') badgeClass = 'badge-out-of-stock';
-
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td><input type="checkbox" ${queue.includes(p.id) ? 'checked' : ''} onchange="togglePoBuilderItem('${p.id}', this.checked)"></td>
-          <td title="${escapeHtml(p.name)}"><strong>${escapeHtml(truncateName(p.name))}</strong><br><small style="color:var(--text-muted)">${escapeHtml(p.brand)}</small></td>
-          <td>${escapeHtml(p.category)}</td>
-          <td><code>${escapeHtml(p.baseUpc)}</code></td>
-          <td><code>${escapeHtml(p.bulkUpc)}</code></td>
-          <td>${p.stock} ${escapeHtml(p.baseUom)}</td>
-          <td>${p.physicalInventory} ${escapeHtml(p.baseUom)}</td>
-          <td style="color:${p.variance < 0 ? 'var(--accent-red)' : 'var(--text-dark)'}">${p.variance}</td>
-          <td>$${p.cost.toFixed(2)}</td>
-          <td><span class="badge ${badgeClass}">${p.status}</span></td>
-          <td>
-            <button class="btn btn-sm btn-outline" onclick="openProductModal('${p.id}')">✏ Edit</button>
-            <button class="btn btn-sm btn-danger" onclick="deleteProduct('${p.id}')">🗑</button>
-          </td>
-        `;
-        tbody.appendChild(tr);
-      });
-    }
-
-    function togglePoBuilderItem(prodId, isChecked) {
-      let queue = getPoBuilderQueue();
-      if (isChecked) {
-        if (!queue.includes(prodId)) queue.push(prodId);
-      } else {
-        queue = queue.filter(id => id !== prodId);
-      }
-      savePoBuilderQueue(queue);
-    }
-
-    function toggleAllPoBuilder(masterCheckbox) {
-      const products = getProducts();
-      let queue = getPoBuilderQueue();
-      if (masterCheckbox.checked) {
-        products.forEach(p => { if (!queue.includes(p.id)) queue.push(p.id); });
-      } else {
-        queue = [];
-      }
-      savePoBuilderQueue(queue);
-      renderInventoryTable();
-    }
-
-    function openProductModal(prodId = null) {
-      const vendors = getVendors();
-      const vendorSelect = document.getElementById('prod-preferred-vendor');
-      vendorSelect.innerHTML = '<option value="">None</option>';
-      vendors.forEach(v => {
-        vendorSelect.innerHTML += `<option value="${v.id}">${escapeHtml(v.name)}</option>`;
-      });
-
-      if (prodId) {
-        const p = getProducts().find(item => item.id === prodId);
-        if (!p) return;
-        document.getElementById('modal-product-title').textContent = "Edit Product Record";
-        document.getElementById('prod-id').value = p.id;
-        document.getElementById('prod-name').value = p.name;
-        document.getElementById('prod-brand').value = p.brand;
-        document.getElementById('prod-base-upc').value = p.baseUpc;
-        document.getElementById('prod-bulk-upc').value = p.bulkUpc;
-        document.getElementById('prod-base-uom').value = p.baseUom;
-        document.getElementById('prod-bulk-uom').value = p.bulkUom;
-        document.getElementById('prod-uom-conversion').value = p.uomConversion;
-        document.getElementById('prod-stock').value = p.stock;
-        document.getElementById('prod-physical').value = p.physicalInventory;
-        document.getElementById('prod-reorder').value = p.reorderPoint;
-        document.getElementById('prod-par').value = p.parLevel;
-        document.getElementById('prod-cost').value = p.cost;
-        document.getElementById('prod-price').value = p.listPrice;
-        document.getElementById('prod-category').value = p.category;
-        document.getElementById('prod-preferred-vendor').value = p.preferredVendor;
-        document.getElementById('prod-sku').value = p.sku;
-        document.getElementById('prod-item-number').value = p.itemNumber;
-      } else {
-        document.getElementById('modal-product-title').textContent = "Add New Product Record";
-        document.getElementById('form-product').reset();
-        document.getElementById('prod-id').value = '';
-      }
-      openModal('modal-product');
-    }
-
-    function saveProduct() {
-      const id = document.getElementById('prod-id').value;
-      const name = document.getElementById('prod-name').value.trim();
-      if (!name) { alert('Product Name is required.'); return; }
-
-      const products = getProducts();
-      const existing = products.find(p => p.id === id);
-
-      const rawProduct = {
-        id: id || String(Date.now()),
-        name,
-        brand: document.getElementById('prod-brand').value.trim(),
-        baseUpc: document.getElementById('prod-base-upc').value.trim(),
-        bulkUpc: document.getElementById('prod-bulk-upc').value.trim(),
-        baseUom: document.getElementById('prod-base-uom').value.trim(),
-        bulkUom: document.getElementById('prod-bulk-uom').value.trim(),
-        uomConversion: Number(document.getElementById('prod-uom-conversion').value),
-        stock: Number(document.getElementById('prod-stock').value),
-        physicalInventory: Number(document.getElementById('prod-physical').value),
-        reorderPoint: Number(document.getElementById('prod-reorder').value),
-        parLevel: Number(document.getElementById('prod-par').value),
-        cost: Number(document.getElementById('prod-cost').value),
-        listPrice: Number(document.getElementById('prod-price').value),
-        category: document.getElementById('prod-category').value.trim(),
-        preferredVendor: document.getElementById('prod-preferred-vendor').value,
-        sku: document.getElementById('prod-sku').value.trim(),
-        itemNumber: document.getElementById('prod-item-number').value.trim()
-      };
-
-      const migrated = migrateProductData(rawProduct);
-
-      if (existing) {
-        const index = products.findIndex(p => p.id === id);
-        products[index] = migrated;
-        logProductHistory(migrated.id, migrated.name, 'Manual Edit', 0, 'Catalog record modified.');
-      } else {
-        products.push(migrated);
-        logProductHistory(migrated.id, migrated.name, 'Addition', migrated.stock, 'New product created.');
-      }
-
-      saveProducts(products);
-      closeModal('modal-product');
-      renderInventoryTable();
-    }
-
-    function deleteProduct(prodId) {
-      const products = getProducts();
-      const p = products.find(i => i.id === prodId);
-      if (!p) return;
-
-      if (confirm(`Are you sure you want to delete ${p.name}?`)) {
-        const cleanHistory = confirm("Also remove associated audit history logs?");
-        const updated = products.filter(i => i.id !== prodId);
-        saveProducts(updated);
-
-        if (cleanHistory) {
-          const hist = getProductHistory().filter(h => h.productId !== prodId);
-          localStorage.setItem(STORAGE_KEYS.HISTORY, JSON.stringify(hist));
-        } else {
-          logProductHistory(p.id, p.name, 'Deletion', -p.stock, 'Product deleted from catalog.');
         }
 
-        renderInventoryTable();
-      }
-    }
-
-    /* ==========================================================================
-       8. TAB 2: JOMARKET SALES ENTRY & SCAN-TO-CART LOGIC
-       ========================================================================== */
-    function renderSalesEntryTab() {
-      document.getElementById('so-date').value = new Date().toISOString().split('T')[0];
-      const products = getProducts();
-      const select = document.getElementById('sales-product-select');
-      select.innerHTML = '<option value="">-- Select Product --</option>';
-      products.forEach(p => {
-        select.innerHTML += `<option value="${p.id}">${escapeHtml(p.name)} (${p.stock} ${escapeHtml(p.baseUom)} in stock)</option>`;
-      });
-      renderSalesCart();
-    }
-
-    function toggleSalesScanner() {
-      const container = document.getElementById('sales-scanner-container');
-      if (container.style.display === 'block') {
-        stopAllScanners();
-      } else {
-        startScannerInstance('sales-scanner-container', (code) => {
-          onSalesBarcodeScanned(code);
-        });
-      }
-    }
-
-    function onSalesBarcodeScanned(code) {
-      const match = findProductByBarcode(code);
-      if (!match) {
-        alert(`No product matching barcode: ${code}`);
-        return;
-      }
-      addItemToCart(match.product, match.isBulk);
-    }
-
-    function addSelectedProductToCart() {
-      const select = document.getElementById('sales-product-select');
-      const prodId = select.value;
-      if (!prodId) return;
-      const product = getProducts().find(p => p.id === prodId);
-      if (product) addItemToCart(product, false);
-    }
-
-    function addItemToCart(product, isBulk) {
-      if (product.stock <= 0) {
-        alert(`Warning: ${product.name} is currently OUT OF STOCK.`);
-        return;
-      }
-
-      const qtyToAdd = isBulk ? product.uomConversion : 1;
-      const existing = activeCart.find(item => item.id === product.id);
-
-      if (existing) {
-        existing.quantity += qtyToAdd;
-      } else {
-        activeCart.push({
-          id: product.id,
-          name: product.name,
-          cost: product.cost,
-          stock: product.stock,
-          unit: product.baseUom,
-          quantity: qtyToAdd,
-          costCode: 'CC-401',
-          classification: 'Materials for Job',
-          unitPrice: product.listPrice
-        });
-      }
-      renderSalesCart();
-    }
-
-    function renderSalesCart() {
-      const tbody = document.getElementById('sales-cart-body');
-      tbody.innerHTML = '';
-      let grandTotal = 0;
-
-      activeCart.forEach((item, index) => {
-        const lineTotal = item.quantity * item.unitPrice;
-        grandTotal += lineTotal;
-
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td><strong>${escapeHtml(item.name)}</strong></td>
-          <td>${escapeHtml(item.unit)}</td>
-          <td>
-            <select class="form-control" onchange="updateCartItem(${index}, 'classification', this.value)">
-              <option value="Materials for Job" ${item.classification === 'Materials for Job' ? 'selected' : ''}>Materials for Job</option>
-              <option value="In-house Supplies" ${item.classification === 'In-house Supplies' ? 'selected' : ''}>In-house Supplies</option>
-            </select>
-          </td>
-          <td>
-            <input type="text" class="form-control" style="width: 90px;" value="${escapeHtml(item.costCode)}" onchange="updateCartItem(${index}, 'costCode', this.value)">
-          </td>
-          <td>
-            <input type="number" min="1" class="form-control" style="width: 80px;" value="${item.quantity}" onchange="updateCartItem(${index}, 'quantity', Number(this.value))">
-          </td>
-          <td>
-            <input type="number" step="0.01" class="form-control" style="width: 90px;" value="${item.unitPrice.toFixed(2)}" onchange="updateCartItem(${index}, 'unitPrice', Number(this.value))">
-          </td>
-          <td>$${lineTotal.toFixed(2)}</td>
-          <td><button class="btn btn-sm btn-danger" onclick="removeFromCart(${index})">✖</button></td>
-        `;
-        tbody.appendChild(tr);
-      });
-
-      document.getElementById('sales-cart-total').textContent = `$${grandTotal.toFixed(2)}`;
-    }
-
-    function updateCartItem(index, key, value) {
-      if (activeCart[index]) {
-        activeCart[index][key] = value;
-        renderSalesCart();
-      }
-    }
-
-    function removeFromCart(index) {
-      activeCart.splice(index, 1);
-      renderSalesCart();
-    }
-
-    function submitSalesOrder() {
-      if (activeCart.length === 0) {
-        alert('Cart is empty. Add products before dispatching sales order.');
-        return;
-      }
-
-      const salesPerson = document.getElementById('so-salesperson').value.trim();
-      const customerEmail = document.getElementById('so-email').value.trim();
-      const ccEmail = document.getElementById('so-cc-email').value.trim();
-      const customerAddress = document.getElementById('so-address').value.trim();
-      const date = document.getElementById('so-date').value;
-
-      if (!salesPerson || !customerEmail) {
-        alert('"Order filled by" and "Email Receipt to" are required.');
-        return;
-      }
-
-      const products = getProducts();
-      let poQueue = getPoBuilderQueue();
-      const soId = 'SO-' + Math.floor(100000 + Math.random() * 900000);
-
-      // Process Inventory Deduction & Auto-Reorder Trigger
-      activeCart.forEach(cartItem => {
-        const prod = products.find(p => p.id === cartItem.id);
-        if (prod) {
-          prod.stock -= cartItem.quantity;
-          prod.variance = prod.physicalInventory - prod.stock;
-          
-          if (prod.stock <= 0) prod.status = 'Out of Stock';
-          else if (prod.stock <= prod.reorderPoint) prod.status = 'Low Stock';
-
-          // Auto-Reorder Trigger
-          if (prod.stock <= prod.reorderPoint && !poQueue.includes(prod.id)) {
-            poQueue.push(prod.id);
-          }
-
-          logProductHistory(prod.id, prod.name, 'Sale', -cartItem.quantity, `Sales Order ${soId}`);
-        }
-      });
-
-      saveProducts(products);
-      savePoBuilderQueue(poQueue);
-
-      const grandTotal = activeCart.reduce((acc, i) => acc + (i.quantity * i.unitPrice), 0);
-
-      const newSO = {
-        soId,
-        date,
-        salesPerson,
-        customerEmail,
-        ccEmail,
-        customerAddress,
-        items: [...activeCart],
-        totalAmount: grandTotal,
-        status: 'SENT',
-        emailCount: 0,
-        sentAt: new Date().toLocaleString()
-      };
-
-      const salesOrders = getSalesOrders();
-      salesOrders.unshift(newSO);
-      saveSalesOrders(salesOrders);
-
-      activeCart = [];
-      renderSalesCart();
-      alert(`Sales Order ${soId} successfully submitted!`);
-      switchTab('sales-history');
-    }
-
-    /* ==========================================================================
-       9. TAB 3: RECEIPT & OFF-SCREEN SANDBOX PDF GENERATION
-       ========================================================================== */
-    function renderSalesHistoryTable() {
-      const orders = getSalesOrders();
-      const tbody = document.getElementById('sales-history-body');
-      tbody.innerHTML = '';
-
-      orders.forEach(so => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td><strong>${so.soId}</strong></td>
-          <td>${so.date}</td>
-          <td>${escapeHtml(so.customerAddress || 'N/A')}</td>
-          <td>${so.items.length}</td>
-          <td>$${so.totalAmount.toFixed(2)}</td>
-          <td>${so.emailCount || 0}</td>
-          <td>
-            <button class="btn btn-sm btn-primary" onclick="downloadInvoicePDF('${so.soId}')">📄 Download PDF</button>
-            <button class="btn btn-sm btn-success" onclick="emailReceipt('${so.soId}')">✉ Email / Share</button>
-          </td>
-        `;
-        tbody.appendChild(tr);
-      });
-    }
-
-    function buildReceiptHTML(so) {
-      const materials = so.items.filter(i => i.classification === 'Materials for Job');
-      const supplies = so.items.filter(i => i.classification === 'In-house Supplies');
-
-      const materialsSubtotal = materials.reduce((a, c) => a + (c.quantity * c.unitPrice), 0);
-      const suppliesSubtotal = supplies.reduce((a, c) => a + (c.quantity * c.unitPrice), 0);
-
-      let renderGroup = (title, items, subtotal) => {
-        if (items.length === 0) return '';
-        let rows = items.map(i => `
-          <tr>
-            <td style="padding: 6px; border-bottom: 1px solid #e2e8f0;">${escapeHtml(i.name)}</td>
-            <td style="padding: 6px; border-bottom: 1px solid #e2e8f0;">${escapeHtml(i.costCode || 'N/A')}</td>
-            <td style="padding: 6px; border-bottom: 1px solid #e2e8f0;">${i.quantity} ${escapeHtml(i.unit)}</td>
-            <td style="padding: 6px; border-bottom: 1px solid #e2e8f0;">$${i.unitPrice.toFixed(2)}</td>
-            <td style="padding: 6px; border-bottom: 1px solid #e2e8f0;">$${(i.quantity * i.unitPrice).toFixed(2)}</td>
-          </tr>
-        `).join('');
-
-        return `
-          <h3 style="font-size: 0.95rem; margin-top: 14px; margin-bottom: 6px; color: #1e293b; border-bottom: 2px solid #2563eb;">${title}</h3>
-          <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
-            <thead>
-              <tr style="background: #f8fafc; text-align: left;">
-                <th style="padding: 6px;">Item</th>
-                <th style="padding: 6px;">Cost Code</th>
-                <th style="padding: 6px;">Qty</th>
-                <th style="padding: 6px;">Unit Price</th>
-                <th style="padding: 6px;">Total</th>
-              </tr>
-            </thead>
-            <tbody>${rows}</tbody>
-          </table>
-          <div style="text-align: right; font-weight: bold; margin-top: 6px; font-size: 0.85rem;">Subtotal: $${subtotal.toFixed(2)}</div>
-        `;
-      };
-
-      return `
-        <div style="font-family: Arial, sans-serif; color: #0f172a; padding: 10px;">
-          <div style="display: flex; justify-content: space-between; border-bottom: 2px solid #0f172a; padding-bottom: 10px; margin-bottom: 15px;">
-            <div>
-              <h1 style="font-size: 1.4rem; color: #2563eb;">JOMARKET CONSTRUCTION</h1>
-              <p style="font-size: 0.8rem; color: #64748b;">Sales Order Dispatch Invoice</p>
-            </div>
-            <div style="text-align: right; font-size: 0.85rem;">
-              <strong>Order ID:</strong> ${so.soId}<br>
-              <strong>Date:</strong> ${so.date}<br>
-              <strong>Order filled by:</strong> ${escapeHtml(so.salesPerson)}
-            </div>
-          </div>
-
-          <div style="margin-bottom: 15px; font-size: 0.85rem; background: #f1f5f9; padding: 10px; border-radius: 6px;">
-            <strong>Email Receipt to:</strong> ${escapeHtml(so.customerEmail)}<br>
-            ${so.ccEmail ? `<strong>CC Email:</strong> ${escapeHtml(so.ccEmail)}<br>` : ''}
-            <strong>Job Name/Address:</strong> ${escapeHtml(so.customerAddress || 'N/A')}
-          </div>
-
-          ${renderGroup('1. Materials for Job', materials, materialsSubtotal)}
-          ${renderGroup('2. In-house Supplies', supplies, suppliesSubtotal)}
-
-          <div style="margin-top: 20px; border-top: 2px solid #0f172a; padding-top: 10px; text-align: right;">
-            <span style="font-size: 1.2rem; font-weight: bold;">Grand Total: $${so.totalAmount.toFixed(2)}</span>
-          </div>
-        </div>
-      `;
-    }
-
-    function createPdfSandbox(so) {
-      const sandbox = document.createElement('div');
-      sandbox.id = 'pdf-sandbox';
-      sandbox.style.position = 'fixed';
-      sandbox.style.left = '0';
-      sandbox.style.top = '0';
-      sandbox.style.width = '750px';
-      sandbox.style.zIndex = '-9999';
-      sandbox.style.background = '#ffffff';
-      sandbox.style.padding = '20px';
-      sandbox.innerHTML = buildReceiptHTML(so);
-      document.body.appendChild(sandbox);
-      return sandbox;
-    }
-
-    function downloadInvoicePDF(soId) {
-      const so = getSalesOrders().find(o => o.soId === soId);
-      if (!so) return;
-
-      const sandbox = createPdfSandbox(so);
-      const opt = {
-        margin: 0.3,
-        filename: `Invoice_${so.soId}.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2 },
-        jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
-      };
-
-      html2pdf().set(opt).from(sandbox).save().then(() => {
-        document.body.removeChild(sandbox);
-      }).catch(err => {
-        console.error('PDF Generation failed:', err);
-        if (document.body.contains(sandbox)) document.body.removeChild(sandbox);
-      });
-    }
-
-    async function emailReceipt(soId) {
-      const salesOrders = getSalesOrders();
-      const so = salesOrders.find(o => o.soId === soId);
-      if (!so) return;
-
-      const sandbox = createPdfSandbox(so);
-      const opt = {
-        margin: 0.3,
-        filename: `Invoice_${so.soId}.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2 },
-        jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
-      };
-
-      try {
-        const worker = html2pdf().set(opt).from(sandbox);
-        const pdfBlob = await worker.output('blob');
-        document.body.removeChild(sandbox);
-
-        const file = new File([pdfBlob], `Invoice_${so.soId}.pdf`, { type: 'application/pdf' });
-
-        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-          await navigator.share({
-            files: [file],
-            title: `Invoice ${so.soId}`,
-            text: `Receipt for Sales Order ${so.soId}`
-          });
-          so.emailCount = (so.emailCount || 0) + 1;
-          saveSalesOrders(salesOrders);
-          renderSalesHistoryTable();
-          return;
-        }
-      } catch (e) {
-        if (document.body.contains(sandbox)) document.body.removeChild(sandbox);
-        console.warn('Native share failed or unhandled:', e);
-      }
-
-      // Fallback download & mailto / Gmail compose prompt
-      downloadInvoicePDF(soId);
-      const subject = encodeURIComponent(`Sales Order Receipt ${so.soId}`);
-      const body = encodeURIComponent(`Hello,\n\nPlease find attached receipt for Sales Order ${so.soId}.\nTotal Amount: $${so.totalAmount.toFixed(2)}\nDate: ${so.date}\n\nThank you.`);
-      
-      const ccParamGmail = so.ccEmail ? `&cc=${encodeURIComponent(so.ccEmail)}` : '';
-      const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(so.customerEmail)}${ccParamGmail}&su=${subject}&body=${body}`;
-
-      const ccParamMailto = so.ccEmail ? `?cc=${encodeURIComponent(so.ccEmail)}&` : '?';
-      const mailtoUrl = `mailto:${so.customerEmail}${ccParamMailto}subject=${subject}&body=${body}`;
-
-      if (confirm("PDF downloaded! Click OK to open Gmail compose window, or Cancel to open standard mail client.")) {
-        window.open(gmailUrl, '_blank');
-      } else {
-        window.location.href = mailtoUrl;
-      }
-
-      so.emailCount = (so.emailCount || 0) + 1;
-      saveSalesOrders(salesOrders);
-      renderSalesHistoryTable();
-    }
-
-    /* ==========================================================================
-       10. TAB 4: VENDORS MANAGEMENT
-       ========================================================================== */
-    function renderVendorsTable() {
-      const vendors = getVendors();
-      const tbody = document.getElementById('vendors-table-body');
-      tbody.innerHTML = '';
-
-      vendors.forEach(v => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td><code>${v.id}</code></td>
-          <td><strong>${escapeHtml(v.name)}</strong></td>
-          <td>${escapeHtml(v.email || 'N/A')}</td>
-          <td>${escapeHtml(v.phone || 'N/A')}</td>
-          <td>
-            <button class="btn btn-sm btn-outline" onclick="openVendorModal('${v.id}')">✏ Edit</button>
-            <button class="btn btn-sm btn-danger" onclick="deleteVendor('${v.id}')">🗑</button>
-          </td>
-        `;
-        tbody.appendChild(tr);
-      });
-    }
-
-    function openVendorModal(vendorId = null) {
-      if (vendorId) {
-        const v = getVendors().find(item => item.id === vendorId);
-        if (!v) return;
-        document.getElementById('modal-vendor-title').textContent = "Edit Vendor";
-        document.getElementById('vendor-id').value = v.id;
-        document.getElementById('vendor-name').value = v.name;
-        document.getElementById('vendor-email').value = v.email;
-        document.getElementById('vendor-phone').value = v.phone;
-      } else {
-        document.getElementById('modal-vendor-title').textContent = "Add New Vendor";
-        document.getElementById('form-vendor').reset();
-        document.getElementById('vendor-id').value = '';
-      }
-      openModal('modal-vendor');
-    }
-
-    function saveVendor() {
-      const id = document.getElementById('vendor-id').value;
-      const name = document.getElementById('vendor-name').value.trim();
-      if (!name) { alert('Vendor Name is required.'); return; }
-
-      const vendors = getVendors();
-      const newVendor = {
-        id: id || 'vendor-' + Date.now(),
-        name,
-        email: document.getElementById('vendor-email').value.trim(),
-        phone: document.getElementById('vendor-phone').value.trim()
-      };
-
-      if (id) {
-        const idx = vendors.findIndex(v => v.id === id);
-        vendors[idx] = newVendor;
-      } else {
-        vendors.push(newVendor);
-      }
-
-      saveVendors(vendors);
-      closeModal('modal-vendor');
-      renderVendorsTable();
-    }
-
-    function deleteVendor(vendorId) {
-      if (confirm("Delete this vendor?")) {
-        const updated = getVendors().filter(v => v.id !== vendorId);
-        saveVendors(updated);
-        renderVendorsTable();
-      }
-    }
-
-    /* ==========================================================================
-       11. TAB 5 & 6: PO BUILDER & ACTIVE PO LIFECYCLE STAGES
-       ========================================================================== */
-    function renderPoBuilderTable() {
-      const queueIds = getPoBuilderQueue();
-      const products = getProducts();
-      const tbody = document.getElementById('po-builder-body');
-      tbody.innerHTML = '';
-
-      const masterCb = document.getElementById('po-builder-master-cb');
-      if (masterCb) masterCb.checked = queueIds.length > 0;
-
-      queueIds.forEach(id => {
-        const p = products.find(prod => prod.id === id);
-        if (!p) return;
-
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td><input type="checkbox" class="po-builder-item-cb" data-id="${p.id}" checked></td>
-          <td><strong>${escapeHtml(p.name)}</strong></td>
-          <td>${p.stock} ${escapeHtml(p.baseUom)}</td>
-          <td>${p.reorderPoint} ${escapeHtml(p.baseUom)}</td>
-          <td>1 ${escapeHtml(p.bulkUom)} = ${p.uomConversion} ${escapeHtml(p.baseUom)}</td>
-          <td>
-            <input type="number" min="1" class="form-control" style="width: 90px;" id="po-qty-${p.id}" value="1">
-          </td>
-          <td>
-            <button class="btn btn-sm btn-danger" onclick="removePoBuilderItem('${p.id}')">Remove</button>
-          </td>
-        `;
-        tbody.appendChild(tr);
-      });
-    }
-
-    function toggleAllPoBuilderItems(masterCb) {
-      document.querySelectorAll('.po-builder-item-cb').forEach(cb => {
-        cb.checked = masterCb.checked;
-      });
-    }
-
-    function removePoBuilderItem(prodId) {
-      const queue = getPoBuilderQueue().filter(id => id !== prodId);
-      savePoBuilderQueue(queue);
-      renderPoBuilderTable();
-    }
-
-    function generateDraftPoFromQueue() {
-      const selectedCbs = Array.from(document.querySelectorAll('.po-builder-item-cb:checked'));
-      if (selectedCbs.length === 0) {
-        alert('Please select at least one item to include in the Purchase Order.');
-        return;
-      }
-
-      const selectedIds = selectedCbs.map(cb => cb.getAttribute('data-id'));
-      const products = getProducts();
-      const poItems = [];
-
-      selectedIds.forEach(id => {
-        const p = products.find(prod => prod.id === id);
-        if (p) {
-          const qtyInput = document.getElementById(`po-qty-${p.id}`);
-          const orderQuantity = qtyInput ? Number(qtyInput.value) : 1;
-          poItems.push({
-            id: p.id,
-            name: p.name,
-            orderQuantity,
-            receivedQuantity: 0,
-            baseCost: p.cost * p.uomConversion, // calculated bulk cost
-            orderUnitQuantity: p.uomConversion
-          });
-        }
-      });
-
-      const poId = 'PO-' + Math.floor(1000 + Math.random() * 9000);
-      const newPO = {
-        id: poId,
-        createdAt: new Date().toLocaleDateString(),
-        items: poItems,
-        status: 'Draft',
-        bids: [],
-        winningVendor: null,
-        receptionHistory: []
-      };
-
-      const pos = getPurchaseOrders();
-      pos.unshift(newPO);
-      savePurchaseOrders(pos);
-
-      // Remove only the selected items from the PO Builder queue
-      const currentQueue = getPoBuilderQueue();
-      const remainingQueue = currentQueue.filter(id => !selectedIds.includes(id));
-      savePoBuilderQueue(remainingQueue);
-
-      alert(`Draft Purchase Order ${poId} generated with ${poItems.length} selected item(s)!`);
-      switchTab('active-pos');
-    }
-
-    function renderActivePosTable() {
-      const pos = getPurchaseOrders();
-      const tbody = document.getElementById('active-pos-body');
-      tbody.innerHTML = '';
-
-      pos.forEach(po => {
-        let statusBadge = 'badge-info';
-        if (po.status === 'Awarded') statusBadge = 'badge-in-stock';
-        if (po.status === 'Received') statusBadge = 'badge-in-stock';
-
-        let actionBtns = '';
-        if (po.status === 'Draft') {
-          actionBtns = `<button class="btn btn-sm btn-primary" onclick="transitionPoStatus('${po.id}', 'Bidding')">Start Bidding</button>`;
-        } else if (po.status === 'Bidding') {
-          actionBtns = `<button class="btn btn-sm btn-warning" onclick="openPoBiddingModal('${po.id}')">Enter Vendor Bids</button>`;
-        } else if (po.status === 'Bids Received') {
-          actionBtns = `<button class="btn btn-sm btn-success" onclick="openPoAwardModal('${po.id}')">Award Contract</button>`;
-        } else if (po.status === 'Awarded') {
-          actionBtns = `<button class="btn btn-sm btn-primary" onclick="transitionPoStatus('${po.id}', 'Sent')">Mark Sent to Supplier</button>`;
-        } else if (po.status === 'Sent') {
-          actionBtns = `<button class="btn btn-sm btn-success" onclick="openPoReceivingModal('${po.id}')">📦 Receive Stock</button>`;
-        } else if (po.status === 'Received') {
-          actionBtns = `<span style="font-size: 0.8rem; color: var(--accent-green); font-weight: bold;">Completed</span>`;
+        /* --- DASHBOARD METRICS --- */
+        function updateDashboard() {
+            document.getElementById('dash-tot-prod').innerText = products.length;
+            
+            let low = 0, out = 0;
+            products.forEach(p => {
+                const s = parseInt(p.stock) || 0;
+                const r = parseInt(p.reorderPoint) || 0;
+                if (s === 0) out++;
+                else if (s <= r) low++;
+            });
+            document.getElementById('dash-low-stock').innerText = low;
+            document.getElementById('dash-out-stock').innerText = out;
+
+            let savings = 0;
+            purchaseOrders.forEach(po => {
+                if (po.status === 'Received' && po.receptionHistory) {
+                    po.receptionHistory.forEach(r => {
+                        savings += (r.priceVariance || 0);
+                    });
+                }
+            });
+            document.getElementById('dash-savings').innerText = `$${savings.toFixed(2)}`;
+
+            document.getElementById('badge-po-builder').innerText = poBuilderQueue.length;
+            document.getElementById('badge-po-active').innerText = purchaseOrders.filter(p => p.status !== 'Received').length;
         }
 
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td><strong>${po.id}</strong></td>
-          <td>${po.createdAt}</td>
-          <td><span class="badge ${statusBadge}">${po.status}</span></td>
-          <td>${po.winningVendor ? escapeHtml(po.winningVendor.name) : 'N/A'}</td>
-          <td>${po.items.length}</td>
-          <td>${actionBtns}</td>
-        `;
-        tbody.appendChild(tr);
-      });
-    }
+        /* --- NAVIGATION --- */
+        async function switchTab(tabId, btn) {
+            await stopAllScanners();
 
-    function transitionPoStatus(poId, newStatus) {
-      const pos = getPurchaseOrders();
-      const po = pos.find(p => p.id === poId);
-      if (po) {
-        po.status = newStatus;
-        savePurchaseOrders(pos);
-        renderActivePosTable();
-      }
-    }
+            document.querySelectorAll('.tab-content').forEach(t => t.style.display = 'none');
+            document.querySelectorAll('.nav-tab').forEach(b => b.classList.remove('active'));
+            document.getElementById(tabId).style.display = 'block';
+            if (btn) btn.classList.add('active');
 
-    /* PO Bidding Matrix Modal */
-    function openPoBiddingModal(poId) {
-      const pos = getPurchaseOrders();
-      const po = pos.find(p => p.id === poId);
-      const vendors = getVendors();
-
-      if (!po || vendors.length === 0) {
-        alert('Vendors required to submit bids.');
-        return;
-      }
-
-      document.getElementById('po-action-title').textContent = `Bidding Matrix - ${po.id}`;
-      
-      let html = `<p style="margin-bottom: 12px; font-size: 0.85rem;">Enter bulk case prices quoted by vendors:</p>`;
-      
-      po.items.forEach(item => {
-        html += `<div style="background: #f1f5f9; padding: 10px; border-radius: 6px; margin-bottom: 10px;">
-          <strong>${escapeHtml(item.name)}</strong> (Order Qty: ${item.orderQuantity} CS)
-          <div class="grid-2" style="margin-top: 8px;">`;
-        
-        vendors.forEach(v => {
-          const existingBid = (po.bids || []).find(b => b.vendor === v.id && b.itemId === item.id);
-          const priceVal = existingBid ? existingBid.price : (item.baseCost || 0);
-          html += `
-            <div>
-              <label style="font-size:0.75rem;">${escapeHtml(v.name)} Case Price ($)</label>
-              <input type="number" step="0.01" class="form-control po-bid-input" data-vendor="${v.id}" data-item="${item.id}" value="${priceVal}">
-            </div>
-          `;
-        });
-        
-        html += `</div></div>`;
-      });
-
-      document.getElementById('po-action-body').innerHTML = html;
-      document.getElementById('po-action-footer').innerHTML = `
-        <button class="btn btn-secondary" onclick="closeModal('modal-po-action')">Cancel</button>
-        <button class="btn btn-primary" onclick="savePoBids('${po.id}')">Save Bids</button>
-      `;
-
-      openModal('modal-po-action');
-    }
-
-    function savePoBids(poId) {
-      const pos = getPurchaseOrders();
-      const po = pos.find(p => p.id === poId);
-      if (!po) return;
-
-      const inputs = document.querySelectorAll('.po-bid-input');
-      const bids = [];
-
-      inputs.forEach(inp => {
-        bids.push({
-          vendor: inp.getAttribute('data-vendor'),
-          itemId: inp.getAttribute('data-item'),
-          price: Number(inp.value)
-        });
-      });
-
-      po.bids = bids;
-      po.status = 'Bids Received';
-      savePurchaseOrders(pos);
-      closeModal('modal-po-action');
-      renderActivePosTable();
-    }
-
-    /* PO Contract Awarding Modal */
-    function openPoAwardModal(poId) {
-      const pos = getPurchaseOrders();
-      const po = pos.find(p => p.id === poId);
-      const vendors = getVendors();
-
-      if (!po) return;
-
-      document.getElementById('po-action-title').textContent = `Award Contract - ${po.id}`;
-
-      let html = `<table style="margin-bottom: 16px;"><thead><tr><th>Item</th>`;
-      vendors.forEach(v => { html += `<th>${escapeHtml(v.name)}</th>`; });
-      html += `</tr></thead><tbody>`;
-
-      po.items.forEach(item => {
-        html += `<tr><td><strong>${escapeHtml(item.name)}</strong></td>`;
-        vendors.forEach(v => {
-          const bid = (po.bids || []).find(b => b.vendor === v.id && b.itemId === item.id);
-          const price = bid ? `$${bid.price.toFixed(2)}` : 'N/A';
-          html += `<td>${price}</td>`;
-        });
-        html += `</tr>`;
-      });
-      html += `</tbody></table>`;
-
-      html += `<div class="form-group">
-        <label><strong>Select Winning Vendor:</strong></label>
-        <select id="select-winning-vendor" class="form-control">`;
-      vendors.forEach(v => {
-        html += `<option value="${v.id}">${escapeHtml(v.name)}</option>`;
-      });
-      html += `</select></div>`;
-
-      document.getElementById('po-action-body').innerHTML = html;
-      document.getElementById('po-action-footer').innerHTML = `
-        <button class="btn btn-secondary" onclick="closeModal('modal-po-action')">Cancel</button>
-        <button class="btn btn-success" onclick="awardPoContract('${po.id}')">Award Contract</button>
-      `;
-
-      openModal('modal-po-action');
-    }
-
-    function awardPoContract(poId) {
-      const pos = getPurchaseOrders();
-      const po = pos.find(p => p.id === poId);
-      const vendorId = document.getElementById('select-winning-vendor').value;
-      const vendor = getVendors().find(v => v.id === vendorId);
-
-      if (po && vendor) {
-        po.winningVendor = vendor;
-        po.status = 'Awarded';
-
-        let totalVal = 0;
-        po.items.forEach(item => {
-          const bid = po.bids.find(b => b.vendor === vendorId && b.itemId === item.id);
-          totalVal += (bid ? bid.price : item.baseCost) * item.orderQuantity;
-        });
-
-        logVendorHistory(vendor.name, 'Contract Awarded', `PO ${po.id} awarded`, totalVal);
-        savePurchaseOrders(pos);
-        closeModal('modal-po-action');
-        renderActivePosTable();
-      }
-    }
-
-    /* PO Receiving Modal */
-    function openPoReceivingModal(poId) {
-      const pos = getPurchaseOrders();
-      const po = pos.find(p => p.id === poId);
-      if (!po) return;
-
-      document.getElementById('po-action-title').textContent = `Receive Delivery - ${po.id}`;
-
-      let html = `<p style="margin-bottom: 12px; font-size: 0.85rem;">Enter actual received quantities and final case prices paid:</p>`;
-
-      po.items.forEach(item => {
-        const winningBid = (po.bids || []).find(b => b.vendor === po.winningVendor?.id && b.itemId === item.id);
-        const actualPrice = winningBid ? winningBid.price : item.baseCost;
-
-        html += `
-          <div style="background: #f8fafc; border: 1px solid var(--border-color); padding: 10px; border-radius: 6px; margin-bottom: 10px;">
-            <strong>${escapeHtml(item.name)}</strong>
-            <div class="form-row" style="margin-top: 8px;">
-              <div class="form-group">
-                <label>Cases Received</label>
-                <input type="number" min="0" class="form-control po-recv-qty" data-item="${item.id}" value="${item.orderQuantity}">
-              </div>
-              <div class="form-group">
-                <label>Actual Case Price Paid ($)</label>
-                <input type="number" step="0.01" class="form-control po-recv-price" data-item="${item.id}" value="${actualPrice}">
-              </div>
-            </div>
-          </div>
-        `;
-      });
-
-      document.getElementById('po-action-body').innerHTML = html;
-      document.getElementById('po-action-footer').innerHTML = `
-        <button class="btn btn-secondary" onclick="closeModal('modal-po-action')">Cancel</button>
-        <button class="btn btn-success" onclick="processPoReception('${po.id}')">Confirm Inventory Reception</button>
-      `;
-
-      openModal('modal-po-action');
-    }
-
-    function processPoReception(poId) {
-      const pos = getPurchaseOrders();
-      const po = pos.find(p => p.id === poId);
-      if (!po) return;
-
-      const products = getProducts();
-      const receptionHistory = [];
-      let totalReceivedValue = 0;
-
-      po.items.forEach(item => {
-        const qtyInp = document.querySelector(`.po-recv-qty[data-item="${item.id}"]`);
-        const priceInp = document.querySelector(`.po-recv-price[data-item="${item.id}"]`);
-
-        const casesReceived = Number(qtyInp ? qtyInp.value : 0);
-        const actCasePrice = Number(priceInp ? priceInp.value : item.baseCost);
-        
-        const priceVariance = (item.baseCost - actCasePrice) * casesReceived;
-        totalReceivedValue += actCasePrice * casesReceived;
-
-        receptionHistory.push({
-          itemId: item.id,
-          casesReceived,
-          actCasePrice,
-          priceVariance
-        });
-
-        // Rehydrate product stock
-        const prod = products.find(p => p.id === item.id);
-        if (prod) {
-          const addedBaseUnits = casesReceived * prod.uomConversion;
-          prod.stock += addedBaseUnits;
-          prod.variance = prod.physicalInventory - prod.stock;
-
-          if (prod.stock <= 0) prod.status = 'Out of Stock';
-          else if (prod.stock <= prod.reorderPoint) prod.status = 'Low Stock';
-          else prod.status = 'In Stock';
-
-          logProductHistory(prod.id, prod.name, 'Reception', addedBaseUnits, `PO ${po.id} Received`);
+            if (tabId === 'tab-inventory') renderInventoryTable();
+            if (tabId === 'tab-sales') setupSalesTab();
+            if (tabId === 'tab-sales-history') renderSalesHistory();
+            if (tabId === 'tab-vendors') renderVendorTable();
+            if (tabId === 'tab-po-builder') renderPOBuilder();
+            if (tabId === 'tab-po-active') renderActivePOs();
+            if (tabId === 'tab-physical') renderPhysicalTable();
+            if (tabId === 'tab-product-history') renderProductHistory();
+            if (tabId === 'tab-vendor-history') renderVendorHistory();
         }
-      });
 
-      po.receptionHistory = receptionHistory;
-      po.status = 'Received';
+        /* --- UNIFIED HARDWARE RESET & CLEAN STOP --- */
+        async function stopAllScanners() {
+            const list = [
+                { inst: physQrCode, box: 'phys-reader-box', btn: 'btn-phys-toggle', text: 'Start Audit Scanner' },
+                { inst: salesQrCode, box: 'sales-reader-box' },
+                { inst: modalQrCode, box: 'modal-upc-reader-box' }
+            ];
 
-      if (po.winningVendor) {
-        logVendorHistory(po.winningVendor.name, 'Shipment Received', `PO ${po.id} stock processed`, totalReceivedValue);
-      }
-
-      saveProducts(products);
-      savePurchaseOrders(pos);
-      closeModal('modal-po-action');
-      renderActivePosTable();
-      alert(`PO ${po.id} inventory successfully received and updated!`);
-    }
-
-    /* ==========================================================================
-       12. TAB 7: PHYSICAL COUNT & AUDIT RECONCILIATION LOGIC
-       ========================================================================== */
-    function renderPhysicalAuditTable() {
-      const products = getProducts();
-      const tbody = document.getElementById('physical-audit-body');
-      tbody.innerHTML = '';
-
-      products.forEach(p => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td><strong>${escapeHtml(p.name)}</strong></td>
-          <td><code>${escapeHtml(p.baseUpc)}</code></td>
-          <td>${p.stock} ${escapeHtml(p.baseUom)}</td>
-          <td>${p.physicalInventory} ${escapeHtml(p.baseUom)}</td>
-          <td style="font-weight: bold; color: ${p.variance !== 0 ? 'var(--accent-red)' : 'var(--accent-green)'}">${p.variance}</td>
-          <td><span class="badge ${p.variance === 0 ? 'badge-in-stock' : 'badge-out-of-stock'}">${p.variance === 0 ? 'Balanced' : 'Discrepancy'}</span></td>
-          <td>
-            <button class="btn btn-sm btn-outline" onclick="openPhysAuditModal('${p.id}')">✏ Adjust Count</button>
-          </td>
-        `;
-        tbody.appendChild(tr);
-      });
-    }
-
-    function togglePhysScanner() {
-      const container = document.getElementById('phys-scanner-container');
-      if (container.style.display === 'block') {
-        stopAllScanners();
-      } else {
-        startScannerInstance('phys-scanner-container', (code) => {
-          onPhysBarcodeScanned(code);
-        });
-      }
-    }
-
-    function onPhysBarcodeScanned(code) {
-      stopAllScanners();
-      const match = findProductByBarcode(code);
-      if (!match) {
-        alert(`No product matching barcode: ${code}`);
-        return;
-      }
-
-      const p = match.product;
-      const suggestedCount = match.isBulk ? (p.physicalInventory + p.uomConversion) : (p.physicalInventory + 1);
-      openPhysAuditModal(p.id, suggestedCount);
-    }
-
-    function openPhysAuditModal(prodId, suggestedCount = null) {
-      const p = getProducts().find(item => item.id === prodId);
-      if (!p) return;
-
-      document.getElementById('phys-audit-prod-id').value = p.id;
-      document.getElementById('phys-audit-prod-name').textContent = p.name;
-      document.getElementById('phys-audit-book-stock').textContent = `${p.stock} ${p.baseUom}`;
-      document.getElementById('phys-audit-new-count').value = suggestedCount !== null ? suggestedCount : p.physicalInventory;
-
-      openModal('modal-phys-confirm');
-    }
-
-    function savePhysicalAuditRecord() {
-      const prodId = document.getElementById('phys-audit-prod-id').value;
-      const newCount = Number(document.getElementById('phys-audit-new-count').value);
-
-      const products = getProducts();
-      const p = products.find(item => item.id === prodId);
-
-      if (p) {
-        const diff = newCount - p.physicalInventory;
-        p.physicalInventory = newCount;
-        p.variance = p.physicalInventory - p.stock;
-
-        logProductHistory(p.id, p.name, 'Adjustment', diff, `Physical Count Audit`);
-        saveProducts(products);
-        closeModal('modal-phys-confirm');
-        renderPhysicalAuditTable();
-      }
-    }
-
-    function syncAllStockToPhysical() {
-      const products = getProducts();
-      let adjustedCount = 0;
-
-      products.forEach(p => {
-        if (p.variance !== 0) {
-          p.stock = p.physicalInventory;
-          p.variance = 0;
-          if (p.stock <= 0) p.status = 'Out of Stock';
-          else if (p.stock <= p.reorderPoint) p.status = 'Low Stock';
-          else p.status = 'In Stock';
-
-          logProductHistory(p.id, p.name, 'Adjustment', 0, 'Global Sync Stock to Physical');
-          adjustedCount++;
+            for (let item of list) {
+                if (item.inst) {
+                    try {
+                        const state = item.inst.getState();
+                        if (state === Html5QrcodeScannerState.SCANNING || state === Html5QrcodeScannerState.PAUSED) {
+                            await item.inst.stop();
+                        }
+                    } catch (e) {}
+                }
+                if (item.box) {
+                    const el = document.getElementById(item.box);
+                    if (el) el.style.display = 'none';
+                }
+                if (item.btn) {
+                    const el = document.getElementById(item.btn);
+                    if (el) el.innerText = item.text;
+                }
+            }
+            isPhysScannerRunning = false;
+            isSalesScannerRunning = false;
+            isModalScannerRunning = false;
         }
-      });
 
-      saveProducts(products);
-      renderPhysicalAuditTable();
-      alert(`Synchronized book stock for ${adjustedCount} items.`);
-    }
-
-    /* ==========================================================================
-       13. TAB 8 & 9: PRODUCT & VENDOR LOGS
-       ========================================================================== */
-    function renderProductLogTable() {
-      const history = getProductHistory();
-      const tbody = document.getElementById('product-log-body');
-      tbody.innerHTML = '';
-
-      history.forEach(log => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td><small>${log.timestamp}</small></td>
-          <td><strong>${escapeHtml(log.productName)}</strong></td>
-          <td><span class="badge badge-info">${log.actionType}</span></td>
-          <td style="font-weight: bold; color: ${log.qtyChange < 0 ? 'var(--accent-red)' : 'var(--accent-green)'}">${log.qtyChange > 0 ? '+' + log.qtyChange : log.qtyChange}</td>
-          <td>${escapeHtml(log.refNotes)}</td>
-        `;
-        tbody.appendChild(tr);
-      });
-    }
-
-    function clearProductHistory() {
-      if (confirm("Clear product history log?")) {
-        localStorage.setItem(STORAGE_KEYS.HISTORY, JSON.stringify([]));
-        renderProductLogTable();
-      }
-    }
-
-    function renderVendorLogTable() {
-      const history = getVendorHistory();
-      const tbody = document.getElementById('vendor-log-body');
-      tbody.innerHTML = '';
-
-      history.forEach(log => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td><small>${log.timestamp}</small></td>
-          <td><strong>${escapeHtml(log.vendorName)}</strong></td>
-          <td><span class="badge badge-info">${log.actionType}</span></td>
-          <td>${escapeHtml(log.details)}</td>
-          <td>$${log.value ? log.value.toFixed(2) : '0.00'}</td>
-        `;
-        tbody.appendChild(tr);
-      });
-    }
-
-    function clearVendorHistory() {
-      if (confirm("Clear vendor history log?")) {
-        localStorage.setItem(STORAGE_KEYS.VENDOR_HISTORY, JSON.stringify([]));
-        renderVendorLogTable();
-      }
-    }
-
-    /* ==========================================================================
-       14. CSV IMPORT ENGINE & PARSER
-       ========================================================================== */
-    function openCsvModal() {
-      document.getElementById('csv-file-input').value = '';
-      document.getElementById('csv-raw-text').value = '';
-      openModal('modal-csv');
-    }
-
-    function previewCsvFile(event) {
-      const file = event.target.files[0];
-      if (!file) return;
-
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        document.getElementById('csv-raw-text').value = e.target.result;
-      };
-      reader.readAsText(file);
-    }
-
-    function parseCSVLine(line) {
-      const result = [];
-      let current = '';
-      let inQuotes = false;
-
-      for (let i = 0; i < line.length; i++) {
-        const char = line[i];
-        if (inQuotes) {
-          if (char === '"') {
-            if (i + 1 < line.length && line[i + 1] === '"') {
-              current += '"';
-              i++;
+        function handleCameraError(err, cameraLabel = "Camera") {
+            const errStr = String(err || '');
+            if (errStr.includes("NotAllowedError") || errStr.includes("Permission denied") || errStr.includes("PermissionDeniedError")) {
+                alert("📷 Camera Access Blocked!\n\nYour browser or OS blocked camera access.\n\nSteps to fix:\n1. Ensure you access this site via HTTPS (e.g. GitHub Pages).\n2. Open device Settings -> Safari/Chrome -> Camera -> Allow.\n3. Reload page and try scanning again.");
             } else {
-              inQuotes = false;
+                alert(`Could not start ${cameraLabel}: ` + (err || "Hardware unavailable"));
             }
-          } else {
-            current += char;
-          }
-        } else {
-          if (char === '"') {
-            inQuotes = true;
-          } else if (char === ',') {
-            result.push(current.trim());
-            current = '';
-          } else {
-            current += char;
-          }
         }
-      }
-      result.push(current.trim());
-      return result;
-    }
 
-    function processCsvImport() {
-      const text = document.getElementById('csv-raw-text').value.trim();
-      if (!text) { alert('No CSV content found.'); return; }
+        /* --- POPULATE ALL CAMERA DROPDOWNS USING STANDARD WEB API --- */
+        async function updateAllCameraDropdowns() {
+            try {
+                if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
+                
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const videoDevices = devices.filter(d => d.kind === 'videoinput');
+                if (videoDevices.length === 0) return;
 
-      const lines = text.split(/\r?\n/).filter(l => l.trim().length > 0);
-      if (lines.length < 2) { alert('CSV must contain a header line and data rows.'); return; }
+                const selectIds = ['phys-camera-select', 'sales-camera-select', 'modal-camera-select'];
 
-      const headers = parseCSVLine(lines[0]).map(h => h.toLowerCase());
-      const products = getProducts();
-      let importedCount = 0;
+                selectIds.forEach(selectId => {
+                    const select = document.getElementById(selectId);
+                    if (!select) return;
 
-      for (let i = 1; i < lines.length; i++) {
-        const cols = parseCSVLine(lines[i]);
-        if (cols.length === 0) continue;
+                    select.innerHTML = '';
+                    let matched = false;
 
-        const rawObj = {};
-        headers.forEach((h, idx) => {
-          const val = cols[idx] !== undefined ? cols[idx] : '';
-          if (h.includes('base upc') || h === 'baseupc') rawObj.baseUpc = val;
-          else if (h.includes('bulk upc') || h === 'bulkupc') rawObj.bulkUpc = val;
-          else if (h.includes('name') || h === 'product name') rawObj.name = val;
-          else if (h.includes('brand')) rawObj.brand = val;
-          else if (h.includes('base uom')) rawObj.baseUom = val;
-          else if (h.includes('bulk uom')) rawObj.bulkUom = val;
-          else if (h.includes('conversion')) rawObj.uomConversion = Number(val);
-          else if (h.includes('stock') && !h.includes('physical')) rawObj.stock = Number(val);
-          else if (h.includes('physical')) rawObj.physicalInventory = Number(val);
-          else if (h.includes('reorder')) rawObj.reorderPoint = Number(val);
-          else if (h.includes('cost')) rawObj.cost = Number(val);
-          else if (h.includes('price')) rawObj.listPrice = Number(val);
-          else if (h.includes('category')) rawObj.category = val;
-          else if (h.includes('sku')) rawObj.sku = val;
-          else if (h.includes('item number')) rawObj.itemNumber = val;
+                    videoDevices.forEach((device, index) => {
+                        const option = document.createElement('option');
+                        option.value = device.deviceId;
+                        option.text = device.label || `Camera ${index + 1}`;
+
+                        if (device.deviceId === preferredCameraId) {
+                            option.selected = true;
+                            matched = true;
+                        } else if (!matched && !preferredCameraId && (
+                            (device.label || '').toLowerCase().includes('back') || 
+                            (device.label || '').toLowerCase().includes('rear') ||
+                            (device.label || '').toLowerCase().includes('environment') ||
+                            (device.label || '').toLowerCase().includes('main') ||
+                            (device.label || '').toLowerCase().includes('0')
+                        )) {
+                            option.selected = true;
+                            preferredCameraId = device.deviceId;
+                            matched = true;
+                        }
+                        select.appendChild(option);
+                    });
+
+                    if (!matched && select.options.length > 0) {
+                        select.options[0].selected = true;
+                        preferredCameraId = select.options[0].value;
+                    }
+                });
+            } catch (err) {}
+        }
+
+        async function onCameraSelectChange(newCameraId) {
+            if (!newCameraId) return;
+            preferredCameraId = newCameraId;
+            localStorage.setItem('jomarket_preferred_camera', preferredCameraId);
+
+            ['phys-camera-select', 'sales-camera-select', 'modal-camera-select'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.value = preferredCameraId;
+            });
+
+            if (isPhysScannerRunning) {
+                await startPhysScanner();
+            } else if (isSalesScannerRunning) {
+                await startSalesScanner();
+            } else if (isModalScannerRunning) {
+                await startModalUPCScanner();
+            }
+        }
+
+        /* --- SCANNER 1: PHYSICAL INVENTORY AUDIT SCANNER --- */
+        async function startPhysScanner() {
+            await stopAllScanners();
+
+            const box = document.getElementById('phys-reader-box');
+            const btn = document.getElementById('btn-phys-toggle');
+            box.style.display = 'block';
+            btn.innerText = '⏹ Stop Audit Scanner';
+
+            if (!physQrCode) physQrCode = new Html5Qrcode("phys-reader");
+
+            let configsToTry = [];
+            if (preferredCameraId) {
+                configsToTry.push({ deviceId: { exact: preferredCameraId } });
+                configsToTry.push(preferredCameraId);
+            }
+            configsToTry.push({ facingMode: "environment" });
+            configsToTry.push({ facingMode: "user" });
+
+            let started = false;
+            let lastErr = null;
+
+            for (let config of configsToTry) {
+                try {
+                    await physQrCode.start(
+                        config,
+                        { fps: 10, qrbox: { width: 250, height: 150 } },
+                        onPhysBarcodeScanned,
+                        (err) => {}
+                    );
+                    started = true;
+                    isPhysScannerRunning = true;
+                    await updateAllCameraDropdowns();
+                    break;
+                } catch (err) {
+                    lastErr = err;
+                }
+            }
+
+            if (!started) {
+                await stopAllScanners();
+                handleCameraError(lastErr, "Audit Camera");
+            }
+        }
+
+        async function togglePhysScanner() {
+            if (isPhysScannerRunning) await stopAllScanners();
+            else await startPhysScanner();
+        }
+
+        function onPhysBarcodeScanned(code) {
+            const clean = code.trim();
+            const p = products.find(x => 
+                (x.upc || '').trim() === clean || 
+                (x.sku || '').trim().toLowerCase() === clean.toLowerCase() ||
+                (x.itemNumber || '').trim().toLowerCase() === clean.toLowerCase()
+            );
+
+            const resDiv = document.getElementById('phys-scan-result');
+
+            if (p) {
+                p.physicalInventory = (parseInt(p.physicalInventory) || 0) + 1;
+                p.variance = p.physicalInventory - p.stock;
+                saveState();
+                renderPhysicalTable();
+
+                const diff = p.variance;
+                let varText = diff === 0 ? 'Balanced' : (diff > 0 ? `+${diff}` : `${diff}`);
+                resDiv.innerHTML = `
+                    <div style="background:var(--success-bg); border:1px solid var(--success); color:#065f46; padding:10px; border-radius:8px; font-size:0.85rem; margin-top:8px;">
+                        <strong>✅ Item Counted (+1):</strong> ${escapeHtml(p.name)}<br>
+                        Physical Count: <strong>${p.physicalInventory}</strong> (Book Stock: ${p.stock} | Variance: <strong>${varText}</strong>)
+                    </div>
+                `;
+            } else {
+                resDiv.innerHTML = `
+                    <div style="background:var(--danger-bg); border:1px solid var(--danger); color:#991b1b; padding:10px; border-radius:8px; font-size:0.85rem; margin-top:8px;">
+                        <strong>⚠️ Barcode Not Found:</strong> <code>${escapeHtml(clean)}</code><br>
+                        This code is not assigned to any product. Add it in the Inventory tab first.
+                    </div>
+                `;
+            }
+        }
+
+        /* --- SCANNER 2: OUTGOING SALES SHEET SCANNER --- */
+        async function startSalesScanner() {
+            await stopAllScanners();
+
+            const box = document.getElementById('sales-reader-box');
+            box.style.display = 'block';
+
+            if (!salesQrCode) salesQrCode = new Html5Qrcode("sales-reader");
+
+            let configsToTry = [];
+            if (preferredCameraId) {
+                configsToTry.push({ deviceId: { exact: preferredCameraId } });
+                configsToTry.push(preferredCameraId);
+            }
+            configsToTry.push({ facingMode: "environment" });
+            configsToTry.push({ facingMode: "user" });
+
+            let started = false;
+            let lastErr = null;
+
+            for (let config of configsToTry) {
+                try {
+                    await salesQrCode.start(
+                        config,
+                        { fps: 10, qrbox: { width: 220, height: 140 } },
+                        (code) => {
+                            const clean = code.trim();
+                            const p = products.find(x => 
+                                (x.upc || '').trim() === clean || 
+                                (x.sku || '').trim().toLowerCase() === clean.toLowerCase()
+                            );
+                            if (p) {
+                                if (p.stock <= 0) alert(`Product "${p.name}" found, but it is OUT OF STOCK!`);
+                                else {
+                                    document.getElementById('so-item-select').value = p.id;
+                                    alert(`Selected: ${p.name}`);
+                                }
+                                stopAllScanners();
+                            } else {
+                                alert(`No product found with barcode: ${clean}`);
+                            }
+                        },
+                        (err) => {}
+                    );
+                    started = true;
+                    isSalesScannerRunning = true;
+                    await updateAllCameraDropdowns();
+                    break;
+                } catch (err) {
+                    lastErr = err;
+                }
+            }
+
+            if (!started) {
+                await stopAllScanners();
+                handleCameraError(lastErr, "Sales Scanner");
+            }
+        }
+
+        /* --- SCANNER 3: IN-MODAL ADD/EDIT ITEM UPC SCANNER --- */
+        async function startModalUPCScanner() {
+            await stopAllScanners();
+
+            const box = document.getElementById('modal-upc-reader-box');
+            box.style.display = 'block';
+
+            if (!modalQrCode) modalQrCode = new Html5Qrcode("modal-upc-reader");
+
+            let configsToTry = [];
+            if (preferredCameraId) {
+                configsToTry.push({ deviceId: { exact: preferredCameraId } });
+                configsToTry.push(preferredCameraId);
+            }
+            configsToTry.push({ facingMode: "environment" });
+            configsToTry.push({ facingMode: "user" });
+
+            let started = false;
+            let lastErr = null;
+
+            for (let config of configsToTry) {
+                try {
+                    await modalQrCode.start(
+                        config,
+                        { fps: 10, qrbox: { width: 220, height: 130 } },
+                        (code) => {
+                            document.getElementById('fp-upc').value = code.trim();
+                            stopAllScanners();
+                        },
+                        (err) => {}
+                    );
+                    started = true;
+                    isModalScannerRunning = true;
+                    await updateAllCameraDropdowns();
+                    break;
+                } catch (err) {
+                    lastErr = err;
+                }
+            }
+
+            if (!started) {
+                await stopAllScanners();
+                handleCameraError(lastErr, "Product UPC Scanner");
+            }
+        }
+
+        /* --- INVENTORY TAB --- */
+        function renderInventoryTable() {
+            const q = (document.getElementById('inv-search')?.value || '').toLowerCase();
+            const tbody = document.getElementById('inv-table-body');
+            tbody.innerHTML = '';
+
+            products.filter(p => 
+                p.name.toLowerCase().includes(q) || 
+                (p.brand || '').toLowerCase().includes(q) ||
+                (p.upc || '').includes(q) || 
+                (p.sku || '').toLowerCase().includes(q)
+            ).forEach(p => {
+                const stock = parseInt(p.stock) || 0;
+                const reorder = parseInt(p.reorderPoint) || 0;
+                let pill = `<span class="pill pill-in-stock">In Stock</span>`;
+                if (stock === 0) pill = `<span class="pill pill-out-stock">Out of Stock</span>`;
+                else if (stock <= reorder) pill = `<span class="pill pill-low-stock">Low Stock</span>`;
+
+                const isQueued = poBuilderQueue.includes(p.id);
+
+                tbody.innerHTML += `
+                    <tr>
+                        <td><input type="checkbox" ${isQueued ? 'checked' : ''} onchange="togglePOQueue('${p.id}', this.checked)"></td>
+                        <td>
+                            <strong style="color:var(--primary); cursor:pointer;" onclick="openProductModal('${p.id}')">${escapeHtml(p.name)}</strong>
+                            ${p.brand ? `<br><span style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">🏷️ ${escapeHtml(p.brand)}</span>` : ''}
+                        </td>
+                        <td><code>${escapeHtml(p.upc || 'N/A')}</code></td>
+                        <td>${stock} ${p.unit || ''}</td>
+                        <td>${reorder}</td>
+                        <td>${pill}</td>
+                        <td>${escapeHtml(p.preferredVendor || 'N/A')}</td>
+                        <td><button class="btn btn-danger" style="padding:2px 6px; font-size:0.7rem;" onclick="deleteProduct('${p.id}')">✕ Delete</button></td>
+                    </tr>
+                `;
+            });
+        }
+
+        function togglePOQueue(id, check) {
+            if (check && !poBuilderQueue.includes(id)) poBuilderQueue.push(id);
+            else if (!check) poBuilderQueue = poBuilderQueue.filter(x => x !== id);
+            saveState();
+        }
+
+        /* --- PRODUCT EDIT & DELETE --- */
+        async function openProductModal(id) {
+            await stopAllScanners();
+
+            const p = products.find(x => x.id === String(id)) || { id: '', upc: '', name: '', brand: '', stock: 0, physicalInventory: 0, reorderPoint: 0, parLevel: 0, unit: '', orderUnit: '', unitsPerOrder: 1, listPrice: 0, cost: 0, category: '', preferredVendor: '', sku: '' };
+            
+            document.getElementById('modal-prod-title').innerText = id === -1 ? 'Add New Product' : `Edit: ${p.name}`;
+            document.getElementById('fp-id').value = p.id;
+            document.getElementById('fp-upc').value = p.upc || '';
+            document.getElementById('fp-name').value = p.name || '';
+            document.getElementById('fp-brand').value = p.brand || '';
+            document.getElementById('fp-stock').value = p.stock || 0;
+            document.getElementById('fp-physical').value = p.physicalInventory || 0;
+            document.getElementById('fp-reorder').value = p.reorderPoint || 0;
+            document.getElementById('fp-par').value = p.parLevel || 0;
+            document.getElementById('fp-unit').value = p.unit || '';
+            document.getElementById('fp-orderUnit').value = p.orderUnit || '';
+            document.getElementById('fp-unitsPerOrder').value = p.unitsPerOrder || 1;
+            document.getElementById('fp-listPrice').value = p.listPrice || 0;
+            document.getElementById('fp-cost').value = p.cost || 0;
+            document.getElementById('fp-category').value = p.category || '';
+            document.getElementById('fp-vendor').value = p.preferredVendor || '';
+            document.getElementById('fp-sku').value = p.sku || '';
+
+            document.getElementById('modal-product').classList.add('active');
+        }
+
+        function saveProduct(e) {
+            e.preventDefault();
+            const id = document.getElementById('fp-id').value;
+            const stock = parseInt(document.getElementById('fp-stock').value) || 0;
+            const phys = parseInt(document.getElementById('fp-physical').value) || 0;
+
+            const prodObj = {
+                id: id || String(Date.now()),
+                upc: document.getElementById('fp-upc').value.trim(),
+                name: document.getElementById('fp-name').value.trim(),
+                brand: document.getElementById('fp-brand').value.trim(),
+                stock: stock,
+                physicalInventory: phys,
+                variance: phys - stock,
+                reorderPoint: parseInt(document.getElementById('fp-reorder').value) || 0,
+                parLevel: parseInt(document.getElementById('fp-par').value) || 0,
+                unit: document.getElementById('fp-unit').value.trim(),
+                orderUnit: document.getElementById('fp-orderUnit').value.trim(),
+                unitsPerOrder: parseInt(document.getElementById('fp-unitsPerOrder').value) || 1,
+                listPrice: parseFloat(document.getElementById('fp-listPrice').value) || 0,
+                cost: parseFloat(document.getElementById('fp-cost').value) || 0,
+                category: document.getElementById('fp-category').value.trim(),
+                preferredVendor: document.getElementById('fp-vendor').value.trim(),
+                sku: document.getElementById('fp-sku').value.trim()
+            };
+
+            if (id) {
+                const idx = products.findIndex(x => x.id === id);
+                products[idx] = prodObj;
+                logProductHistory(prodObj.id, 'Manual Edit', 0, 'Updated item properties');
+            } else {
+                products.push(prodObj);
+                logProductHistory(prodObj.id, 'Addition', prodObj.stock, 'Initial creation');
+            }
+
+            saveState();
+            closeModal('modal-product');
+            renderInventoryTable();
+        }
+
+        function deleteProduct(id) {
+            const p = products.find(x => x.id === id);
+            if (!p) return;
+            if (confirm(`Delete "${p.name}"?`)) {
+                const delLog = confirm("Also delete associated history logs?");
+                products = products.filter(x => x.id !== id);
+                if (delLog) {
+                    productHistory = productHistory.filter(x => x.productId !== id);
+                } else {
+                    logProductHistory(id, 'Deletion', -p.stock, 'Product deleted from inventory');
+                }
+                saveState();
+                renderInventoryTable();
+            }
+        }
+
+        /* --- OUTGOING FLOW: JOMARKET SALES DISPATCH --- */
+        function setupSalesTab() {
+            document.getElementById('so-date').value = new Date().toISOString().slice(0, 10);
+            const sel = document.getElementById('so-item-select');
+            sel.innerHTML = '<option value="">-- Choose Product --</option>';
+            products.filter(p => p.stock > 0).forEach(p => {
+                sel.innerHTML += `<option value="${p.id}">${p.name} (${p.stock} on hand)</option>`;
+            });
+            renderSOCart();
+        }
+
+        function addLineToSOQueue() {
+            const pid = document.getElementById('so-item-select').value;
+            const p = products.find(x => x.id === pid);
+            if (!p) return alert("Select a product!");
+
+            const qty = parseInt(document.getElementById('so-qty').value) || 1;
+            if (qty > p.stock) return alert(`Warning: Only ${p.stock} available in stock!`);
+
+            currentSOCart.push({
+                id: p.id,
+                name: p.name,
+                cost: p.cost,
+                stock: p.stock,
+                unit: p.unit,
+                quantity: qty,
+                costCode: document.getElementById('so-cost-code').value.trim() || 'CC-GEN',
+                classification: document.getElementById('so-class').value
+            });
+            renderSOCart();
+        }
+
+        function renderSOCart() {
+            const tbody = document.getElementById('so-cart-body');
+            tbody.innerHTML = '';
+            currentSOCart.forEach((item, idx) => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${escapeHtml(item.name)}</td>
+                        <td>${item.classification}</td>
+                        <td>${item.costCode}</td>
+                        <td>${item.quantity}</td>
+                        <td>$${item.cost.toFixed(2)}</td>
+                        <td>$${(item.quantity * item.cost).toFixed(2)}</td>
+                        <td><button class="btn btn-danger" style="padding:2px 6px;" onclick="currentSOCart.splice(${idx},1); renderSOCart();">✕</button></td>
+                    </tr>
+                `;
+            });
+        }
+
+        function submitSalesOrder() {
+            if (currentSOCart.length === 0) return alert("Cart is empty!");
+
+            const soObj = {
+                soId: `SO-${Math.floor(100000 + Math.random() * 900000)}`,
+                date: document.getElementById('so-date').value,
+                salesPerson: document.getElementById('so-rep').value || 'Unassigned',
+                customerEmail: document.getElementById('so-email').value || 'Receiptstest@jomaconstruction.com',
+                customerAddress: document.getElementById('so-address').value || 'Jobsite',
+                items: [...currentSOCart],
+                totalAmount: currentSOCart.reduce((a, b) => a + (b.quantity * b.cost), 0),
+                status: 'SENT',
+                emailCount: 1,
+                sentAt: new Date().toLocaleString()
+            };
+
+            soObj.items.forEach(item => {
+                const p = products.find(x => x.id === item.id);
+                if (p) {
+                    p.stock -= item.quantity;
+                    p.variance = p.physicalInventory - p.stock;
+                    logProductHistory(p.id, 'Sale', -item.quantity, `Invoice #${soObj.soId} (${item.costCode})`);
+                    
+                    if (p.stock <= p.reorderPoint && !poBuilderQueue.includes(p.id)) {
+                        poBuilderQueue.push(p.id);
+                    }
+                }
+            });
+
+            salesOrders.push(soObj);
+            currentSOCart = [];
+            saveState();
+            alert(`Sales Order ${soObj.soId} created! Inventory subtracted.`);
+            switchTab('tab-sales-history');
+        }
+
+        /* --- SALES HISTORY & GROUPED RECEIPTS --- */
+        function renderSalesHistory() {
+            const tbody = document.getElementById('so-history-body');
+            tbody.innerHTML = '';
+            salesOrders.forEach(so => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td><strong>${so.soId}</strong></td>
+                        <td>${so.date}</td>
+                        <td>${escapeHtml(so.salesPerson)}</td>
+                        <td>${escapeHtml(so.customerEmail)}</td>
+                        <td>$${so.totalAmount.toFixed(2)}</td>
+                        <td><span class="pill pill-in-stock">${so.status} (${so.emailCount})</span></td>
+                        <td>
+                            <button class="btn btn-secondary" style="padding:2px 6px; font-size:0.7rem;" onclick="viewGroupedReceipt('${so.soId}')">View / Print</button>
+                            <button class="btn btn-primary" style="padding:2px 6px; font-size:0.7rem;" onclick="emailReceipt('${so.soId}')">✉️ Email</button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        function viewGroupedReceipt(soId) {
+            const so = salesOrders.find(x => x.soId === soId);
+            if (!so) return;
+
+            const mat = so.items.filter(i => i.classification === 'Materials for Job');
+            const sup = so.items.filter(i => i.classification === 'In-house Supplies');
+
+            const matTot = mat.reduce((a,b) => a + (b.quantity * b.cost), 0);
+            const supTot = sup.reduce((a,b) => a + (b.quantity * b.cost), 0);
+
+            const content = `
+                <h4>Dispatch Invoice: ${so.soId}</h4>
+                <p style="font-size:0.8rem;">Date: ${so.date} | Rep: ${so.salesPerson}</p>
+                <p style="font-size:0.8rem; margin-bottom:12px;">Jobsite: ${so.customerAddress}</p>
+
+                <h5 style="color:var(--primary);">1. Materials for Job</h5>
+                <ul>${mat.map(i => `<li>${i.name} (${i.quantity} @ $${i.cost}) = $${(i.quantity*i.cost).toFixed(2)} [${i.costCode}]</li>`).join('')}</ul>
+                <p><strong>Subtotal Materials: $${matTot.toFixed(2)}</strong></p>
+
+                <h5 style="color:var(--primary); margin-top:8px;">2. In-house Supplies</h5>
+                <ul>${sup.map(i => `<li>${i.name} (${i.quantity} @ $${i.cost}) = $${(i.quantity*i.cost).toFixed(2)} [${i.costCode}]</li>`).join('')}</ul>
+                <p><strong>Subtotal Supplies: $${supTot.toFixed(2)}</strong></p>
+
+                <hr style="margin:12px 0;">
+                <h4>Grand Revenue Total: $${so.totalAmount.toFixed(2)}</h4>
+                <button class="btn btn-primary" style="margin-top:8px;" onclick="window.print()">🖨️ Print Receipt</button>
+            `;
+
+            document.getElementById('modal-po-title').innerText = "Invoice Receipt";
+            document.getElementById('modal-po-content').innerHTML = content;
+            document.getElementById('modal-po-action').classList.add('active');
+        }
+
+        function emailReceipt(soId) {
+            const so = salesOrders.find(x => x.soId === soId);
+            if (!so) return;
+            
+            so.emailCount++;
+            so.sentAt = new Date().toLocaleString();
+            saveState();
+
+            const subject = encodeURIComponent(`Invoice Dispatch Receipt - ${so.soId}`);
+            const body = encodeURIComponent(`Jomarket Dispatch Invoice #${so.soId}\nTotal: $${so.totalAmount.toFixed(2)}\nTarget: ${so.customerAddress}`);
+
+            const a = document.createElement('a');
+            a.href = `mailto:${so.customerEmail}?subject=${subject}&body=${body}`;
+            a.target = '_blank';
+            a.click();
+            renderSalesHistory();
+        }
+
+        /* --- VENDORS TAB --- */
+        function renderVendorTable() {
+            const tbody = document.getElementById('vendor-table-body');
+            tbody.innerHTML = '';
+            vendors.forEach(v => {
+                tbody.innerHTML += `<tr><td><strong>${escapeHtml(v.name)}</strong></td><td>${escapeHtml(v.email)}</td><td>${escapeHtml(v.phone)}</td><td><button class="btn btn-danger" style="padding:2px 6px;" onclick="vendors=vendors.filter(x=>x.id!='${v.id}'); saveState(); renderVendorTable();">✕</button></td></tr>`;
+            });
+        }
+
+        function addVendorPrompt() {
+            const name = prompt("Vendor Name:");
+            if (!name) return;
+            const email = prompt("Vendor Email:");
+            vendors.push({ id: `v${Date.now()}`, name, email: email || '', phone: '' });
+            saveState();
+            renderVendorTable();
+        }
+
+        /* --- PO BUILDER & INCOMING PROCUREMENT --- */
+        function renderPOBuilder() {
+            const tbody = document.getElementById('po-builder-body');
+            tbody.innerHTML = '';
+            poBuilderQueue.forEach(pid => {
+                const p = products.find(x => x.id === pid);
+                if (p) {
+                    tbody.innerHTML += `
+                        <tr>
+                            <td><input type="checkbox" class="po-build-chk" value="${p.id}" checked></td>
+                            <td>${escapeHtml(p.name)}</td>
+                            <td>${escapeHtml(p.preferredVendor || 'N/A')}</td>
+                            <td>${p.stock}</td>
+                            <td>${p.orderUnit || 'case'} (${p.unitsPerOrder} ea)</td>
+                        </tr>
+                    `;
+                }
+            });
+        }
+
+        function createPOFromBuilder() {
+            const checked = Array.from(document.querySelectorAll('.po-build-chk:checked')).map(c => c.value);
+            if (checked.length === 0) return alert("No items selected!");
+
+            const poItems = checked.map(pid => {
+                const p = products.find(x => x.id === pid);
+                return { id: p.id, name: p.name, orderQuantity: 1, receivedQuantity: 0, baseCost: p.cost, orderUnitQuantity: p.unitsPerOrder };
+            });
+
+            const po = {
+                id: `PO-${Math.floor(1000 + Math.random() * 9000)}`,
+                createdAt: new Date().toLocaleDateString(),
+                items: poItems,
+                status: 'Draft',
+                bids: [],
+                winningVendor: null,
+                receptionHistory: []
+            };
+
+            purchaseOrders.push(po);
+            poBuilderQueue = poBuilderQueue.filter(id => !checked.includes(id));
+            saveState();
+            switchTab('tab-po-active');
+        }
+
+        function renderActivePOs() {
+            const tbody = document.getElementById('po-active-body');
+            tbody.innerHTML = '';
+            purchaseOrders.forEach(po => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td><strong>${po.id}</strong></td>
+                        <td>${po.createdAt}</td>
+                        <td><span class="pill pill-low-stock">${po.status}</span></td>
+                        <td>${po.winningVendor ? escapeHtml(po.winningVendor.name) : 'None'}</td>
+                        <td>${po.items.length} items</td>
+                        <td>${getPOActionButton(po)}</td>
+                    </tr>
+                `;
+            });
+        }
+
+        function getPOActionButton(po) {
+            if (po.status === 'Draft') return `<button class="btn btn-primary" style="padding:2px 6px; font-size:0.7rem;" onclick="advancePOStatus('${po.id}')">Send for Bids ➔</button>`;
+            if (po.status === 'Bidding') return `<button class="btn btn-warning" style="padding:2px 6px; font-size:0.7rem;" onclick="openBiddingModal('${po.id}')">Enter Bids ➔</button>`;
+            if (po.status === 'Bids Received') return `<button class="btn btn-success" style="padding:2px 6px; font-size:0.7rem;" onclick="openAwardModal('${po.id}')">Compare & Award ➔</button>`;
+            if (po.status === 'Awarded') return `<button class="btn btn-secondary" style="padding:2px 6px; font-size:0.7rem;" onclick="advancePOStatus('${po.id}')">Mark Sent ➔</button>`;
+            if (po.status === 'Sent') return `<button class="btn btn-success" style="padding:2px 6px; font-size:0.7rem;" onclick="openReceivingModal('${po.id}')">Receive Items ➔</button>`;
+            return `<span style="color:var(--success); font-weight:bold;">Completed</span>`;
+        }
+
+        function advancePOStatus(poId) {
+            const po = purchaseOrders.find(x => x.id === poId);
+            if (!po) return;
+            if (po.status === 'Draft') po.status = 'Bidding';
+            else if (po.status === 'Awarded') po.status = 'Sent';
+            saveState();
+            renderActivePOs();
+        }
+
+        function openBiddingModal(poId) {
+            const po = purchaseOrders.find(x => x.id === poId);
+            let html = `<h4>Enter Bids for ${po.id}</h4>`;
+
+            vendors.forEach(v => {
+                html += `<div style="background:#f1f5f9; padding:8px; margin-top:6px; border-radius:6px;"><strong>${v.name}</strong>`;
+                po.items.forEach(i => {
+                    html += `<div class="form-group" style="margin-top:4px;"><label>${i.name} Bid Price ($):</label><input type="number" step="0.01" class="bid-input form-control" data-vendor="${v.name}" data-item="${i.id}" value="${i.baseCost}"></div>`;
+                });
+                html += `</div>`;
+            });
+
+            html += `<button class="btn btn-success" style="margin-top:12px;" onclick="saveBids('${po.id}')">Save Bids & Process</button>`;
+            document.getElementById('modal-po-title').innerText = "Vendor Bidding";
+            document.getElementById('modal-po-content').innerHTML = html;
+            document.getElementById('modal-po-action').classList.add('active');
+        }
+
+        function saveBids(poId) {
+            const po = purchaseOrders.find(x => x.id === poId);
+            const bids = [];
+            document.querySelectorAll('.bid-input').forEach(inp => {
+                bids.push({
+                    vendor: inp.dataset.vendor,
+                    itemId: inp.dataset.item,
+                    price: parseFloat(inp.value) || 0
+                });
+            });
+            po.bids = bids;
+            po.status = 'Bids Received';
+            saveState();
+            closeModal('modal-po-action');
+            renderActivePOs();
+        }
+
+        function openAwardModal(poId) {
+            const po = purchaseOrders.find(x => x.id === poId);
+            let html = `<h4>Compare Bids for ${po.id}</h4><div class="table-wrapper"><table><thead><tr><th>Item</th>`;
+
+            vendors.forEach(v => html += `<th>${v.name}</th>`);
+            html += `</tr></thead><tbody>`;
+
+            po.items.forEach(item => {
+                html += `<tr><td>${item.name}</td>`;
+                vendors.forEach(v => {
+                    const b = po.bids.find(x => x.vendor === v.name && x.itemId === item.id);
+                    html += `<td>$${b ? b.price.toFixed(2) : 'N/A'}</td>`;
+                });
+                html += `</tr>`;
+            });
+            html += `</tbody></table></div><div style="margin-top:12px;"><strong>Award Contract To:</strong>`;
+
+            vendors.forEach(v => {
+                html += `<button class="btn btn-primary" style="margin-top:4px;" onclick="awardPO('${po.id}', '${v.name}')">Award to ${v.name}</button>`;
+            });
+
+            document.getElementById('modal-po-title').innerText = "Award Contract";
+            document.getElementById('modal-po-content').innerHTML = html;
+            document.getElementById('modal-po-action').classList.add('active');
+        }
+
+        function awardPO(poId, vendorName) {
+            const po = purchaseOrders.find(x => x.id === poId);
+            const v = vendors.find(x => x.name === vendorName);
+            po.winningVendor = v;
+            po.status = 'Awarded';
+
+            logVendorHistory(vendorName, 'Order Awarded', `Awarded contract for ${po.id}`, 0);
+            saveState();
+            closeModal('modal-po-action');
+            renderActivePOs();
+        }
+
+        function openReceivingModal(poId) {
+            const po = purchaseOrders.find(x => x.id === poId);
+            let html = `<h4>Receive Shipment: ${po.id}</h4>`;
+
+            po.items.forEach(i => {
+                html += `
+                    <div style="background:#f1f5f9; padding:8px; margin-top:6px; border-radius:6px;">
+                        <strong>${i.name}</strong>
+                        <div class="grid-2" style="margin-top:4px;">
+                            <div class="form-group"><label>Receive Qty:</label><input type="number" id="rec-qty-${i.id}" class="form-control" value="${i.orderQuantity}"></div>
+                            <div class="form-group"><label>Actual Unit Price ($):</label><input type="number" step="0.01" id="rec-price-${i.id}" class="form-control" value="${i.baseCost}"></div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            html += `<button class="btn btn-success" style="margin-top:12px;" onclick="processPOReception('${po.id}')">Confirm Reception & Stock Add</button>`;
+            document.getElementById('modal-po-title').innerText = "Receive Stock";
+            document.getElementById('modal-po-content').innerHTML = html;
+            document.getElementById('modal-po-action').classList.add('active');
+        }
+
+        function processPOReception(poId) {
+            const po = purchaseOrders.find(x => x.id === poId);
+            po.items.forEach(i => {
+                const qty = parseInt(document.getElementById(`rec-qty-${i.id}`).value) || 0;
+                const actPrice = parseFloat(document.getElementById(`rec-price-${i.id}`).value) || 0;
+                
+                const p = products.find(x => x.id === i.id);
+                if (p) {
+                    p.stock += qty;
+                    p.variance = p.physicalInventory - p.stock;
+                    logProductHistory(p.id, 'Reception', qty, `PO #${po.id} received`);
+                }
+
+                const savings = (i.baseCost - actPrice) * qty;
+                po.receptionHistory.push({ itemId: i.id, qty, actPrice, priceVariance: savings });
+            });
+
+            po.status = 'Received';
+            logVendorHistory(po.winningVendor ? po.winningVendor.name : 'Vendor', 'Shipment Received', `Fulfilled ${po.id}`, 0);
+            saveState();
+            closeModal('modal-po-action');
+            renderActivePOs();
+        }
+
+        /* --- RECONCILIATION & AUDIT LOGS --- */
+        function renderPhysicalTable() {
+            const tbody = document.getElementById('physical-table-body');
+            tbody.innerHTML = '';
+            products.forEach(p => {
+                const diff = (p.physicalInventory || 0) - p.stock;
+                tbody.innerHTML += `
+                    <tr>
+                        <td><strong>${escapeHtml(p.name)}</strong></td>
+                        <td>${p.stock}</td>
+                        <td><input type="number" class="form-control" style="width:80px;" value="${p.physicalInventory || 0}" onchange="updatePhysicalCount('${p.id}', this.value)"></td>
+                        <td><span class="pill ${diff===0?'pill-in-stock':diff<0?'pill-out-stock':'pill-low-stock'}">${diff}</span></td>
+                        <td><button class="btn btn-secondary" style="padding:2px 6px;" onclick="syncStockToPhysical('${p.id}')">Sync Stock</button></td>
+                    </tr>
+                `;
+            });
+        }
+
+        function updatePhysicalCount(id, val) {
+            const p = products.find(x => x.id === id);
+            p.physicalInventory = parseInt(val) || 0;
+            p.variance = p.physicalInventory - p.stock;
+            saveState();
+        }
+
+        function syncStockToPhysical(id) {
+            const p = products.find(x => x.id === id);
+            const adj = p.physicalInventory - p.stock;
+            p.stock = p.physicalInventory;
+            p.variance = 0;
+            logProductHistory(p.id, 'Adjustment', adj, 'Physical audit sync');
+            saveState();
+            renderPhysicalTable();
+        }
+
+        function logProductHistory(pid, action, change, ref) {
+            const p = products.find(x => x.id === pid);
+            productHistory.unshift({
+                timestamp: new Date().toLocaleString(),
+                productId: pid,
+                productName: p ? p.name : 'Unknown',
+                actionType: action,
+                qtyChange: change,
+                refNotes: ref
+            });
+        }
+
+        function logVendorHistory(vendorName, action, details, val) {
+            vendorHistory.unshift({
+                timestamp: new Date().toLocaleString(),
+                vendorName,
+                actionType: action,
+                details,
+                value: val
+            });
+        }
+
+        function renderProductHistory() {
+            const tbody = document.getElementById('prod-history-body');
+            tbody.innerHTML = '';
+            productHistory.forEach(h => {
+                tbody.innerHTML += `<tr><td>${h.timestamp}</td><td>${escapeHtml(h.productName)}</td><td><span class="pill pill-in-stock">${h.actionType}</span></td><td>${h.qtyChange}</td><td>${escapeHtml(h.refNotes)}</td></tr>`;
+            });
+        }
+
+        function renderVendorHistory() {
+            const tbody = document.getElementById('vendor-history-body');
+            tbody.innerHTML = '';
+            vendorHistory.forEach(h => {
+                tbody.innerHTML += `<tr><td>${h.timestamp}</td><td>${escapeHtml(h.vendorName)}</td><td><span class="pill pill-low-stock">${h.actionType}</span></td><td>${escapeHtml(h.details)}</td><td>$${h.value.toFixed(2)}</td></tr>`;
+            });
+        }
+
+        /* --- CSV EXPORT COLUMN CONFIGURATOR MODAL --- */
+        function openExportModal() {
+            renderExportColCheckboxes();
+            document.getElementById('modal-export-cols').classList.add('active');
+        }
+
+        function renderExportColCheckboxes() {
+            const grid = document.getElementById('export-cols-grid');
+            grid.innerHTML = SCHEMA_MAPPING.map(col => {
+                const checked = selectedExportCols.includes(col.key) ? 'checked' : '';
+                return `
+                    <label style="display: flex; align-items: center; gap: 6px; font-size: 0.8rem; cursor: pointer;">
+                        <input type="checkbox" value="${col.key}" ${checked} onchange="onExportColChange('${col.key}', this.checked)">
+                        <span>${escapeHtml(col.label)}</span>
+                    </label>
+                `;
+            }).join('');
+        }
+
+        function onExportColChange(key, isChecked) {
+            if (isChecked) {
+                if (!selectedExportCols.includes(key)) selectedExportCols.push(key);
+            } else {
+                selectedExportCols = selectedExportCols.filter(k => k !== key);
+            }
+        }
+
+        function toggleAllExportCols(selectAll) {
+            if (selectAll) {
+                selectedExportCols = SCHEMA_MAPPING.map(s => s.key);
+            } else {
+                selectedExportCols = [];
+            }
+            renderExportColCheckboxes();
+        }
+
+        function processCSVExportWithCols() {
+            if (selectedExportCols.length === 0) {
+                alert("Please select at least one column to export.");
+                return;
+            }
+
+            const activeCols = SCHEMA_MAPPING.filter(s => selectedExportCols.includes(s.key));
+            let csv = activeCols.map(s => `"${s.label.replace(/"/g, '""')}"`).join(',') + '\n';
+            
+            products.forEach(p => {
+                const row = activeCols.map(col => {
+                    let val = p[col.key];
+                    if (col.key === 'variance') {
+                        val = (p.physicalInventory || 0) - (p.stock || 0);
+                    }
+                    if (val === undefined || val === null) val = '';
+                    return `"${String(val).replace(/"/g, '""')}"`;
+                });
+                csv += row.join(',') + '\n';
+            });
+
+            saveState();
+
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `jomarket_inventory_${new Date().toISOString().slice(0,10)}.csv`;
+            link.click();
+
+            closeModal('modal-export-cols');
+        }
+
+        /* --- QUOTE-AWARE CSV IMPORT PARSER --- */
+        function openCSVImportModal() { document.getElementById('modal-csv').classList.add('active'); }
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById('raw-csv-text').value = e.target.result;
+            };
+            reader.readAsText(file);
+        }
+
+        function parseCSVLine(line) {
+            const result = [];
+            let cur = '';
+            let inQuotes = false;
+            for (let i = 0; i < line.length; i++) {
+                const c = line[i];
+                if (c === '"') {
+                    if (inQuotes && line[i+1] === '"') {
+                        cur += '"';
+                        i++;
+                    } else {
+                        inQuotes = !inQuotes;
+                    }
+                } else if (c === ',' && !inQuotes) {
+                    result.push(cur.trim());
+                    cur = '';
+                } else {
+                    cur += c;
+                }
+            }
+            result.push(cur.trim());
+            return result;
+        }
+
+        function processRawCSVImport() {
+            const text = document.getElementById('raw-csv-text').value.trim();
+            if (!text) return;
+
+            const lines = text.split(/\r?\n/).filter(l => l.trim().length > 0);
+            if (lines.length === 0) return;
+
+            let start = 0;
+            const firstLine = lines[0].toLowerCase();
+            if (firstLine.includes('upc') || firstLine.includes('product name')) {
+                start = 1;
+            }
+
+            let importedCount = 0;
+            for (let i = start; i < lines.length; i++) {
+                const row = parseCSVLine(lines[i]);
+                if (row.length < 2) continue;
+
+                const stock = parseInt(row[3]) || 0;
+                const physical = parseInt(row[4]) || 0;
+
+                products.push({
+                    id: String(Date.now() + i),
+                    upc: row[0] || '',
+                    name: row[1] || 'Imported Item',
+                    brand: row[2] || '',
+                    stock: stock,
+                    physicalInventory: physical,
+                    variance: physical - stock,
+                    reorderPoint: parseInt(row[6]) || 0,
+                    parLevel: parseInt(row[7]) || 0,
+                    unit: row[8] || '',
+                    orderUnit: row[9] || '',
+                    unitsPerOrder: parseInt(row[10]) || 1,
+                    status: row[11] || 'In Stock',
+                    listPrice: parseFloat(row[12]) || 0,
+                    cost: parseFloat(row[13]) || 0,
+                    category: row[14] || '',
+                    preferredVendor: row[15] || '',
+                    website: row[16] || '',
+                    sku: row[17] || '',
+                    asin: row[18] || '',
+                    itemNumber: row[19] || '',
+                    modelNumber: row[20] || ''
+                });
+                importedCount++;
+            }
+
+            saveState();
+            closeModal('modal-csv');
+            renderInventoryTable();
+            alert(`Successfully imported ${importedCount} items with Brand Name!`);
+        }
+
+        async function closeModal(id) { 
+            await stopAllScanners();
+            const fileInput = document.getElementById('csv-file-input');
+            if (fileInput) fileInput.value = '';
+            document.getElementById(id).classList.remove('active'); 
+        }
+
+        function escapeHtml(str) { return String(str||'').replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            updateDashboard();
+            renderInventoryTable();
         });
-
-        if (rawObj.name) {
-          const migrated = migrateProductData(rawObj);
-          const existingIdx = products.findIndex(p => p.baseUpc && p.baseUpc === migrated.baseUpc);
-          
-          if (existingIdx >= 0) {
-            products[existingIdx] = migrated;
-          } else {
-            products.push(migrated);
-          }
-          importedCount++;
-        }
-      }
-
-      saveProducts(products);
-      closeModal('modal-csv');
-      renderInventoryTable();
-      alert(`Successfully imported ${importedCount} product records!`);
-    }
-
-    /* ==========================================================================
-       15. CSV EXPORT CONFIGURATOR LOGIC
-       ========================================================================== */
-    function openExportColsModal() {
-      const container = document.getElementById('export-cols-checklist');
-      container.innerHTML = '';
-      
-      const savedCols = JSON.parse(localStorage.getItem(STORAGE_KEYS.EXPORT_COLS) || '[]');
-      const defaultCheck = savedCols.length > 0 ? savedCols : Object.keys(SCHEMA_MAPPING);
-
-      Object.keys(SCHEMA_MAPPING).forEach(key => {
-        const isChecked = defaultCheck.includes(key);
-        container.innerHTML += `
-          <label style="font-size: 0.8rem; display: flex; align-items: center; gap: 6px;">
-            <input type="checkbox" class="export-col-cb" value="${key}" ${isChecked ? 'checked' : ''}>
-            ${SCHEMA_MAPPING[key]}
-          </label>
-        `;
-      });
-
-      openModal('modal-export-cols');
-    }
-
-    function toggleExportAllCols(selectState) {
-      document.querySelectorAll('.export-col-cb').forEach(cb => cb.checked = selectState);
-    }
-
-    function executeCsvExport() {
-      const selectedKeys = Array.from(document.querySelectorAll('.export-col-cb:checked')).map(cb => cb.value);
-      if (selectedKeys.length === 0) {
-        alert('Select at least one column to export.');
-        return;
-      }
-
-      localStorage.setItem(STORAGE_KEYS.EXPORT_COLS, JSON.stringify(selectedKeys));
-      const products = getProducts();
-
-      let csv = selectedKeys.map(k => `"${SCHEMA_MAPPING[k]}"`).join(',') + '\n';
-
-      products.forEach(p => {
-        const row = selectedKeys.map(k => {
-          let val = p[k] !== undefined ? p[k] : '';
-          if (typeof val === 'string') {
-            val = `"${val.replace(/"/g, '""')}"`;
-          }
-          return val;
-        }).join(',');
-        csv += row + '\n';
-      });
-
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.setAttribute('download', `Jomarket_Inventory_${new Date().toISOString().split('T')[0]}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-
-      closeModal('modal-export-cols');
-    }
-
-    /* ==========================================================================
-       16. GLOBAL APP INITIALIZATION
-       ========================================================================== */
-    window.addEventListener('DOMContentLoaded', () => {
-      initSeedData();
-      populateCameraSelectors();
-      updateGlobalBadgesAndStats();
-      renderInventoryTable();
-    });
-  </script>
+    </script>
 </body>
 </html>
